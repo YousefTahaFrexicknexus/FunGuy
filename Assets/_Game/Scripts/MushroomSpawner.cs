@@ -137,6 +137,7 @@ public class MushroomSpawner : MonoBehaviour
 
         go.transform.position = position;
         go.transform.rotation = Quaternion.identity;
+        go.transform.localScale = Random.Range(1.5f, 2f) * Vector3.one; // Optional random scale for variety
 
         return go;
     }

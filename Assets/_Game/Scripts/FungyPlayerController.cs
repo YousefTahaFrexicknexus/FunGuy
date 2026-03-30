@@ -154,21 +154,52 @@ public class FungyPlayerController : MonoBehaviour
         isBounceFalling = false;
 
         Vector3 velocity = rb.linearVelocity;
-
-        Vector3 forward = ForwardDir.normalized;
-
-        // clear current forward + vertical so jump always starts clean
         velocity.y = 0f;
-        velocity -= forward * Vector3.Dot(velocity, forward);
 
-        // stronger forward pop + sharper vertical
-        velocity += forward * tapForwardVelocity;
-        velocity.y = tapUpVelocity;
+        Vector3 jumpVelocity = ForwardDir * tapForwardVelocity;
+        jumpVelocity.y = tapUpVelocity;
 
-        rb.linearVelocity = velocity;
+        rb.linearVelocity = velocity + jumpVelocity;
 
-        GameplayEvents.OnAirJump?.Invoke(remainingAirJumps);
+        // Event
+        GameplayEvents.OnAirJump?.Invoke(remainingAirJumps); 
     }
+
+    // New
+    // void TryTapJump()
+    // {
+    //     if (Time.time - lastTapTime < tapCooldown)
+    //     {
+    //         return;
+    //     }
+
+    //     if (remainingAirJumps <= 0)
+    //     {
+    //         return;
+    //     }
+
+    //     lastTapTime = Time.time;
+    //     remainingAirJumps--;
+
+    //     isBounceActive = false;
+    //     isBounceFalling = false;
+
+    //     Vector3 velocity = rb.linearVelocity;
+
+    //     Vector3 forward = ForwardDir.normalized;
+
+    //     // clear current forward + vertical so jump always starts clean
+    //     velocity.y = 0f;
+    //     velocity -= forward * Vector3.Dot(velocity, forward);
+
+    //     // stronger forward pop + sharper vertical
+    //     velocity += forward * tapForwardVelocity;
+    //     velocity.y = tapUpVelocity;
+
+    //     rb.linearVelocity = velocity;
+
+    //     GameplayEvents.OnAirJump?.Invoke(remainingAirJumps);
+    // }
 
     void HandleBounceMovement(ref Vector3 velocity)
     {

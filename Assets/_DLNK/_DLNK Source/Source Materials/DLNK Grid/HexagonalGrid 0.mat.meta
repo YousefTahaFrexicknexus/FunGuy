@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: f6a86a47c0edd3640b105b7411795193
+timeCreated: 1438819266
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 105425
+  packageName: Ancient Caverns
+  packageVersion: 1.0.5
+  assetPath: Assets/_DLNK/_DLNK Source/Source Materials/DLNK Grid/HexagonalGrid 0.mat
+  uploadId: 571538

@@ -47,4 +47,10 @@ public class HUD_UI : MonoBehaviour
             jumpImage.sprite = jumpActive_Sprite;
         }
     }
+
+    public void ResetPlayerPosition()
+    {
+        Debug.Log($"GameManager.Instance == null?: {GameManager.Instance == null}");
+        GameManager.Instance.ResetPlayerPosition();
+    }
 }

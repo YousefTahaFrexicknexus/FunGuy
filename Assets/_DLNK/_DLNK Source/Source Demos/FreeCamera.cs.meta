@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: 320e26f792bc2924391a8abdb1f032c2
+timeCreated: 1510770405
+licenseType: Store
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 105425
+  packageName: Ancient Caverns
+  packageVersion: 1.0.5
+  assetPath: Assets/_DLNK/_DLNK Source/Source Demos/FreeCamera.cs
+  uploadId: 571538
