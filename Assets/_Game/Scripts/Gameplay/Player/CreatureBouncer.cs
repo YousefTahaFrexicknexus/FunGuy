@@ -178,6 +178,8 @@ public class CreatureBouncer : MonoBehaviour
         squashRoutine = StartCoroutine(SquashStretchSequence(0.75f));
 
         PlayAirJumpFX(jumpIndex);
+
+        GameplayEvents.OnAirJump?.Invoke(airJumpsRemaining);
     }
 
     void PlayAirJumpFX(int jumpIndex)
