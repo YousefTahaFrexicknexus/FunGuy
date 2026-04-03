@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4fdf9e90f00634c9b97be07e998c9a, type: 3}
+  m_Name: RunnerGenerationProfile
+  m_EditorClassIdentifier: Assembly-CSharp::FunGuy.Runner.RunnerGenerationProfile
+  chunkLength: 14
+  spawnAheadChunks: 4
+  recycleBehindChunks: 2
+  introFilledSlices: 5
+  introFillAllLanes: 1
+  introDisableRandomContent: 1
+  difficultyRampDistanceCells: 180
+  startingLaneChangeChance: 0.08
+  startingLayerChangeChance: 0
+  startingBonusPlatformChance: 0.1
+  startingHazardChance: 0
+  startingCollectibleChance: 0.58
+  startingSupportPlatformChance: 0.12
+  laneChangeChance: 0.45
+  layerChangeChance: 0.24
+  bonusPlatformChance: 0.3
+  hazardChance: 0.22
+  collectibleChance: 0.38
+  supportPlatformChance: 0.2
+  alwaysSpawnSupportPlatformOnClimb: 1
+  minimumSlicesBetweenSupportPlatforms: 4
+  seed: 1337
+  randomizeSeed: 1
+  platformDefinitions:
+  - {fileID: 11400000, guid: 25555cbb94d035e41a3a094fde7ae442, type: 2}
+  supportPlatformDefinitions:
+  - {fileID: 11400000, guid: b519f02972c906643a341bd2c33d965a, type: 2}
+  hazardDefinitions:
+  - {fileID: 11400000, guid: ac2ada1d44d6a314195ff13984db0e5c, type: 2}
+  collectibleDefinitions:
+  - {fileID: 11400000, guid: 4c83a2aa1a278224f840b5e8c70d5050, type: 2}
