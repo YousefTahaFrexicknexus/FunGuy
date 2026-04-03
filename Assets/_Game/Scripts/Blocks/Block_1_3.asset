@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 91706d5c8dd471142bcf36e5756db593, type: 3}
-  m_Name: Block_1
+  m_Name: Block_1_3
   m_EditorClassIdentifier: Assembly-CSharp::BlockData
-  prefab: {fileID: 8470396951233109412, guid: 36f8a5852d8e0b847bc94eddf15ce005, type: 3}
-  zLength: 40
+  prefab: {fileID: 8470396951233109412, guid: 7e38e0f182b0eff4d940952244674dc8, type: 3}
+  zLength: 80
