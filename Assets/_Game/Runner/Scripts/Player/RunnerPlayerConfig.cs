@@ -16,12 +16,14 @@ namespace FunGuy.Runner
         [SerializeField] private float minimumTimeBetweenBounces = 0.12f;
         [SerializeField] private float anticipationDuration = 0.08f;
         [SerializeField] private float anticipationDip = 0.1f;
-        [SerializeField] private float jumpDuration = 0.6f;
-        [SerializeField] private float minimumJumpDuration = 0.38f;
-        [SerializeField] private float jumpArcHeight = 1.55f;
+        [SerializeField] private float jumpDuration = 0.82f;
+        [SerializeField] private float minimumJumpDuration = 0.58f;
         [SerializeField] private float landingPause = 0.12f;
         [SerializeField] private float minimumLandingPause = 0.05f;
         [SerializeField] private int speedRampDistanceCells = 320;
+
+        [Header("Forward Reach")]
+        [SerializeField] private int baseForwardCells = 1;
 
         [Header("Mid-Air Steering")]
         [SerializeField, Range(0.1f, 1f)] private float retargetLockProgress = 0.92f;
@@ -30,6 +32,11 @@ namespace FunGuy.Runner
         [SerializeField] private int maxExtraJumps = 2;
         [SerializeField] private int extraForwardCells = 1;
         [SerializeField] private int extraJumpUpCells = 1;
+
+        [Header("Jump Arc")]
+        [SerializeField] private float jumpArcHeight = 2.45f;
+        [SerializeField] private float additionalArcHeightPerForwardCell = 1.05f;
+        [SerializeField] private float additionalArcHeightPerUpCell = 0.55f;
 
         [Header("Scoring")]
         [SerializeField] private int scorePerForwardCell = 10;
@@ -57,7 +64,10 @@ namespace FunGuy.Runner
         public float AnticipationDip => anticipationDip;
         public float JumpDuration => jumpDuration;
         public float MinimumJumpDuration => minimumJumpDuration;
+        public int BaseForwardCells => baseForwardCells > 0 ? baseForwardCells : 1;
         public float JumpArcHeight => jumpArcHeight;
+        public float AdditionalArcHeightPerForwardCell => additionalArcHeightPerForwardCell;
+        public float AdditionalArcHeightPerUpCell => additionalArcHeightPerUpCell;
         public float LandingPause => landingPause;
         public float MinimumLandingPause => minimumLandingPause;
         public int SpeedRampDistanceCells => speedRampDistanceCells;
@@ -65,6 +75,7 @@ namespace FunGuy.Runner
         public int MaxExtraJumps => maxExtraJumps;
         public int ExtraForwardCells => extraForwardCells > 0 ? extraForwardCells : 1;
         public int ExtraJumpUpCells => extraJumpUpCells > 0 ? extraJumpUpCells : 1;
+        public int MaximumReachableForwardCells => BaseForwardCells + (MaxExtraJumps * ExtraForwardCells);
         public int ScorePerForwardCell => scorePerForwardCell > 0 ? scorePerForwardCell : 10;
         public int ScorePerCollectible => scorePerCollectible > 0 ? scorePerCollectible : 25;
         public float FailFallDuration => failFallDuration;
@@ -102,6 +113,42 @@ namespace FunGuy.Runner
             return Mathf.Lerp(landingPause, minimumLandingPause, EvaluateSpeedRamp(traveledCells));
         }
 
+        public int GetForwardCellsForJumpExtensions(int jumpExtensions)
+        {
+            return BaseForwardCells + (Mathf.Max(0, jumpExtensions) * ExtraForwardCells);
+        }
+
+        public bool CanReachForwardCellCount(int forwardCells)
+        {
+            if (forwardCells < BaseForwardCells)
+            {
+                return false;
+            }
+
+            int extraForwardDistance = forwardCells - BaseForwardCells;
+
+            if (extraForwardDistance == 0)
+            {
+                return true;
+            }
+
+            if (ExtraForwardCells <= 0 || extraForwardDistance % ExtraForwardCells != 0)
+            {
+                return false;
+            }
+
+            return extraForwardDistance / ExtraForwardCells <= MaxExtraJumps;
+        }
+
+        public float GetJumpArcHeight(int forwardCells, int upwardCells)
+        {
+            int extraForwardDistance = Mathf.Max(0, forwardCells - BaseForwardCells);
+            int extraUpwardDistance = Mathf.Max(0, upwardCells);
+            return jumpArcHeight +
+                   (extraForwardDistance * additionalArcHeightPerForwardCell) +
+                   (extraUpwardDistance * additionalArcHeightPerUpCell);
+        }
+
         private void OnValidate()
         {
             initialBounceDelay = Mathf.Max(0f, initialBounceDelay);
@@ -111,7 +158,10 @@ namespace FunGuy.Runner
             anticipationDip = Mathf.Max(0f, anticipationDip);
             jumpDuration = Mathf.Max(0.05f, jumpDuration);
             minimumJumpDuration = Mathf.Max(0.05f, minimumJumpDuration);
+            baseForwardCells = Mathf.Max(1, baseForwardCells);
             jumpArcHeight = Mathf.Max(0.1f, jumpArcHeight);
+            additionalArcHeightPerForwardCell = Mathf.Max(0f, additionalArcHeightPerForwardCell);
+            additionalArcHeightPerUpCell = Mathf.Max(0f, additionalArcHeightPerUpCell);
             landingPause = Mathf.Max(0f, landingPause);
             minimumLandingPause = Mathf.Max(0f, minimumLandingPause);
             speedRampDistanceCells = Mathf.Max(1, speedRampDistanceCells);

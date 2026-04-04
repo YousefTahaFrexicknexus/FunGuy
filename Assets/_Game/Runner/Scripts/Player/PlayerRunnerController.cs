@@ -146,6 +146,8 @@ namespace FunGuy.Runner
                 gridSystem.CellToWorld(jumpStartCell),
                 gridSystem.CellToWorld(plannedTargetCell),
                 config.GetJumpDuration(currentCell.z),
+                GetCurrentFlightForwardCells(),
+                GetPlannedUpwardCells(),
                 ResolveJumpArrival);
         }
 
@@ -195,29 +197,38 @@ namespace FunGuy.Runner
 
             if (candidate == plannedTargetCell)
             {
+                jumpMotor.RetargetLanding(
+                    gridSystem.CellToWorld(plannedTargetCell),
+                    GetCurrentFlightForwardCells(),
+                    GetPlannedUpwardCells(),
+                    intent.LayerDelta > 0);
                 return;
             }
 
             plannedTargetCell = candidate;
-            jumpMotor.RetargetLanding(gridSystem.CellToWorld(plannedTargetCell), intent.LayerDelta > 0);
+            jumpMotor.RetargetLanding(
+                gridSystem.CellToWorld(plannedTargetCell),
+                GetCurrentFlightForwardCells(),
+                GetPlannedUpwardCells(),
+                intent.LayerDelta > 0);
             RunnerGameEvents.RaisePlayerJumpStarted(jumpStartCell, plannedTargetCell);
         }
 
         private Vector3Int BuildTargetCell(Vector3Int originCell, MovementIntent intent)
         {
-            int forwardSteps = 1 + (currentAirJumpExtensions * config.ExtraForwardCells);
+            int forwardSteps = config.GetForwardCellsForJumpExtensions(currentAirJumpExtensions);
             Vector3Int requestedCell = new(
                 originCell.x + intent.LaneDelta,
                 originCell.y + intent.LayerDelta,
                 originCell.z + forwardSteps);
 
-            Vector3Int fallbackCell = new(requestedCell.x, originCell.y, requestedCell.z);
-            return ResolveLandingCell(fallbackCell, requestedCell, intent.LayerDelta > 0);
+            Vector3Int lowerFallbackCell = new(requestedCell.x, originCell.y, requestedCell.z);
+            return ResolveLandingCell(requestedCell, lowerFallbackCell, requestedCell);
         }
 
         private Vector3Int BuildRetargetedCell(MovementIntent intent)
         {
-            int forwardSteps = 1 + (currentAirJumpExtensions * config.ExtraForwardCells);
+            int forwardSteps = config.GetForwardCellsForJumpExtensions(currentAirJumpExtensions);
 
             int lane = intent.LaneDelta != 0 ? jumpStartCell.x + intent.LaneDelta : plannedTargetCell.x;
             int layer = plannedTargetCell.y;
@@ -234,8 +245,27 @@ namespace FunGuy.Runner
             }
 
             Vector3Int requestedCell = new(lane, layer, jumpStartCell.z + forwardSteps);
-            Vector3Int fallbackCell = new(requestedCell.x, fallbackLayer, requestedCell.z);
-            return ResolveLandingCell(fallbackCell, requestedCell, requestedCell.y > fallbackLayer);
+            Vector3Int lowerFallbackCell = new(requestedCell.x, fallbackLayer, requestedCell.z);
+            return ResolveLandingCell(requestedCell, lowerFallbackCell, plannedTargetCell);
+        }
+
+        private int GetPlannedForwardCells()
+        {
+            return Mathf.Max(1, plannedTargetCell.z - jumpStartCell.z);
+        }
+
+        private int GetCurrentFlightForwardCells()
+        {
+            int plannedForwardCells = GetPlannedForwardCells();
+            int reachableForwardCells = config != null
+                ? config.GetForwardCellsForJumpExtensions(currentAirJumpExtensions)
+                : plannedForwardCells;
+            return Mathf.Max(plannedForwardCells, reachableForwardCells);
+        }
+
+        private int GetPlannedUpwardCells()
+        {
+            return Mathf.Max(0, plannedTargetCell.y - jumpStartCell.y);
         }
 
         private void ResolveJumpArrival()
@@ -367,9 +397,12 @@ namespace FunGuy.Runner
             return true;
         }
 
-        private Vector3Int ResolveLandingCell(Vector3Int lowerFallbackCell, Vector3Int requestedCell, bool useLowerFallback)
+        private Vector3Int ResolveLandingCell(
+            Vector3Int requestedCell,
+            Vector3Int lowerFallbackCell,
+            Vector3Int currentFallbackCell)
         {
-            if (!useLowerFallback || gridWorld == null || config == null)
+            if (gridWorld == null || config == null)
             {
                 return requestedCell;
             }
@@ -384,12 +417,63 @@ namespace FunGuy.Runner
                 return lowerFallbackCell;
             }
 
-            return requestedCell;
+            if (TryFindBestLandingCell(requestedCell, lowerFallbackCell, currentFallbackCell, out Vector3Int bestLandingCell))
+            {
+                return bestLandingCell;
+            }
+
+            return currentFallbackCell;
         }
 
         private bool CanLandOnCell(Vector3Int cell)
         {
             return gridWorld.GetLandingType(cell, out _) != GridLandingType.Missing;
+        }
+
+        private bool TryFindBestLandingCell(
+            Vector3Int requestedCell,
+            Vector3Int lowerFallbackCell,
+            Vector3Int currentFallbackCell,
+            out Vector3Int bestLandingCell)
+        {
+            bestLandingCell = default;
+            bool hasBestLandingCell = false;
+
+            if (CanLandOnCell(currentFallbackCell))
+            {
+                bestLandingCell = currentFallbackCell;
+                hasBestLandingCell = true;
+            }
+
+            int minimumForwardZ = jumpStartCell.z + (config != null ? config.BaseForwardCells : 1);
+
+            for (int z = requestedCell.z; z >= minimumForwardZ; z--)
+            {
+                TryRecordLandingCandidate(new Vector3Int(requestedCell.x, requestedCell.y, z), ref bestLandingCell, ref hasBestLandingCell);
+                TryRecordLandingCandidate(new Vector3Int(requestedCell.x, lowerFallbackCell.y, z), ref bestLandingCell, ref hasBestLandingCell);
+                TryRecordLandingCandidate(new Vector3Int(currentFallbackCell.x, currentFallbackCell.y, z), ref bestLandingCell, ref hasBestLandingCell);
+
+                if (hasBestLandingCell && bestLandingCell.z == z)
+                {
+                    break;
+                }
+            }
+
+            return hasBestLandingCell;
+        }
+
+        private void TryRecordLandingCandidate(Vector3Int candidateCell, ref Vector3Int bestLandingCell, ref bool hasBestLandingCell)
+        {
+            if (!CanLandOnCell(candidateCell))
+            {
+                return;
+            }
+
+            if (!hasBestLandingCell || candidateCell.z > bestLandingCell.z)
+            {
+                bestLandingCell = candidateCell;
+                hasBestLandingCell = true;
+            }
         }
 
         private float EstimateFutureTravelDuration(int fromZ, int targetZ)

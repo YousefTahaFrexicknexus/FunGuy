@@ -20,6 +20,8 @@ namespace FunGuy.Runner
         private float flightSegmentStartProgress;
         private bool isInFlight;
         private bool prioritizeVerticalMovement;
+        private int flightForwardCells = 1;
+        private int flightUpwardCells;
 
         public bool IsInFlight => isInFlight;
         public float FlightProgressNormalized => flightProgressNormalized;
@@ -52,6 +54,8 @@ namespace FunGuy.Runner
             flightProgressNormalized = 0f;
             flightSegmentStartProgress = 0f;
             prioritizeVerticalMovement = false;
+            flightForwardCells = 1;
+            flightUpwardCells = 0;
             transform.position = worldPosition;
 
             if (visualRoot != null)
@@ -61,7 +65,13 @@ namespace FunGuy.Runner
             }
         }
 
-        public void BeginJump(Vector3 from, Vector3 to, float jumpDuration, Action onFlightComplete)
+        public void BeginJump(
+            Vector3 from,
+            Vector3 to,
+            float jumpDuration,
+            int forwardCells,
+            int upwardCells,
+            Action onFlightComplete)
         {
             KillActiveSequence();
             ResolveVisualRoot();
@@ -75,6 +85,8 @@ namespace FunGuy.Runner
             isInFlight = false;
             flightProgressNormalized = 0f;
             flightSegmentStartProgress = 0f;
+            flightForwardCells = Mathf.Max(1, forwardCells);
+            flightUpwardCells = Mathf.Max(0, upwardCells);
             prioritizeVerticalMovement = to.y > from.y + 0.01f;
 
             activeSequence = DOTween.Sequence()
@@ -111,7 +123,7 @@ namespace FunGuy.Runner
             });
         }
 
-        public void RetargetLanding(Vector3 newTarget, bool verticalPriority = false)
+        public void RetargetLanding(Vector3 newTarget, int forwardCells, int upwardCells, bool verticalPriority = false)
         {
             if (isInFlight)
             {
@@ -120,6 +132,8 @@ namespace FunGuy.Runner
             }
 
             flightTarget = newTarget;
+            flightForwardCells = Mathf.Max(1, forwardCells);
+            flightUpwardCells = Mathf.Max(0, upwardCells);
             prioritizeVerticalMovement = verticalPriority || flightTarget.y > flightSegmentStart.y + 0.01f;
 
             if (isInFlight)
@@ -185,8 +199,10 @@ namespace FunGuy.Runner
                 Mathf.LerpUnclamped(flightSegmentStart.y, flightTarget.y, verticalProgress),
                 Mathf.LerpUnclamped(flightSegmentStart.z, flightTarget.z, horizontalProgress));
 
-            float arcHeight = config != null ? config.JumpArcHeight : 1f;
             float segmentArcMultiplier = Mathf.Lerp(0.35f, 1f, remainingProgress);
+            float arcHeight = config != null
+                ? config.GetJumpArcHeight(flightForwardCells, flightUpwardCells)
+                : 1f;
             float arc = 4f * (arcHeight * segmentArcMultiplier) * segmentProgress * (1f - segmentProgress);
             transform.position = position + Vector3.up * arc;
         }

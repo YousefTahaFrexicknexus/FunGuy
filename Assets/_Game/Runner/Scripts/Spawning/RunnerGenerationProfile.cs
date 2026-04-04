@@ -15,6 +15,11 @@ namespace FunGuy.Runner
         [SerializeField] private bool introFillAllLanes = true;
         [SerializeField] private bool introDisableRandomContent = true;
 
+        [Header("Path Layout")]
+        [SerializeField] private bool singleLaneMode;
+        [SerializeField] private int minimumSafePathGapCells = 2;
+        [SerializeField] private int maximumSafePathGapCells = 4;
+
         [Header("Difficulty Ramp")]
         [SerializeField] private int difficultyRampDistanceCells = 180;
         [SerializeField, Range(0f, 1f)] private float startingLaneChangeChance = 0.08f;
@@ -54,6 +59,9 @@ namespace FunGuy.Runner
         public int IntroFilledSlices => introFilledSlices;
         public bool IntroFillAllLanes => introFillAllLanes;
         public bool IntroDisableRandomContent => introDisableRandomContent;
+        public bool SingleLaneMode => singleLaneMode;
+        public int MinimumSafePathGapCells => minimumSafePathGapCells;
+        public int MaximumSafePathGapCells => maximumSafePathGapCells;
         public float LaneChangeChance => laneChangeChance;
         public float LayerChangeChance => layerChangeChance;
         public float BonusPlatformChance => bonusPlatformChance;
@@ -130,6 +138,8 @@ namespace FunGuy.Runner
             spawnAheadChunks = Mathf.Max(1, spawnAheadChunks);
             recycleBehindChunks = Mathf.Max(0, recycleBehindChunks);
             introFilledSlices = Mathf.Max(0, introFilledSlices);
+            minimumSafePathGapCells = Mathf.Max(1, minimumSafePathGapCells);
+            maximumSafePathGapCells = Mathf.Max(minimumSafePathGapCells, maximumSafePathGapCells);
             difficultyRampDistanceCells = Mathf.Max(1, difficultyRampDistanceCells);
             minimumSlicesBetweenSupportPlatforms = Mathf.Max(1, minimumSlicesBetweenSupportPlatforms);
         }

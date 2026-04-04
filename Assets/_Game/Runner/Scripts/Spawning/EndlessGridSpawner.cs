@@ -46,6 +46,8 @@ namespace FunGuy.Runner
         private readonly Dictionary<SpawnableDefinition, Stack<GameObject>> pools = new();
         private readonly Stack<GameObject> fallbackSupportPool = new();
         private readonly List<Vector3Int> sliceCandidates = new(16);
+        private readonly List<int> safePathGapOptions = new(8);
+        private readonly Dictionary<int, float> safePathArrivalTimes = new();
 
         private System.Random random;
         private Vector3Int safeCursor;
@@ -53,8 +55,11 @@ namespace FunGuy.Runner
         private bool initialized;
         private bool runIsPlaying;
         private int nextChunkIndexToGenerate;
+        private int nextSafePathSliceZ;
         private int lastSupportPlatformSliceZ;
+        private float safeCursorArrivalTimeSeconds;
         private float startupDelaySeconds;
+        private float worldBuildTimestamp;
         private static Material fallbackSupportMaterial;
 
         private void OnEnable()
@@ -116,8 +121,13 @@ namespace FunGuy.Runner
             safeCursor = startCell;
             runStartCell = startCell;
             nextChunkIndexToGenerate = 0;
+            nextSafePathSliceZ = startCell.z + 1;
             runIsPlaying = false;
             lastSupportPlatformSliceZ = startCell.z - (generationProfile != null ? generationProfile.MinimumSlicesBetweenSupportPlatforms : 1);
+            safeCursorArrivalTimeSeconds = 0f;
+            safePathArrivalTimes.Clear();
+            safePathArrivalTimes[startCell.z] = 0f;
+            worldBuildTimestamp = Time.time;
             initialized = true;
 
             EnsureChunksForPlayer(startCell.z);
@@ -140,21 +150,40 @@ namespace FunGuy.Runner
             ActiveChunk chunk = new() { Index = chunkIndex };
             int chunkStartZ = chunkIndex * generationProfile.ChunkLength;
             int chunkEndExclusive = chunkStartZ + generationProfile.ChunkLength;
-            int introEndZ = runStartCell.z + generationProfile.IntroFilledSlices - 1;
+            int introEndZ = GetIntroEndZ();
 
             for (int z = chunkStartZ; z < chunkEndExclusive; z++)
             {
-                int traveledCells = Mathf.Max(0, z - runStartCell.z);
+                int traveledCells = GetTraveledCellsAtZ(z);
 
                 if (z <= introEndZ)
                 {
                     SpawnIntroSlice(z, chunk);
-                    safeCursor = new Vector3Int(runStartCell.x, runStartCell.y, z);
+
+                    if (z > safeCursor.z)
+                    {
+                        Vector3Int previousIntroSafeCell = safeCursor;
+                        safeCursor = new Vector3Int(runStartCell.x, runStartCell.y, z);
+                        RegisterSafePathArrival(previousIntroSafeCell, safeCursor);
+                    }
+
+                    if (z == introEndZ)
+                    {
+                        nextSafePathSliceZ = z + GetNextSafePathGap();
+                    }
+
+                    continue;
+                }
+
+                if (z < nextSafePathSliceZ)
+                {
                     continue;
                 }
 
                 Vector3Int previousSafeCell = safeCursor;
                 safeCursor = GetNextSafeCell(previousSafeCell, z);
+                RegisterSafePathArrival(previousSafeCell, safeCursor);
+                nextSafePathSliceZ = z + GetNextSafePathGap();
                 bool usedSupportPlatform = false;
 
                 if (!TrySpawnSafePathSurface(previousSafeCell, safeCursor, traveledCells, chunk, out usedSupportPlatform))
@@ -179,9 +208,14 @@ namespace FunGuy.Runner
 
         private void SpawnIntroSlice(int z, ActiveChunk chunk)
         {
-            int minLane = generationProfile.IntroFillAllLanes ? 0 : runStartCell.x;
-            int maxLane = generationProfile.IntroFillAllLanes ? gridSystem.LaneCount - 1 : runStartCell.x;
-            int traveledCells = Mathf.Max(0, z - runStartCell.z);
+            GetPlayableLaneRange(out int playableMinLane, out int playableMaxLane);
+            int minLane = generationProfile.SingleLaneMode || !generationProfile.IntroFillAllLanes
+                ? runStartCell.x
+                : playableMinLane;
+            int maxLane = generationProfile.SingleLaneMode || !generationProfile.IntroFillAllLanes
+                ? runStartCell.x
+                : playableMaxLane;
+            int traveledCells = GetTraveledCellsAtZ(z);
 
             for (int lane = minLane; lane <= maxLane; lane++)
             {
@@ -198,16 +232,18 @@ namespace FunGuy.Runner
             }
 
             if (generationProfile.IntroDisableRandomContent &&
-                z < runStartCell.z + generationProfile.IntroFilledSlices)
+                z <= GetIntroEndZ())
             {
                 return;
             }
 
-            int traveledCells = Mathf.Max(0, z - runStartCell.z);
+            int traveledCells = GetTraveledCellsAtZ(z);
 
             sliceCandidates.Clear();
 
-            for (int lane = 0; lane < gridSystem.LaneCount; lane++)
+            GetPlayableLaneRange(out int minLane, out int maxLane);
+
+            for (int lane = minLane; lane <= maxLane; lane++)
             {
                 for (int layer = gridSystem.MinLayer; layer <= gridSystem.MaxLayer; layer++)
                 {
@@ -271,9 +307,11 @@ namespace FunGuy.Runner
         {
             int nextLane = previousSafeCell.x;
             int nextLayer = previousSafeCell.y;
-            int traveledCells = Mathf.Max(0, nextZ - runStartCell.z);
+            int traveledCells = GetTraveledCellsAtZ(nextZ);
 
-            if (gridSystem.LaneCount > 1 && Roll(generationProfile.GetLaneChangeChance(traveledCells)))
+            if (!generationProfile.SingleLaneMode &&
+                gridSystem.LaneCount > 1 &&
+                Roll(generationProfile.GetLaneChangeChance(traveledCells)))
             {
                 nextLane += random.Next(0, 2) == 0 ? -1 : 1;
                 nextLane = Mathf.Clamp(nextLane, 0, gridSystem.LaneCount - 1);
@@ -286,6 +324,117 @@ namespace FunGuy.Runner
             }
 
             return new Vector3Int(nextLane, nextLayer, nextZ);
+        }
+
+        private int GetNextSafePathGap()
+        {
+            int minGap = Mathf.Max(1, generationProfile.MinimumSafePathGapCells);
+            int maxGap = Mathf.Max(minGap, generationProfile.MaximumSafePathGapCells);
+
+            safePathGapOptions.Clear();
+
+            if (playerConfig != null)
+            {
+                for (int gap = playerConfig.BaseForwardCells; gap <= playerConfig.MaximumReachableForwardCells; gap += playerConfig.ExtraForwardCells)
+                {
+                    if (gap >= minGap && gap <= maxGap)
+                    {
+                        safePathGapOptions.Add(gap);
+                    }
+                }
+
+                if (safePathGapOptions.Count == 0)
+                {
+                    safePathGapOptions.Add(FindClosestReachableGap(minGap, maxGap));
+                }
+            }
+            else
+            {
+                for (int gap = minGap; gap <= maxGap; gap++)
+                {
+                    safePathGapOptions.Add(gap);
+                }
+            }
+
+            if (safePathGapOptions.Count == 0)
+            {
+                return 1;
+            }
+
+            return safePathGapOptions[random.Next(safePathGapOptions.Count)];
+        }
+
+        private int FindClosestReachableGap(int minGap, int maxGap)
+        {
+            if (playerConfig == null)
+            {
+                return minGap;
+            }
+
+            int bestGap = playerConfig.BaseForwardCells;
+            int bestDistance = int.MaxValue;
+
+            for (int gap = playerConfig.BaseForwardCells; gap <= playerConfig.MaximumReachableForwardCells; gap += playerConfig.ExtraForwardCells)
+            {
+                int distance = gap < minGap ? minGap - gap : gap > maxGap ? gap - maxGap : 0;
+
+                if (distance >= bestDistance)
+                {
+                    continue;
+                }
+
+                bestDistance = distance;
+                bestGap = gap;
+
+                if (distance == 0)
+                {
+                    break;
+                }
+            }
+
+            return Mathf.Max(1, bestGap);
+        }
+
+        private void RegisterSafePathArrival(Vector3Int previousSafeCell, Vector3Int nextSafeCell)
+        {
+            if (playerConfig == null)
+            {
+                safePathArrivalTimes[nextSafeCell.z] = startupDelaySeconds;
+                return;
+            }
+
+            int traveledCells = GetTraveledCellsAtZ(previousSafeCell.z);
+            bool isFirstLandingAfterSpawn = safeCursorArrivalTimeSeconds <= 0.0001f && previousSafeCell == runStartCell;
+            float preJumpDelay = isFirstLandingAfterSpawn
+                ? startupDelaySeconds
+                : playerConfig.GetTimeBetweenBounces(traveledCells) + playerConfig.GetLandingPause(traveledCells);
+
+            safeCursorArrivalTimeSeconds += preJumpDelay + playerConfig.GetJumpDuration(traveledCells);
+            safePathArrivalTimes[nextSafeCell.z] = safeCursorArrivalTimeSeconds;
+        }
+
+        private void GetPlayableLaneRange(out int minLane, out int maxLane)
+        {
+            if (generationProfile != null && generationProfile.SingleLaneMode)
+            {
+                minLane = Mathf.Clamp(runStartCell.x, 0, gridSystem.LaneCount - 1);
+                maxLane = minLane;
+                return;
+            }
+
+            minLane = 0;
+            maxLane = gridSystem.LaneCount - 1;
+        }
+
+        private int GetIntroEndZ()
+        {
+            int introSafeSliceCount = Mathf.Max(1, generationProfile.IntroFilledSlices);
+            return runStartCell.z + introSafeSliceCount - 1;
+        }
+
+        private int GetTraveledCellsAtZ(int z)
+        {
+            return Mathf.Max(0, z - runStartCell.z);
         }
 
         private bool TrySpawnSurfaceAt(Vector3Int cell, SpawnableDefinition definition, ActiveChunk chunk)
@@ -690,7 +839,7 @@ namespace FunGuy.Runner
         private bool ShouldUseSupportPlatform(Vector3Int previousSafeCell, Vector3Int safeCell, int traveledCells)
         {
             if (generationProfile == null ||
-                safeCell.z <= runStartCell.z + generationProfile.IntroFilledSlices ||
+                safeCell.z <= GetIntroEndZ() ||
                 safeCell.z - lastSupportPlatformSliceZ < generationProfile.MinimumSlicesBetweenSupportPlatforms)
             {
                 return false;
@@ -726,9 +875,16 @@ namespace FunGuy.Runner
 
         private float EstimateSecondsUntilArrival(int targetZ)
         {
+            float elapsedSinceWorldBuild = Mathf.Max(0f, Time.time - worldBuildTimestamp);
+
+            if (safePathArrivalTimes.TryGetValue(targetZ, out float scheduledArrivalTime))
+            {
+                return Mathf.Max(0f, scheduledArrivalTime - elapsedSinceWorldBuild);
+            }
+
             if (!runIsPlaying)
             {
-                return startupDelaySeconds + EstimateTravelDuration(runStartCell.z, targetZ);
+                return Mathf.Max(0f, startupDelaySeconds + EstimateTravelDuration(runStartCell.z, targetZ) - elapsedSinceWorldBuild);
             }
 
             if (trackedPlayer != null)
@@ -741,7 +897,7 @@ namespace FunGuy.Runner
                 }
             }
 
-            return EstimateTravelDuration(runStartCell.z, targetZ);
+            return Mathf.Max(0f, EstimateTravelDuration(runStartCell.z, targetZ) - elapsedSinceWorldBuild);
         }
 
         private float EstimateTravelDuration(int fromZ, int targetZ)
@@ -755,13 +911,13 @@ namespace FunGuy.Runner
 
             for (int hopStartZ = fromZ; hopStartZ < targetZ; hopStartZ++)
             {
-                totalTime += playerConfig.GetJumpDuration(hopStartZ);
+                int traveledCells = GetTraveledCellsAtZ(hopStartZ);
+                totalTime += playerConfig.GetJumpDuration(traveledCells);
 
                 if (hopStartZ + 1 < targetZ)
                 {
-                    int landingZ = hopStartZ + 1;
-                    totalTime += playerConfig.GetTimeBetweenBounces(landingZ);
-                    totalTime += playerConfig.GetLandingPause(landingZ);
+                    totalTime += playerConfig.GetTimeBetweenBounces(traveledCells);
+                    totalTime += playerConfig.GetLandingPause(traveledCells);
                 }
             }
 

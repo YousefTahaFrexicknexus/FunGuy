@@ -18,6 +18,9 @@ MonoBehaviour:
   introFilledSlices: 5
   introFillAllLanes: 1
   introDisableRandomContent: 1
+  singleLaneMode: 1
+  minimumSafePathGapCells: 2
+  maximumSafePathGapCells: 4
   difficultyRampDistanceCells: 180
   startingLaneChangeChance: 0.08
   startingLayerChangeChance: 0

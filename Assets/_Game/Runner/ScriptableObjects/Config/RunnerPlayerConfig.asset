@@ -19,16 +19,19 @@ MonoBehaviour:
   minimumTimeBetweenBounces: 0.12
   anticipationDuration: 0.08
   anticipationDip: 0.1
-  jumpDuration: 0.6
-  minimumJumpDuration: 0.38
-  jumpArcHeight: 1.55
+  jumpDuration: 0.82
+  minimumJumpDuration: 0.58
   landingPause: 0.12
   minimumLandingPause: 0.05
   speedRampDistanceCells: 320
+  baseForwardCells: 1
   retargetLockProgress: 0.92
   maxExtraJumps: 3
   extraForwardCells: 1
   extraJumpUpCells: 1
+  jumpArcHeight: 2.45
+  additionalArcHeightPerForwardCell: 1.05
+  additionalArcHeightPerUpCell: 0.55
   scorePerForwardCell: 10
   scorePerCollectible: 25
   failFallDuration: 0.35

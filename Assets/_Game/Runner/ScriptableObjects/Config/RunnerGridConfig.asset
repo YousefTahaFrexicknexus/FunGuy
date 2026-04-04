@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: RunnerGridConfig
   m_EditorClassIdentifier: Assembly-CSharp::FunGuy.Runner.RunnerGridConfig
   laneCount: 3
-  minLayer: 0
-  maxLayer: 1
+  minLayer: -1
+  maxLayer: 2
   cellSize: {x: 2.75, y: 2, z: 5.35}
   worldOrigin: {x: 0, y: 0, z: 0}
   previewForwardCells: 18
