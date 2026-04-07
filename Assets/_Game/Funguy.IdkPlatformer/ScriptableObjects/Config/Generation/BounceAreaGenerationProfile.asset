@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67294025ab5a42f6b3f633e6cd6df126, type: 3}
+  m_Name: BounceAreaGenerationProfile
+  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.BounceAreaGenerationProfile
+  areaLength: 48
+  spawnAheadAreas: 4
+  recycleBehindAreas: 2
+  introAreaCount: 2
+  areaHalfWidth: 8
+  minimumHeight: 0
+  maximumHeight: 5
+  surfaceLandingHeight: 0.94
+  playerCollisionRadius: 0.45
+  initialLandingSpeed: 2.5
+  minimumMainPathNodes: 6
+  maximumMainPathNodes: 8
+  minimumOptionalMushrooms: 1
+  maximumOptionalMushrooms: 3
+  candidateAttemptsPerHop: 40
+  optionalCandidateAttempts: 28
+  minimumForwardGap: 5.5
+  maximumForwardGap: 10.5
+  maximumAdditionalForwardGapFromDifficulty: 4
+  maximumLateralOffset: 5.5
+  maximumVerticalStep: 2.75
+  minimumExitBuffer: 2.5
+  bailoutForwardGap: 4.25
+  bailoutVerticalStep: 0.55
+  landingRadius: 1.3
+  landingHeightTolerance: 1.2
+  maxSimulationTime: 3.2
+  simulationTimeStep: 0.02
+  mainRouteClearanceRadius: 2.5
+  optionalMushroomClearanceRadius: 2.1
+  decorationSeparationRadius: 4
+  decorationAreaPadding: 1.5
+  routeHeadroomClearance: 3.5
+  cameraSightlineClearance: 6
+  difficultyRampDistance: 300
+  seed: 1337
+  randomizeSeed: 0
+  mushroomDefinitions:
+  - {fileID: 11400000, guid: 1ddcf7e208cc4094baa8ed79550680bb, type: 2}
+  - {fileID: 11400000, guid: 3ebc3e8f09ba38f47ae8b0bb0867fc14, type: 2}
+  - {fileID: 11400000, guid: 2026c74b4aff02d48ad0d9e09f75f02e, type: 2}
+  themeTiers:
+  - {fileID: 11400000, guid: 1854c98c469d6fc4cb252e0583fddd21, type: 2}
+  - {fileID: 11400000, guid: bb576fffde90d4a40b9c65a66e3a1554, type: 2}

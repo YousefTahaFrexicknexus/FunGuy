@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.08, z: 0}
-  m_LocalScale: {x: 1.35, y: 0.58, z: 1.35}
+  m_LocalScale: {x: 3.5, y: 0.58, z: 3.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7689651557000540669}
@@ -99,8 +99,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7689651557000540669}
-  - component: {fileID: 6709615321134623280}
   - component: {fileID: 3517631228523526409}
+  - component: {fileID: 4101694474997891877}
   m_Layer: 0
   m_Name: IdkMushroom
   m_TagString: Untagged
@@ -125,8 +125,21 @@ Transform:
   - {fileID: 6035750103433991203}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &6709615321134623280
-SphereCollider:
+--- !u!114 &3517631228523526409
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4993558803980573372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52a64d4748ae4879a537af3cfb38ea8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.Mushroom
+  bounceProfile: {fileID: 11400000, guid: 4a407e3d64776794d9a3faf956d61397, type: 2}
+--- !u!65 &4101694474997891877
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -144,21 +157,8 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.78
-  m_Center: {x: 0, y: 0.16, z: 0}
---- !u!114 &3517631228523526409
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4993558803980573372}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 52a64d4748ae4879a537af3cfb38ea8a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.Mushroom
-  bounceProfile: {fileID: 11400000, guid: 4a407e3d64776794d9a3faf956d61397, type: 2}
+  m_Size: {x: 3, y: 1, z: 3}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6522610172767512247
 GameObject:
   m_ObjectHideFlags: 0
@@ -186,8 +186,8 @@ Transform:
   m_GameObject: {fileID: 6522610172767512247}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.5, z: 0}
-  m_LocalScale: {x: 0.24, y: 0.58, z: 0.24}
+  m_LocalPosition: {x: 0, y: -4.69, z: 0}
+  m_LocalScale: {x: 0.24, y: 4.91, z: 0.24}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7689651557000540669}

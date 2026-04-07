@@ -7,8 +7,6 @@ namespace Funguy.IdkPlatformer
     [RequireComponent(typeof(Rigidbody))]
     public sealed class MovementMotor : MonoBehaviour
     {
-        private const float DashInputThreshold = 0.1f;
-        private const float DashVelocityThreshold = 0.25f;
         private const float LandingVerticalTolerance = 0.25f;
         private const float GroundedContactRetention = 0.05f;
         private const float MinDirectionSqrMagnitude = 0.0001f;
@@ -23,6 +21,8 @@ namespace Funguy.IdkPlatformer
         private bool hasBounceCandidate;
         private float lastSurfaceTouchTime = float.NegativeInfinity;
         private float bufferedDashUntil = float.NegativeInfinity;
+        private float lowControlUntil = float.NegativeInfinity;
+        private float dashControlBoostUntil = float.NegativeInfinity;
         private Collider lastConsumedSurface;
         private Func<bool> tryConsumeDashHandler;
         private bool isGrounded;
@@ -153,6 +153,37 @@ namespace Funguy.IdkPlatformer
             tryConsumeDashHandler = dashConsumer;
         }
 
+        public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
+        {
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody>();
+            }
+
+            if (body == null)
+            {
+                return;
+            }
+
+            hasBounceCandidate = false;
+            lastBounceCandidate = default;
+            lastSurfaceTouchTime = float.NegativeInfinity;
+            bufferedDashUntil = float.NegativeInfinity;
+            lowControlUntil = float.NegativeInfinity;
+            dashControlBoostUntil = float.NegativeInfinity;
+            lastConsumedSurface = null;
+            isGrounded = false;
+            currentInput = MovementInputFrame.Empty;
+
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            transform.SetPositionAndRotation(worldPosition, worldRotation);
+            body.position = worldPosition;
+            body.rotation = worldRotation;
+            Physics.SyncTransforms();
+            body.WakeUp();
+        }
+
         private void OnCollisionEnter(Collision collision)
         {
             CacheBounceCandidate(collision);
@@ -188,62 +219,29 @@ namespace Funguy.IdkPlatformer
 
         private void ApplyShapedGravity(ref Vector3 velocity, float deltaTime)
         {
-            float verticalSpeed = Vector3.Dot(velocity, Up);
-            float gravityMultiplier = verticalSpeed > 0f
-                ? tuningProfile.JumpGravityMultiplier
-                : tuningProfile.FallGravityMultiplier;
-
-            velocity += Physics.gravity * tuningProfile.GravityScale * gravityMultiplier * deltaTime;
+            BounceMovementMath.ApplyShapedGravity(ref velocity, tuningProfile, Up, deltaTime);
         }
 
         private void ApplyAirAcceleration(ref Vector3 velocity, MovementInputFrame inputFrame, float deltaTime)
         {
-            if (!inputFrame.HasMoveInput)
-            {
-                return;
-            }
-
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-            Vector3 wishDirection = inputFrame.WishDirection.normalized;
-            float currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
-            float targetAlongWish = tuningProfile.MaxControllableSpeed * inputFrame.Magnitude;
-            float speedToAdd = targetAlongWish - currentAlongWish;
-            if (speedToAdd <= 0f)
-            {
-                return;
-            }
-
-            float accelerationDelta = tuningProfile.MoveAcceleration
-                * tuningProfile.AirControlStrength
-                * inputFrame.Magnitude
-                * deltaTime;
-
-            planarVelocity += wishDirection * Mathf.Min(speedToAdd, accelerationDelta);
-            velocity = planarVelocity + (Up * Vector3.Dot(velocity, Up));
+            BounceMovementMath.ApplyAirAcceleration(
+                ref velocity,
+                tuningProfile,
+                inputFrame,
+                Up,
+                Time.time < lowControlUntil && Time.time >= dashControlBoostUntil,
+                Time.time < dashControlBoostUntil,
+                deltaTime);
         }
 
         private void ApplyPlanarDrag(ref Vector3 velocity, float drag, float deltaTime)
         {
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-            Vector3 verticalVelocity = Up * Vector3.Dot(velocity, Up);
-            planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, drag * deltaTime);
-            velocity = planarVelocity + verticalVelocity;
+            BounceMovementMath.ApplyPlanarDrag(ref velocity, Up, drag, deltaTime);
         }
 
         private void ApplySoftSpeedLimit(ref Vector3 velocity, float deltaTime)
         {
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-            float planarSpeed = planarVelocity.magnitude;
-            float overflow = planarSpeed - tuningProfile.MaxSpeed;
-
-            if (overflow <= 0f || planarSpeed <= MinDirectionSqrMagnitude)
-            {
-                return;
-            }
-
-            float dragAmount = Mathf.Min(overflow, tuningProfile.OverSpeedDrag * overflow * deltaTime);
-            planarVelocity -= planarVelocity.normalized * dragAmount;
-            velocity = planarVelocity + (Up * Vector3.Dot(velocity, Up));
+            BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime);
         }
 
         private bool TryConsumeBounceCandidate(ref Vector3 velocity, out BounceSurfaceResponse response)
@@ -295,63 +293,14 @@ namespace Funguy.IdkPlatformer
             lastConsumedSurface = lastBounceCandidate.Collider;
             hasBounceCandidate = false;
             lastSurfaceTouchTime = float.NegativeInfinity;
+            lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
             isGrounded = false;
             return true;
         }
 
         private Vector3 ApplyBounceResponse(Vector3 incomingVelocity, BounceSurfaceResponse response)
         {
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(incomingVelocity, Up);
-            float planarSpeed = planarVelocity.magnitude;
-            Vector3 planarDirection = ResolveSurfacePlanarDirection(planarVelocity, response);
-
-            Vector3 redirectedPlanar = planarVelocity;
-            if (planarSpeed > MinDirectionSqrMagnitude && planarDirection.sqrMagnitude > MinDirectionSqrMagnitude)
-            {
-                redirectedPlanar = Vector3.Lerp(
-                    planarVelocity,
-                    planarDirection * planarSpeed,
-                    response.DirectionalInfluence);
-            }
-
-            Vector3 planarOut = redirectedPlanar * response.VelocityScale;
-            if (planarDirection.sqrMagnitude > MinDirectionSqrMagnitude && Mathf.Abs(response.PlanarBoost) > 0f)
-            {
-                planarOut += planarDirection * response.PlanarBoost;
-            }
-
-            float verticalSpeed = Vector3.Dot(incomingVelocity, Up);
-            float impactBonus = Mathf.Max(0f, -verticalSpeed) * response.ImpactRecoveryFactor;
-            Vector3 verticalOut = Up * (response.UpwardImpulse + impactBonus);
-
-            return planarOut + verticalOut;
-        }
-
-        private Vector3 ResolveSurfacePlanarDirection(Vector3 planarVelocity, BounceSurfaceResponse response)
-        {
-            Vector3 launchDirection = response.LaunchDirection.sqrMagnitude > MinDirectionSqrMagnitude
-                ? response.LaunchDirection.normalized
-                : Up;
-
-            Vector3 blendedDirection = Vector3.Lerp(Up, launchDirection, response.UpBlend);
-            Vector3 planarDirection = Vector3.ProjectOnPlane(blendedDirection, Up);
-
-            if (planarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-            {
-                planarDirection = Vector3.ProjectOnPlane(launchDirection, Up);
-            }
-
-            if (planarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-            {
-                planarDirection = planarVelocity;
-            }
-
-            if (planarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-            {
-                return Vector3.zero;
-            }
-
-            return planarDirection.normalized;
+            return BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, Up);
         }
 
         private bool TryConsumeBufferedDash(ref Vector3 velocity, bool bouncedThisStep)
@@ -377,7 +326,7 @@ namespace Funguy.IdkPlatformer
                 return false;
             }
 
-            Vector3 dashDirection = ResolveDashDirection(velocity);
+            Vector3 dashDirection = ResolveDashDirection();
             if (dashDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
             {
                 bufferedDashUntil = float.NegativeInfinity;
@@ -386,38 +335,14 @@ namespace Funguy.IdkPlatformer
 
             velocity += dashDirection * tuningProfile.DashForce;
             bufferedDashUntil = float.NegativeInfinity;
+            dashControlBoostUntil = Time.time + tuningProfile.PostDashBonusControlTime;
             Dashed?.Invoke();
             return true;
         }
 
-        private Vector3 ResolveDashDirection(Vector3 velocity)
+        private Vector3 ResolveDashDirection()
         {
-            Vector3 dashDirection;
-
-            if (currentInput.Magnitude > DashInputThreshold && currentInput.WishDirection.sqrMagnitude > MinDirectionSqrMagnitude)
-            {
-                dashDirection = currentInput.WishDirection;
-            }
-            else
-            {
-                Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-                if (planarVelocity.sqrMagnitude > DashVelocityThreshold * DashVelocityThreshold)
-                {
-                    dashDirection = planarVelocity;
-                }
-                else
-                {
-                    dashDirection = currentInput.ReferenceForward;
-                }
-            }
-
-            dashDirection = Vector3.ProjectOnPlane(dashDirection, Up);
-            if (dashDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-            {
-                dashDirection = Vector3.ProjectOnPlane(Vector3.forward, Up);
-            }
-
-            return dashDirection.normalized;
+            return Up;
         }
 
         private void CacheBounceCandidate(Collision collision)

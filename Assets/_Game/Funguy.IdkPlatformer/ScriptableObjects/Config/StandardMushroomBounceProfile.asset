@@ -16,7 +16,7 @@ MonoBehaviour:
   directionalInfluence: 0.45
   planarBoost: 0.65
   useAbsoluteUpwardImpulse: 0
-  upwardImpulse: 1
+  upwardImpulse: 1.18
   impactRecoveryFactor: 0.3
   localLaunchDirection: {x: 0, y: 1, z: 0.35}
   upBlend: 0.78

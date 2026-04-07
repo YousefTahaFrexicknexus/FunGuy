@@ -9,6 +9,11 @@ namespace Funguy.IdkPlatformer
 
         public MushroomBounceProfile BounceProfile => bounceProfile;
 
+        public void SetBounceProfile(MushroomBounceProfile profile)
+        {
+            bounceProfile = profile;
+        }
+
         public BounceSurfaceResponse GetBounceResponse(in BounceContext context)
         {
             if (bounceProfile != null)

@@ -114,6 +114,23 @@ namespace Funguy.IdkPlatformer
             RestoreDashCharges();
         }
 
+        public void ResetRun(Vector3 worldPosition, Quaternion worldRotation)
+        {
+            lastDashTime = float.NegativeInfinity;
+            RestoreDashCharges();
+
+            if (movementMotor == null)
+            {
+                transform.SetPositionAndRotation(worldPosition, worldRotation);
+                SetState(PlayerState.Active);
+                return;
+            }
+
+            SetState(PlayerState.Disabled);
+            movementMotor.ResetMotion(worldPosition, worldRotation);
+            SetState(PlayerState.Active);
+        }
+
         private bool TryConsumeDashCharge()
         {
             if (state != PlayerState.Active || tuningProfile == null)

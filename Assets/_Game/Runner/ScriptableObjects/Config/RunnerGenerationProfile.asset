@@ -23,7 +23,7 @@ MonoBehaviour:
   maximumSafePathGapCells: 1
   difficultyRampDistanceCells: 180
   startingLaneChangeChance: 0.08
-  startingLayerChangeChance: 0
+  startingLayerChangeChance: 0.1
   startingBonusPlatformChance: 0.1
   startingHazardChance: 0
   startingCollectibleChance: 0.58
