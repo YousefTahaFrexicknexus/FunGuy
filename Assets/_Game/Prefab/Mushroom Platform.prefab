@@ -198,7 +198,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 4294967295
+  m_StaticEditorFlags: 0
   m_IsActive: 1
 --- !u!4 &7434733658213494258
 Transform:
@@ -429,6 +429,10 @@ PrefabInstance:
     - target: {fileID: 1752449220146930, guid: 94eda1f5e1186934cab2760323dbf5e3, type: 3}
       propertyPath: m_Name
       value: FallingFogGreen
+      objectReference: {fileID: 0}
+    - target: {fileID: 1752449220146930, guid: 94eda1f5e1186934cab2760323dbf5e3, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4642442556738972, guid: 94eda1f5e1186934cab2760323dbf5e3, type: 3}
       propertyPath: m_LocalScale.x
