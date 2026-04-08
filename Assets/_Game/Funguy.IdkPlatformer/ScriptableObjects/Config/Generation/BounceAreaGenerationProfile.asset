@@ -22,26 +22,26 @@ MonoBehaviour:
   surfaceLandingHeight: 0.94
   playerCollisionRadius: 0.45
   initialLandingSpeed: 2.5
-  minimumMainPathNodes: 6
-  maximumMainPathNodes: 8
+  minimumMainPathNodes: 5
+  maximumMainPathNodes: 7
   minimumOptionalMushrooms: 1
   maximumOptionalMushrooms: 3
-  candidateAttemptsPerHop: 40
-  optionalCandidateAttempts: 28
-  minimumForwardGap: 5.5
-  maximumForwardGap: 10.5
-  maximumAdditionalForwardGapFromDifficulty: 4
-  maximumLateralOffset: 5.5
+  candidateAttemptsPerHop: 48
+  optionalCandidateAttempts: 32
+  minimumForwardGap: 8.5
+  maximumForwardGap: 15.5
+  maximumAdditionalForwardGapFromDifficulty: 7
+  maximumLateralOffset: 7.5
   maximumVerticalStep: 2.75
   minimumExitBuffer: 2.5
-  bailoutForwardGap: 4.25
+  bailoutForwardGap: 8.5
   bailoutVerticalStep: 0.55
-  landingRadius: 1.3
+  landingRadius: 1.8
   landingHeightTolerance: 1.2
   maxSimulationTime: 3.2
   simulationTimeStep: 0.02
-  mainRouteClearanceRadius: 2.5
-  optionalMushroomClearanceRadius: 2.1
+  mainRouteClearanceRadius: 5.6
+  optionalMushroomClearanceRadius: 4.4
   decorationSeparationRadius: 4
   decorationAreaPadding: 1.5
   routeHeadroomClearance: 3.5

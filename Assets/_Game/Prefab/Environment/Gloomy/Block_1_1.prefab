@@ -118,7 +118,6 @@ GameObject:
   - component: {fileID: 1043870254192330244}
   - component: {fileID: 8399627977586916763}
   - component: {fileID: 1406803096301619364}
-  - component: {fileID: 1791664257898237763}
   m_Layer: 0
   m_Name: Water
   m_TagString: Untagged
@@ -198,28 +197,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1791664257898237763
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4860351842261638891}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &5212906507915300188
 GameObject:
   m_ObjectHideFlags: 0
@@ -231,7 +208,6 @@ GameObject:
   - component: {fileID: 7994739768935733333}
   - component: {fileID: 5191665558710944737}
   - component: {fileID: 6752861019560990786}
-  - component: {fileID: 2027121258806233061}
   m_Layer: 0
   m_Name: AC_FloorRoomSquareBig00 (1)
   m_TagString: Untagged
@@ -311,28 +287,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &2027121258806233061
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5212906507915300188}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 4300158, guid: 601ce016523b9694b86fc34b51c84467, type: 3}
 --- !u!1 &8296283626530820605
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,7 +298,6 @@ GameObject:
   - component: {fileID: 5701463100808783599}
   - component: {fileID: 7415060563703361235}
   - component: {fileID: 8463891163094604660}
-  - component: {fileID: 855062479975759893}
   m_Layer: 0
   m_Name: SizeRef_40x40
   m_TagString: Untagged
@@ -424,27 +377,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &855062479975759893
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8296283626530820605}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8470396951233109412
 GameObject:
   m_ObjectHideFlags: 0
@@ -471,8 +403,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 6, y: 6, z: 6}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 5701463100808783599}
   - {fileID: 1291422258375268702}

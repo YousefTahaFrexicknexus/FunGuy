@@ -13,9 +13,9 @@ namespace Funguy.IdkPlatformer
         private const float MaximumAreaLookaheadMultiplier = 1.5f;
         private const float EmergencySearchStep = 1.25f;
         private const int EmergencyLateralSampleCount = 5;
-        private const float ForcedRecoveryMinimumGap = 2.75f;
-        private const float ForcedRecoveryMaximumGap = 4.25f;
-        private const float ForcedRecoveryClearanceMultiplier = 0.55f;
+        private const float ForcedRecoveryMinimumGap = 5.5f;
+        private const float ForcedRecoveryMaximumGap = 8.5f;
+        private const float ForcedRecoveryClearanceMultiplier = 0.9f;
 
         private sealed class ActiveArea
         {
@@ -24,6 +24,13 @@ namespace Funguy.IdkPlatformer
             public float EndZ;
             public readonly List<SpawnedRuntime> SpawnedObjects = new();
             public readonly List<RouteNodeState> RouteNodes = new();
+        }
+
+        private sealed class ActiveEnvironmentBlock
+        {
+            public float StartZ;
+            public float EndZ;
+            public readonly List<SpawnedRuntime> SpawnedObjects = new();
         }
 
         private readonly struct SpawnedRuntime
@@ -72,12 +79,14 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private Vector3 worldUp = Vector3.up;
 
         private readonly Queue<ActiveArea> activeAreas = new();
+        private readonly Queue<ActiveEnvironmentBlock> activeEnvironmentBlocks = new();
         private readonly Dictionary<Object, Stack<GameObject>> pools = new();
         private readonly List<Vector3> occupiedPositions = new(32);
 
         private System.Random random;
         private RouteNodeState routeExitState;
         private float runStartZ;
+        private float nextEnvironmentBlockStartZ;
         private int nextAreaIndexToGenerate;
         private bool initialized;
 
@@ -113,6 +122,7 @@ namespace Funguy.IdkPlatformer
             int playerArea = GetPlayerAreaIndex();
             EnsureAreasForPlayer(playerArea);
             RecycleAreasBehindPlayer(playerArea);
+            RecycleEnvironmentBlocksBehindPlayer();
         }
 
         public void BuildInitialWorld()
@@ -140,6 +150,7 @@ namespace Funguy.IdkPlatformer
                 startMushroomPosition,
                 -Up * generationProfile.InitialLandingSpeed,
                 initialDefinition);
+            nextEnvironmentBlockStartZ = runStartZ;
             nextAreaIndexToGenerate = 0;
             initialized = true;
 
@@ -198,6 +209,8 @@ namespace Funguy.IdkPlatformer
                 GenerateArea(nextAreaIndexToGenerate);
                 nextAreaIndexToGenerate++;
             }
+
+            EnsureEnvironmentBlocksUntil(GetAreaStartZ(targetArea) + generationProfile.AreaLength);
         }
 
         private void GenerateArea(int areaIndex)
@@ -261,7 +274,6 @@ namespace Funguy.IdkPlatformer
 
             routeExitState = currentState;
             SpawnOptionalMushrooms(area, areaScore, isIntroArea);
-            SpawnEnvironmentBlock(area, areaScore);
             activeAreas.Enqueue(area);
         }
 
@@ -479,14 +491,20 @@ namespace Funguy.IdkPlatformer
                 occupiedPositions.Add(area.RouteNodes[index].RootPosition);
             }
 
+            float preferredSideSign = random.NextDouble() <= 0.5d ? -1f : 1f;
             for (int count = 0; count < targetCount; count++)
             {
                 for (int attempt = 0; attempt < generationProfile.OptionalCandidateAttempts; attempt++)
                 {
                     RouteNodeState anchor = area.RouteNodes[random.Next(area.RouteNodes.Count)];
-                    Vector3 candidate = SampleOptionalPosition(anchor, area, areaScore);
+                    Vector3 candidate = SampleOptionalPosition(anchor, area, areaScore, preferredSideSign);
 
                     if (!IsPositionClear(candidate, occupiedPositions, generationProfile.OptionalMushroomClearanceRadius))
+                    {
+                        continue;
+                    }
+
+                    if (!HasOptionalLateralScatter(candidate, area.RouteNodes))
                     {
                         continue;
                     }
@@ -499,26 +517,46 @@ namespace Funguy.IdkPlatformer
                     BounceSpawnDefinition definition = PickNextRouteDefinition(areaScore, false);
                     SpawnMushroom(candidate, definition, area);
                     occupiedPositions.Add(candidate);
+                    preferredSideSign = candidate.x >= 0f ? -1f : 1f;
                     break;
                 }
             }
         }
 
-        private void SpawnEnvironmentBlock(ActiveArea area, int areaScore)
+        private void EnsureEnvironmentBlocksUntil(float targetCoverageEndZ)
         {
-            EnvironmentThemeTierDefinition theme = generationProfile.GetActiveTheme(areaScore);
-            if (theme == null || theme.Blocks == null || theme.Blocks.Count == 0)
+            if (generationProfile == null)
             {
                 return;
             }
 
-            EnvironmentDecorationDefinition definition = PickDecorationDefinition(theme);
-            if (definition == null || definition.Prefab == null)
+            while (nextEnvironmentBlockStartZ < targetCoverageEndZ)
             {
-                return;
-            }
+                int blockScore = Mathf.Max(0, Mathf.FloorToInt(nextEnvironmentBlockStartZ - runStartZ));
+                EnvironmentThemeTierDefinition theme = generationProfile.GetActiveTheme(blockScore);
+                if (theme == null || theme.Blocks == null || theme.Blocks.Count == 0)
+                {
+                    nextEnvironmentBlockStartZ = targetCoverageEndZ;
+                    return;
+                }
 
-            SpawnEnvironmentBlockInstance(area, definition);
+                EnvironmentDecorationDefinition definition = PickDecorationDefinition(theme);
+                if (definition == null || definition.Prefab == null)
+                {
+                    nextEnvironmentBlockStartZ = targetCoverageEndZ;
+                    return;
+                }
+
+                ActiveEnvironmentBlock block = new()
+                {
+                    StartZ = nextEnvironmentBlockStartZ,
+                    EndZ = nextEnvironmentBlockStartZ + definition.BlockLength
+                };
+
+                SpawnEnvironmentBlockInstance(block, definition);
+                activeEnvironmentBlocks.Enqueue(block);
+                nextEnvironmentBlockStartZ = block.EndZ;
+            }
         }
 
         private bool TryEvaluateHop(
@@ -575,18 +613,26 @@ namespace Funguy.IdkPlatformer
                 _ => 1.05f
             };
 
-            float lateralLimit = Mathf.Lerp(1.35f, generationProfile.MaximumLateralOffset, difficulty01);
+            float lateralLimit = Mathf.Lerp(2.1f, generationProfile.MaximumLateralOffset, difficulty01);
             float verticalLimit = Mathf.Lerp(0.4f, generationProfile.MaximumVerticalStep, difficulty01);
+            float searchLimitZ = ResolveRouteSearchLimitZ(area, currentState);
+            float sampledGap = RandomRange(baseMinGap * minGapMultiplier, baseMaxGap * maxGapMultiplier);
+            float minimumForwardStep = Mathf.Min(
+                baseMaxGap * maxGapMultiplier,
+                Mathf.Max(generationProfile.MainRouteClearanceRadius, baseMinGap * 0.72f));
 
-            float targetZ = currentState.RootPosition.z + RandomRange(baseMinGap * minGapMultiplier, baseMaxGap * maxGapMultiplier);
-            targetZ = Mathf.Min(targetZ, ResolveRouteSearchLimitZ(area, currentState));
-            if (targetZ <= currentState.RootPosition.z + 0.75f)
+            float targetZ = currentState.RootPosition.z + sampledGap;
+            if (searchLimitZ > currentState.RootPosition.z + minimumForwardStep)
             {
-                targetZ = currentState.RootPosition.z + 0.75f;
+                targetZ = Mathf.Clamp(targetZ, currentState.RootPosition.z + minimumForwardStep, searchLimitZ);
+            }
+            else
+            {
+                targetZ = Mathf.Max(currentState.RootPosition.z + 1.25f, searchLimitZ);
             }
 
             float targetX = Mathf.Clamp(
-                currentState.RootPosition.x + RandomRange(-lateralLimit, lateralLimit),
+                currentState.RootPosition.x + SampleGoldenPathLateralOffset(currentState, lateralLimit, intent, difficulty01),
                 -generationProfile.AreaHalfWidth,
                 generationProfile.AreaHalfWidth);
 
@@ -596,6 +642,41 @@ namespace Funguy.IdkPlatformer
                 generationProfile.MaximumHeight);
 
             return new Vector3(targetX, targetY, targetZ);
+        }
+
+        private float SampleGoldenPathLateralOffset(
+            RouteNodeState currentState,
+            float lateralLimit,
+            BounceIntentDirective intent,
+            float difficulty01)
+        {
+            if (lateralLimit <= 0.01f)
+            {
+                return 0f;
+            }
+
+            float minimumScatter = intent switch
+            {
+                BounceIntentDirective.Brake => Mathf.Lerp(0.45f, lateralLimit * 0.22f, difficulty01),
+                BounceIntentDirective.Boost => Mathf.Lerp(1.35f, lateralLimit * 0.5f, difficulty01),
+                _ => Mathf.Lerp(0.9f, lateralLimit * 0.38f, difficulty01)
+            };
+
+            minimumScatter = Mathf.Clamp(minimumScatter, 0f, lateralLimit);
+
+            float sign;
+            float edgeThreshold = generationProfile.AreaHalfWidth * 0.72f;
+            if (Mathf.Abs(currentState.RootPosition.x) >= edgeThreshold)
+            {
+                sign = -Mathf.Sign(currentState.RootPosition.x);
+            }
+            else
+            {
+                sign = random.NextDouble() < 0.5d ? -1f : 1f;
+            }
+
+            float magnitude = RandomRange(minimumScatter, lateralLimit);
+            return sign * magnitude;
         }
 
         private void ResolveForwardGapRange(RouteNodeState currentState, float difficulty01, out float minimumGap, out float maximumGap)
@@ -612,18 +693,66 @@ namespace Funguy.IdkPlatformer
             }
         }
 
-        private Vector3 SampleOptionalPosition(RouteNodeState anchor, ActiveArea area, int areaScore)
+        private Vector3 SampleOptionalPosition(RouteNodeState anchor, ActiveArea area, int areaScore, float preferredSideSign)
         {
             float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
-            float sideOffset = Mathf.Lerp(2.75f, generationProfile.AreaHalfWidth * 0.9f, 0.45f + (difficulty01 * 0.35f));
-            float sign = random.NextDouble() <= 0.5d ? -1f : 1f;
-            float x = Mathf.Clamp(anchor.RootPosition.x + (sign * RandomRange(2.25f, sideOffset)), -generationProfile.AreaHalfWidth, generationProfile.AreaHalfWidth);
-            float y = Mathf.Clamp(anchor.RootPosition.y + RandomRange(-1f, 1.25f), generationProfile.MinimumHeight, generationProfile.MaximumHeight);
+            float innerBand = Mathf.Lerp(
+                Mathf.Min(generationProfile.AreaHalfWidth * 0.42f, 3.2f),
+                generationProfile.AreaHalfWidth * 0.34f,
+                difficulty01);
+            float outerBand = generationProfile.AreaHalfWidth * Mathf.Lerp(0.78f, 0.92f, difficulty01);
+            float sign = preferredSideSign;
+
+            if (Mathf.Abs(anchor.RootPosition.x) >= generationProfile.AreaHalfWidth * 0.55f)
+            {
+                sign = -Mathf.Sign(anchor.RootPosition.x);
+            }
+            else if (random.NextDouble() < 0.2d)
+            {
+                sign *= -1f;
+            }
+
+            float x = Mathf.Clamp(
+                (sign * RandomRange(innerBand, outerBand)) + RandomRange(-0.55f, 0.55f),
+                -generationProfile.AreaHalfWidth,
+                generationProfile.AreaHalfWidth);
+            float y = Mathf.Clamp(
+                anchor.RootPosition.y + RandomRange(-1f, 1.25f),
+                generationProfile.MinimumHeight,
+                generationProfile.MaximumHeight);
             float z = Mathf.Clamp(
-                anchor.RootPosition.z + RandomRange(-1.5f, 4.5f),
-                area.StartZ,
+                anchor.RootPosition.z + RandomRange(-generationProfile.MinimumForwardGap * 0.45f, generationProfile.MaximumForwardGap * 0.85f),
+                area.StartZ + 0.5f,
                 area.EndZ - generationProfile.MinimumExitBuffer);
             return new Vector3(x, y, z);
+        }
+
+        private bool HasOptionalLateralScatter(Vector3 candidate, List<RouteNodeState> routeNodes)
+        {
+            float minimumAbsoluteX = Mathf.Min(generationProfile.AreaHalfWidth * 0.28f, 2.4f);
+            if (Mathf.Abs(candidate.x) < minimumAbsoluteX)
+            {
+                return false;
+            }
+
+            float minimumLateralSeparation = Mathf.Min(generationProfile.AreaHalfWidth * 0.3f, generationProfile.OptionalMushroomClearanceRadius * 1.4f);
+            float localDepthWindow = Mathf.Max(generationProfile.MinimumForwardGap, generationProfile.OptionalMushroomClearanceRadius * 1.5f);
+
+            for (int index = 0; index < routeNodes.Count; index++)
+            {
+                Vector3 routePosition = routeNodes[index].RootPosition;
+                if (Mathf.Abs(routePosition.z - candidate.z) > localDepthWindow)
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(routePosition.x - candidate.x) < minimumLateralSeparation)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool IsRoutePositionClear(
@@ -638,7 +767,15 @@ namespace Funguy.IdkPlatformer
             }
 
             Vector3 planarDelta = Vector3.ProjectOnPlane(candidate - currentRootPosition, Up);
-            return planarDelta.magnitude >= clearanceRadius * 0.4f;
+            float minimumPlanarSeparation = Mathf.Max(clearanceRadius * 0.85f, generationProfile.PlayerCollisionRadius * 6f);
+            if (planarDelta.magnitude < minimumPlanarSeparation)
+            {
+                return false;
+            }
+
+            float forwardSeparation = Mathf.Abs(candidate.z - currentRootPosition.z);
+            float minimumForwardSeparation = Mathf.Max(clearanceRadius * 0.8f, generationProfile.MinimumForwardGap * 0.5f);
+            return forwardSeparation >= minimumForwardSeparation;
         }
 
         private bool IsPositionClear(Vector3 candidate, List<RouteNodeState> routeNodes, float clearanceRadius)
@@ -990,7 +1127,7 @@ namespace Funguy.IdkPlatformer
             area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
         }
 
-        private void SpawnEnvironmentBlockInstance(ActiveArea area, EnvironmentDecorationDefinition definition)
+        private void SpawnEnvironmentBlockInstance(ActiveEnvironmentBlock block, EnvironmentDecorationDefinition definition)
         {
             if (definition == null || definition.Prefab == null)
             {
@@ -1004,10 +1141,49 @@ namespace Funguy.IdkPlatformer
             }
 
             instance.transform.SetParent(decorationRoot, false);
-            instance.transform.localPosition = new Vector3(0f, 0f, area.StartZ) + definition.LocalOffset;
             instance.transform.localRotation = definition.AuthoredLocalRotation;
             instance.transform.localScale = definition.AuthoredLocalScale;
-            area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
+            instance.transform.localPosition = definition.LocalOffset;
+
+            if (TryGetEnvironmentWorldBounds(instance, out Bounds bounds))
+            {
+                float worldZOffset = block.StartZ - bounds.min.z;
+                instance.transform.position += Vector3.forward * worldZOffset;
+                block.EndZ = block.StartZ + Mathf.Max(1f, bounds.size.z);
+            }
+            else
+            {
+                instance.transform.localPosition = new Vector3(0f, 0f, block.StartZ) + definition.LocalOffset;
+                block.EndZ = block.StartZ + definition.BlockLength;
+            }
+
+            block.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
+        }
+
+        private static bool TryGetEnvironmentWorldBounds(GameObject instance, out Bounds bounds)
+        {
+            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (int index = 0; index < renderers.Length; index++)
+            {
+                if (renderers[index] == null)
+                {
+                    continue;
+                }
+
+                bounds = renderers[index].bounds;
+                for (int rendererIndex = index + 1; rendererIndex < renderers.Length; rendererIndex++)
+                {
+                    if (renderers[rendererIndex] != null)
+                    {
+                        bounds.Encapsulate(renderers[rendererIndex].bounds);
+                    }
+                }
+
+                return true;
+            }
+
+            bounds = default;
+            return false;
         }
 
         private GameObject GetInstance(Object poolKey, GameObject prefab, bool usePooling)
@@ -1034,9 +1210,28 @@ namespace Funguy.IdkPlatformer
 
         private void RecycleArea(ActiveArea area)
         {
-            for (int index = 0; index < area.SpawnedObjects.Count; index++)
+            RecycleSpawnedObjects(area.SpawnedObjects);
+        }
+
+        private void RecycleEnvironmentBlocksBehindPlayer()
+        {
+            if (player == null || generationProfile == null)
             {
-                SpawnedRuntime spawned = area.SpawnedObjects[index];
+                return;
+            }
+
+            float recycleBeforeZ = player.position.z - (generationProfile.AreaLength * Mathf.Max(1, generationProfile.RecycleBehindAreas + 1));
+            while (activeEnvironmentBlocks.Count > 0 && activeEnvironmentBlocks.Peek().EndZ < recycleBeforeZ)
+            {
+                RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
+            }
+        }
+
+        private void RecycleSpawnedObjects(List<SpawnedRuntime> spawnedObjects)
+        {
+            for (int index = 0; index < spawnedObjects.Count; index++)
+            {
+                SpawnedRuntime spawned = spawnedObjects[index];
                 if (spawned.Instance == null)
                 {
                     continue;
@@ -1066,6 +1261,11 @@ namespace Funguy.IdkPlatformer
             while (activeAreas.Count > 0)
             {
                 RecycleArea(activeAreas.Dequeue());
+            }
+
+            while (activeEnvironmentBlocks.Count > 0)
+            {
+                RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
             }
         }
 
@@ -1102,7 +1302,7 @@ namespace Funguy.IdkPlatformer
                 GameObject losePlatformObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 losePlatformObject.name = "InstantLosePlatform";
                 losePlatformObject.transform.SetParent(transform, false);
-                losePlatformObject.transform.position = new Vector3(0f, -22f, 10000f);
+                losePlatformObject.transform.position = new Vector3(0f, -28f, 10000f);
                 losePlatformObject.transform.localScale = new Vector3(256f, 20f, 22000f);
 
                 BoxCollider collider = losePlatformObject.GetComponent<BoxCollider>();
@@ -1111,16 +1311,28 @@ namespace Funguy.IdkPlatformer
                     collider.isTrigger = true;
                 }
 
+                MeshRenderer renderer = losePlatformObject.GetComponent<MeshRenderer>();
+                if (renderer != null)
+                {
+                    renderer.enabled = false;
+                }
+
                 losePlatform = losePlatformObject.AddComponent<InstantLosePlatform>();
             }
 
-            losePlatform.transform.position = new Vector3(0f, -22f, 10000f);
+            losePlatform.transform.position = new Vector3(0f, -28f, 10000f);
             losePlatform.transform.localScale = new Vector3(256f, 20f, 22000f);
 
             BoxCollider losePlatformCollider = losePlatform.GetComponent<BoxCollider>();
             if (losePlatformCollider != null)
             {
                 losePlatformCollider.isTrigger = true;
+            }
+
+            MeshRenderer losePlatformRenderer = losePlatform.GetComponent<MeshRenderer>();
+            if (losePlatformRenderer != null)
+            {
+                losePlatformRenderer.enabled = false;
             }
 
             losePlatform.Configure(resetCoordinator, playerController.transform, false, 0f);

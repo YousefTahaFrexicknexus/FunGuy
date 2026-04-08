@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e49aca6482674bb1a1f8fc7c08d631ff, type: 3}
   m_Name: BoostMushroomBounceProfile
   m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.MushroomBounceProfile
-  velocityScale: 1.05
-  directionalInfluence: 0.68
-  planarBoost: 1.65
+  velocityScale: 1.12
+  directionalInfluence: 0.82
+  planarBoost: 3.1
   useAbsoluteUpwardImpulse: 0
-  upwardImpulse: 1.28
+  upwardImpulse: 1.16
   impactRecoveryFactor: 0.34
-  localLaunchDirection: {x: 0, y: 1, z: 0.55}
-  upBlend: 0.68
+  localLaunchDirection: {x: 0, y: 1, z: 1.85}
+  upBlend: 0.34
   overridePlanarDrag: 0
   planarDragOverride: 0

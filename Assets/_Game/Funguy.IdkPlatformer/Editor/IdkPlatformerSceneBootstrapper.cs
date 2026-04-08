@@ -283,12 +283,17 @@ namespace Funguy.IdkPlatformer.Editor
             SceneManager.MoveGameObjectToScene(platform, scene);
             platform.name = "InstantLosePlatform";
             platform.transform.SetParent(parent, false);
-            platform.transform.position = new Vector3(0f, -22f, 10000f);
+            platform.transform.position = new Vector3(0f, -28f, 10000f);
             platform.transform.localScale = new Vector3(256f, 20f, 22000f);
-            ApplyMaterial(platform, dangerMaterial);
 
             BoxCollider collider = platform.GetComponent<BoxCollider>();
             collider.isTrigger = true;
+
+            MeshRenderer renderer = platform.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.enabled = false;
+            }
 
             InstantLosePlatform losePlatform = platform.AddComponent<InstantLosePlatform>();
             SerializedObject losePlatformSo = new(losePlatform);
@@ -694,14 +699,14 @@ namespace Funguy.IdkPlatformer.Editor
         {
             MushroomBounceProfile asset = LoadOrCreateAsset<MushroomBounceProfile>(path);
             SerializedObject so = new(asset);
-            so.FindProperty("velocityScale").floatValue = 1f;
-            so.FindProperty("directionalInfluence").floatValue = 0.45f;
-            so.FindProperty("planarBoost").floatValue = 0.65f;
+            so.FindProperty("velocityScale").floatValue = 1.03f;
+            so.FindProperty("directionalInfluence").floatValue = 0.62f;
+            so.FindProperty("planarBoost").floatValue = 1.2f;
             so.FindProperty("useAbsoluteUpwardImpulse").boolValue = false;
-            so.FindProperty("upwardImpulse").floatValue = 1f;
+            so.FindProperty("upwardImpulse").floatValue = 1.12f;
             so.FindProperty("impactRecoveryFactor").floatValue = 0.3f;
-            so.FindProperty("localLaunchDirection").vector3Value = new Vector3(0f, 1f, 0.35f);
-            so.FindProperty("upBlend").floatValue = 0.78f;
+            so.FindProperty("localLaunchDirection").vector3Value = new Vector3(0f, 1f, 0.75f);
+            so.FindProperty("upBlend").floatValue = 0.58f;
             so.FindProperty("overridePlanarDrag").boolValue = false;
             so.FindProperty("planarDragOverride").floatValue = 0f;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -713,14 +718,14 @@ namespace Funguy.IdkPlatformer.Editor
         {
             MushroomBounceProfile asset = LoadOrCreateAsset<MushroomBounceProfile>(path);
             SerializedObject so = new(asset);
-            so.FindProperty("velocityScale").floatValue = 1.05f;
-            so.FindProperty("directionalInfluence").floatValue = 0.68f;
-            so.FindProperty("planarBoost").floatValue = 1.65f;
+            so.FindProperty("velocityScale").floatValue = 1.12f;
+            so.FindProperty("directionalInfluence").floatValue = 0.82f;
+            so.FindProperty("planarBoost").floatValue = 3.1f;
             so.FindProperty("useAbsoluteUpwardImpulse").boolValue = false;
-            so.FindProperty("upwardImpulse").floatValue = 1.08f;
+            so.FindProperty("upwardImpulse").floatValue = 1.16f;
             so.FindProperty("impactRecoveryFactor").floatValue = 0.34f;
-            so.FindProperty("localLaunchDirection").vector3Value = new Vector3(0f, 1f, 0.55f);
-            so.FindProperty("upBlend").floatValue = 0.68f;
+            so.FindProperty("localLaunchDirection").vector3Value = new Vector3(0f, 1f, 1.85f);
+            so.FindProperty("upBlend").floatValue = 0.34f;
             so.FindProperty("overridePlanarDrag").boolValue = false;
             so.FindProperty("planarDragOverride").floatValue = 0f;
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -829,26 +834,26 @@ namespace Funguy.IdkPlatformer.Editor
             so.FindProperty("surfaceLandingHeight").floatValue = 0.94f;
             so.FindProperty("playerCollisionRadius").floatValue = 0.45f;
             so.FindProperty("initialLandingSpeed").floatValue = 2.5f;
-            so.FindProperty("minimumMainPathNodes").intValue = 4;
-            so.FindProperty("maximumMainPathNodes").intValue = 6;
+            so.FindProperty("minimumMainPathNodes").intValue = 5;
+            so.FindProperty("maximumMainPathNodes").intValue = 7;
             so.FindProperty("minimumOptionalMushrooms").intValue = 1;
             so.FindProperty("maximumOptionalMushrooms").intValue = 3;
-            so.FindProperty("candidateAttemptsPerHop").intValue = 18;
-            so.FindProperty("optionalCandidateAttempts").intValue = 18;
-            so.FindProperty("minimumForwardGap").floatValue = 4.5f;
-            so.FindProperty("maximumForwardGap").floatValue = 8f;
-            so.FindProperty("maximumAdditionalForwardGapFromDifficulty").floatValue = 3f;
-            so.FindProperty("maximumLateralOffset").floatValue = 5.5f;
+            so.FindProperty("candidateAttemptsPerHop").intValue = 24;
+            so.FindProperty("optionalCandidateAttempts").intValue = 22;
+            so.FindProperty("minimumForwardGap").floatValue = 8.5f;
+            so.FindProperty("maximumForwardGap").floatValue = 15.5f;
+            so.FindProperty("maximumAdditionalForwardGapFromDifficulty").floatValue = 7f;
+            so.FindProperty("maximumLateralOffset").floatValue = 7.5f;
             so.FindProperty("maximumVerticalStep").floatValue = 2.25f;
             so.FindProperty("minimumExitBuffer").floatValue = 2.5f;
-            so.FindProperty("bailoutForwardGap").floatValue = 4.25f;
+            so.FindProperty("bailoutForwardGap").floatValue = 8.5f;
             so.FindProperty("bailoutVerticalStep").floatValue = 0.55f;
-            so.FindProperty("landingRadius").floatValue = 1.3f;
+            so.FindProperty("landingRadius").floatValue = 1.8f;
             so.FindProperty("landingHeightTolerance").floatValue = 1.2f;
             so.FindProperty("maxSimulationTime").floatValue = 2.3f;
             so.FindProperty("simulationTimeStep").floatValue = 0.02f;
-            so.FindProperty("mainRouteClearanceRadius").floatValue = 2.5f;
-            so.FindProperty("optionalMushroomClearanceRadius").floatValue = 2.1f;
+            so.FindProperty("mainRouteClearanceRadius").floatValue = 5.6f;
+            so.FindProperty("optionalMushroomClearanceRadius").floatValue = 4.4f;
             so.FindProperty("decorationSeparationRadius").floatValue = 4f;
             so.FindProperty("decorationAreaPadding").floatValue = 1.5f;
             so.FindProperty("routeHeadroomClearance").floatValue = 3.5f;
