@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: FantasyForest_Block02
   m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.EnvironmentDecorationDefinition
   prefab: {fileID: 8470396951233109412, guid: d9105a63c15e79145ba729120de03d81, type: 3}
-  localOffset: {x: 0, y: -5, z: 0}
+  localOffset: {x: 0, y: -30, z: 0}
   blockLength: 32
   spawnWeight: 0.9
   usePooling: 1

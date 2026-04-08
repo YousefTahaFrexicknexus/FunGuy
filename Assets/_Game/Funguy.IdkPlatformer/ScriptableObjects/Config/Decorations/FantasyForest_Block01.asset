@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.EnvironmentDecorationDefinition
   prefab: {fileID: 8470396951233109412, guid: 56d3de8f57249ba4ea55095f90b6305a, type: 3}
   localOffset: {x: 0, y: -5, z: 0}
-  blockLength: 32
+  blockLength: 102
   spawnWeight: 1
   usePooling: 1

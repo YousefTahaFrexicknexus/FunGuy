@@ -48,11 +48,10 @@ MonoBehaviour:
   cameraSightlineClearance: 6
   difficultyRampDistance: 300
   seed: 1337
-  randomizeSeed: 0
+  randomizeSeed: 1
   mushroomDefinitions:
   - {fileID: 11400000, guid: 1ddcf7e208cc4094baa8ed79550680bb, type: 2}
   - {fileID: 11400000, guid: 3ebc3e8f09ba38f47ae8b0bb0867fc14, type: 2}
-  - {fileID: 11400000, guid: 2026c74b4aff02d48ad0d9e09f75f02e, type: 2}
   themeTiers:
   - {fileID: 11400000, guid: 1854c98c469d6fc4cb252e0583fddd21, type: 2}
   - {fileID: 11400000, guid: bb576fffde90d4a40b9c65a66e3a1554, type: 2}

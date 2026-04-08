@@ -20,5 +20,5 @@ MonoBehaviour:
   spawnWeight: 0.75
   usePooling: 1
   limitDifficultyRange: 0
-  minimumDifficulty: 0
+  minimumDifficulty: 1
   maximumDifficulty: 2

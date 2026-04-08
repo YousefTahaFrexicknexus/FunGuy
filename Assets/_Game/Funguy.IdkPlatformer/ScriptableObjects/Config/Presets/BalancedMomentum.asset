@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: BalancedMomentum
   m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.MovementTuningProfile
   moveAcceleration: 19
-  airControlStrength: 0.5
-  forwardAirControlMultiplier: 0.72
+  airControlStrength: 0.75
+  forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
-  maxControllableSpeed: 12
+  maxControllableSpeed: 15
   maxSpeed: 18
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
-  jumpGravityMultiplier: 1.2
-  fallGravityMultiplier: 2.1
+  jumpGravityMultiplier: 1
+  fallGravityMultiplier: 2
   baseJumpForce: 9
   dashForce: 7.5
   dashCooldown: 0.16
