@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: ff4b4ace93f98844eb284a6dddd7a46f
+timeCreated: 1522471986
+licenseType: Store
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Editor/Scripts/PrefabPainterEditor.cs
+  uploadId: 842760

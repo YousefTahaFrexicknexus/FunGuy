@@ -1,0 +1,22 @@
+{
+    "name": "Rowlan.YAPP.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "JBooth.MicroVerseCore"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.jbooth.microverse.vegetation",
+            "expression": "",
+            "define": "__MICROVERSE_VEGETATION__"
+        }
+    ],
+    "noEngineReferences": false
+}
