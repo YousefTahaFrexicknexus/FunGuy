@@ -32,7 +32,11 @@ namespace Funguy.IdkPlatformer
 
         public Vector3 Velocity => body != null ? body.linearVelocity : Vector3.zero;
 
+        public MovementTuningProfile TuningProfile => tuningProfile;
+
         public bool IsGrounded => isGrounded;
+
+        public Vector3 UpDirection => Up;
 
         private Vector3 Up => worldUp.sqrMagnitude > MinDirectionSqrMagnitude ? worldUp.normalized : Vector3.up;
 

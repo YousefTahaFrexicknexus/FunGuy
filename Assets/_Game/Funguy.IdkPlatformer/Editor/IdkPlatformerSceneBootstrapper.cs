@@ -893,6 +893,7 @@ namespace Funguy.IdkPlatformer.Editor
 
             MovementMotor movementMotor = root.AddComponent<MovementMotor>();
             PlayerController playerController = root.AddComponent<PlayerController>();
+            root.AddComponent<Funguy.IdkPlatformer.PlayerSpeedMeterHud>();
 
             GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "Visual";

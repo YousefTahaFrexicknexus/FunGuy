@@ -103,6 +103,7 @@ GameObject:
   - component: {fileID: 6698093244278556446}
   - component: {fileID: 3264662956738846588}
   - component: {fileID: 8683741851017507597}
+  - component: {fileID: 5034897476475055596}
   m_Layer: 0
   m_Name: IdkPlayer
   m_TagString: Untagged
@@ -206,3 +207,32 @@ MonoBehaviour:
   movementMotor: {fileID: 3264662956738846588}
   tuningProfile: {fileID: 0}
   initialState: 0
+--- !u!114 &5034897476475055596
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4056237532050983834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b38b770261e4ccea0de2b7a2b27b4e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.PlayerSpeedMeterHud
+  movementMotor: {fileID: 3264662956738846588}
+  targetCanvas: {fileID: 0}
+  autoFindMovementMotor: 1
+  autoFindCanvas: 1
+  usePlanarSpeed: 0
+  speedDisplayMultiplier: 1
+  maxDisplaySpeed: 24
+  smoothing: 10
+  speedLabel: SPEED
+  unitsSuffix: ' u/s'
+  panelSize: {x: 120, y: 360}
+  anchoredOffset: {x: -72, y: 0}
+  panelColor: {r: 0.07, g: 0.11, b: 0.15, a: 0.72}
+  trackColor: {r: 0.16, g: 0.22, b: 0.28, a: 0.92}
+  lowSpeedColor: {r: 0.33, g: 0.81, b: 0.65, a: 0.95}
+  highSpeedColor: {r: 0.98, g: 0.56, b: 0.24, a: 0.98}
+  textColor: {r: 0.97, g: 0.99, b: 1, a: 0.98}
