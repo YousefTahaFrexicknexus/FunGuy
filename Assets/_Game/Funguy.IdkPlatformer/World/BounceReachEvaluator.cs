@@ -107,7 +107,7 @@ namespace Funguy.IdkPlatformer
                 MovementInputFrame.Empty);
 
             BounceSurfaceResponse bounceResponse = request.LaunchProfile.CreateResponse(null, context);
-            Vector3 launchVelocity = BounceMovementMath.ApplyBounceResponse(request.IncomingVelocity, bounceResponse, up);
+            Vector3 launchVelocity = BounceMovementMath.ApplyBounceResponse(request.IncomingVelocity, bounceResponse, request.TuningProfile, up);
             Vector3 velocity = launchVelocity;
             Vector3 position = bouncePoint;
             float elapsedTime = 0f;

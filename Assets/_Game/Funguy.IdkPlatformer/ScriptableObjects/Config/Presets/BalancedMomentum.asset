@@ -17,13 +17,14 @@ MonoBehaviour:
   forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
   maxControllableSpeed: 15
-  maxSpeed: 18
+  maxSpeed: 48
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
   jumpGravityMultiplier: 1
   fallGravityMultiplier: 2
   baseJumpForce: 9
+  baseBounceSpeedGain: 1
   dashForce: 7.5
   dashCooldown: 0.16
   dashChargesPerBounce: 1

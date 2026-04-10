@@ -13,9 +13,9 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private bool autoFindCanvas = true;
 
         [Header("Display")]
-        [SerializeField] private bool usePlanarSpeed;
+        [SerializeField] private bool usePlanarSpeed = true;
         [SerializeField] private float speedDisplayMultiplier = 1f;
-        [SerializeField] private float maxDisplaySpeed = 24f;
+        [SerializeField] private float maxDisplaySpeed = 48f;
         [SerializeField] private float smoothing = 10f;
         [SerializeField] private string speedLabel = "SPEED";
         [SerializeField] private string unitsSuffix = " u/s";

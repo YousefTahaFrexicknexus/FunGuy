@@ -521,6 +521,7 @@ namespace Funguy.IdkPlatformer.Editor
             so.FindProperty("jumpGravityMultiplier").floatValue = preset.JumpGravityMultiplier;
             so.FindProperty("fallGravityMultiplier").floatValue = preset.FallGravityMultiplier;
             so.FindProperty("baseJumpForce").floatValue = preset.BaseJumpForce;
+            so.FindProperty("baseBounceSpeedGain").floatValue = preset.BaseBounceSpeedGain;
             so.FindProperty("dashForce").floatValue = preset.DashForce;
             so.FindProperty("dashCooldown").floatValue = preset.DashCooldown;
             so.FindProperty("dashChargesPerBounce").intValue = preset.DashChargesPerBounce;
@@ -541,13 +542,14 @@ namespace Funguy.IdkPlatformer.Editor
                 forwardAirControlMultiplier: 0.72f,
                 airBrakeAcceleration: 24f,
                 maxControllableSpeed: 12f,
-                maxSpeed: 18f,
+                maxSpeed: 48f,
                 overSpeedDrag: 7.5f,
                 airDrag: 0.18f,
                 gravityScale: 1f,
                 jumpGravityMultiplier: 1.2f,
                 fallGravityMultiplier: 2.1f,
                 baseJumpForce: 9f,
+                baseBounceSpeedGain: 1f,
                 dashForce: 7.5f,
                 dashCooldown: 0.16f,
                 dashChargesPerBounce: 1,
@@ -575,6 +577,7 @@ namespace Funguy.IdkPlatformer.Editor
                 jumpGravityMultiplier: 1.05f,
                 fallGravityMultiplier: 2.6f,
                 baseJumpForce: 8.5f,
+                baseBounceSpeedGain: 0.75f,
                 dashForce: 6.5f,
                 dashCooldown: 0.18f,
                 dashChargesPerBounce: 1,
@@ -602,6 +605,7 @@ namespace Funguy.IdkPlatformer.Editor
                 jumpGravityMultiplier: 1.15f,
                 fallGravityMultiplier: 2.8f,
                 baseJumpForce: 8.75f,
+                baseBounceSpeedGain: 0.85f,
                 dashForce: 8f,
                 dashCooldown: 0.14f,
                 dashChargesPerBounce: 1,
@@ -629,6 +633,7 @@ namespace Funguy.IdkPlatformer.Editor
                 jumpGravityMultiplier: 0.95f,
                 fallGravityMultiplier: 1.75f,
                 baseJumpForce: 9.5f,
+                baseBounceSpeedGain: 1.15f,
                 dashForce: 8.5f,
                 dashCooldown: 0.12f,
                 dashChargesPerBounce: 1,
@@ -656,6 +661,7 @@ namespace Funguy.IdkPlatformer.Editor
                 jumpGravityMultiplier: 1.1f,
                 fallGravityMultiplier: 2f,
                 baseJumpForce: 9f,
+                baseBounceSpeedGain: 0.9f,
                 dashForce: 8.5f,
                 dashCooldown: 0.16f,
                 dashChargesPerBounce: 1,
@@ -683,6 +689,7 @@ namespace Funguy.IdkPlatformer.Editor
                 jumpGravityMultiplier: 1f,
                 fallGravityMultiplier: 1.85f,
                 baseJumpForce: 9.25f,
+                baseBounceSpeedGain: 1f,
                 dashForce: 7.25f,
                 dashCooldown: 0.18f,
                 dashChargesPerBounce: 1,
@@ -1033,6 +1040,7 @@ namespace Funguy.IdkPlatformer.Editor
                 float jumpGravityMultiplier,
                 float fallGravityMultiplier,
                 float baseJumpForce,
+                float baseBounceSpeedGain,
                 float dashForce,
                 float dashCooldown,
                 int dashChargesPerBounce,
@@ -1056,6 +1064,7 @@ namespace Funguy.IdkPlatformer.Editor
                 JumpGravityMultiplier = jumpGravityMultiplier;
                 FallGravityMultiplier = fallGravityMultiplier;
                 BaseJumpForce = baseJumpForce;
+                BaseBounceSpeedGain = baseBounceSpeedGain;
                 DashForce = dashForce;
                 DashCooldown = dashCooldown;
                 DashChargesPerBounce = dashChargesPerBounce;
@@ -1091,6 +1100,8 @@ namespace Funguy.IdkPlatformer.Editor
             public float FallGravityMultiplier { get; }
 
             public float BaseJumpForce { get; }
+
+            public float BaseBounceSpeedGain { get; }
 
             public float DashForce { get; }
 

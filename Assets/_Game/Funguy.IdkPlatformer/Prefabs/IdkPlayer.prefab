@@ -223,9 +223,9 @@ MonoBehaviour:
   targetCanvas: {fileID: 0}
   autoFindMovementMotor: 1
   autoFindCanvas: 1
-  usePlanarSpeed: 0
+  usePlanarSpeed: 1
   speedDisplayMultiplier: 1
-  maxDisplaySpeed: 24
+  maxDisplaySpeed: 48
   smoothing: 10
   speedLabel: SPEED
   unitsSuffix: ' u/s'

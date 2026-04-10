@@ -22,6 +22,7 @@ namespace Funguy.IdkPlatformer
 
         [Header("Bounce And Dash")]
         [SerializeField] private float baseJumpForce = 9f;
+        [SerializeField] private float baseBounceSpeedGain = 1f;
         [SerializeField] private float dashForce = 8f;
         [SerializeField] private float dashCooldown = 0.2f;
         [SerializeField] private int dashChargesPerBounce = 1;
@@ -59,6 +60,8 @@ namespace Funguy.IdkPlatformer
 
         public float BaseJumpForce => baseJumpForce;
 
+        public float BaseBounceSpeedGain => baseBounceSpeedGain;
+
         public float DashForce => dashForce;
 
         public float DashCooldown => dashCooldown;
@@ -93,6 +96,7 @@ namespace Funguy.IdkPlatformer
             jumpGravityMultiplier = Mathf.Max(0f, jumpGravityMultiplier);
             fallGravityMultiplier = Mathf.Max(0f, fallGravityMultiplier);
             baseJumpForce = Mathf.Max(0f, baseJumpForce);
+            baseBounceSpeedGain = Mathf.Max(0f, baseBounceSpeedGain);
             dashForce = Mathf.Max(0f, dashForce);
             dashCooldown = Mathf.Max(0f, dashCooldown);
             dashChargesPerBounce = Mathf.Max(1, dashChargesPerBounce);

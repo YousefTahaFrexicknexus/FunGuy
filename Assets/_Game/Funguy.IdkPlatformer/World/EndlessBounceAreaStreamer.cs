@@ -874,7 +874,7 @@ namespace Funguy.IdkPlatformer
                 MovementInputFrame.Empty);
 
             BounceSurfaceResponse response = currentState.BounceProfile.CreateResponse(null, context);
-            return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, Up);
+            return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, tuningProfile, Up);
         }
 
         private Vector3 EstimateForcedLandingVelocity(RouteNodeState currentState)

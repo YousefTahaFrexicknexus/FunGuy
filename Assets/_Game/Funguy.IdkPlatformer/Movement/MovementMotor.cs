@@ -23,6 +23,7 @@ namespace Funguy.IdkPlatformer
         private float bufferedDashUntil = float.NegativeInfinity;
         private float lowControlUntil = float.NegativeInfinity;
         private float dashControlBoostUntil = float.NegativeInfinity;
+        private float planarSpeedFloor;
         private Collider lastConsumedSurface;
         private Func<bool> tryConsumeDashHandler;
         private bool isGrounded;
@@ -115,6 +116,14 @@ namespace Funguy.IdkPlatformer
             }
 
             ApplySoftSpeedLimit(ref velocity, deltaTime);
+
+            if (bouncedThisStep)
+            {
+                UpdatePlanarSpeedFloor(velocity, bounceResponse);
+            }
+
+            UpdatePlanarSpeedFloorForBraking(velocity);
+            ApplyPlanarSpeedFloor(ref velocity);
             TryConsumeBufferedDash(ref velocity, bouncedThisStep);
 
             body.linearVelocity = velocity;
@@ -148,6 +157,7 @@ namespace Funguy.IdkPlatformer
             if (!enabled)
             {
                 bufferedDashUntil = float.NegativeInfinity;
+                planarSpeedFloor = 0f;
                 currentInput = MovementInputFrame.Empty;
             }
         }
@@ -175,6 +185,7 @@ namespace Funguy.IdkPlatformer
             bufferedDashUntil = float.NegativeInfinity;
             lowControlUntil = float.NegativeInfinity;
             dashControlBoostUntil = float.NegativeInfinity;
+            planarSpeedFloor = 0f;
             lastConsumedSurface = null;
             isGrounded = false;
             currentInput = MovementInputFrame.Empty;
@@ -248,6 +259,26 @@ namespace Funguy.IdkPlatformer
             BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime);
         }
 
+        private void ApplyPlanarSpeedFloor(ref Vector3 velocity)
+        {
+            if (tuningProfile == null || currentInput.BrakeAmount > 0.01f || planarSpeedFloor <= 0f)
+            {
+                return;
+            }
+
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
+            float planarSpeed = planarVelocity.magnitude;
+            float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, tuningProfile.MaxSpeed);
+
+            if (planarSpeed >= targetPlanarSpeed || planarVelocity.sqrMagnitude <= MinDirectionSqrMagnitude)
+            {
+                return;
+            }
+
+            Vector3 verticalVelocity = Up * Vector3.Dot(velocity, Up);
+            velocity = (planarVelocity.normalized * targetPlanarSpeed) + verticalVelocity;
+        }
+
         private bool TryConsumeBounceCandidate(ref Vector3 velocity, out BounceSurfaceResponse response)
         {
             response = default;
@@ -304,7 +335,38 @@ namespace Funguy.IdkPlatformer
 
         private Vector3 ApplyBounceResponse(Vector3 incomingVelocity, BounceSurfaceResponse response)
         {
-            return BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, Up);
+            return BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, tuningProfile, Up);
+        }
+
+        private void UpdatePlanarSpeedFloor(Vector3 velocity, BounceSurfaceResponse response)
+        {
+            float planarSpeed = Vector3.ProjectOnPlane(velocity, Up).magnitude;
+            if (planarSpeed <= 0f)
+            {
+                return;
+            }
+
+            bool isSpeedReducingBounce = response.HasPlanarDragOverride || response.VelocityScale < 1f || response.PlanarBoost < 0f;
+            planarSpeedFloor = isSpeedReducingBounce
+                ? planarSpeed
+                : Mathf.Max(planarSpeedFloor, planarSpeed);
+        }
+
+        private void UpdatePlanarSpeedFloorForBraking(Vector3 velocity)
+        {
+            if (currentInput.BrakeAmount <= 0.01f)
+            {
+                return;
+            }
+
+            float planarSpeed = Vector3.ProjectOnPlane(velocity, Up).magnitude;
+            if (planarSpeed <= 0f)
+            {
+                planarSpeedFloor = 0f;
+                return;
+            }
+
+            planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
         }
 
         private bool TryConsumeBufferedDash(ref Vector3 velocity, bool bouncedThisStep)

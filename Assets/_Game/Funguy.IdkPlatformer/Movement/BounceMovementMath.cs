@@ -5,6 +5,7 @@ namespace Funguy.IdkPlatformer
     public static class BounceMovementMath
     {
         public const float MinimumDirectionSqrMagnitude = 0.0001f;
+        private const float BackwardBrakeMultiplier = 0.75f;
 
         public static void ApplyShapedGravity(
             ref Vector3 velocity,
@@ -64,6 +65,15 @@ namespace Funguy.IdkPlatformer
             {
                 float brakeDelta = tuningProfile.AirBrakeAcceleration * (-alignment) * inputFrame.Magnitude * deltaTime;
                 planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, brakeDelta);
+            }
+
+            if (inputFrame.BrakeAmount > 0f && tuningProfile.AirBrakeAcceleration > 0f)
+            {
+                float backwardBrakeDelta = tuningProfile.AirBrakeAcceleration
+                    * inputFrame.BrakeAmount
+                    * BackwardBrakeMultiplier
+                    * deltaTime;
+                planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, backwardBrakeDelta);
             }
 
             float currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
@@ -130,7 +140,11 @@ namespace Funguy.IdkPlatformer
             velocity = planarVelocity + (up * Vector3.Dot(velocity, up));
         }
 
-        public static Vector3 ApplyBounceResponse(Vector3 incomingVelocity, in BounceSurfaceResponse response, Vector3 worldUp)
+        public static Vector3 ApplyBounceResponse(
+            Vector3 incomingVelocity,
+            in BounceSurfaceResponse response,
+            MovementTuningProfile tuningProfile,
+            Vector3 worldUp)
         {
             Vector3 up = GetSafeUp(worldUp);
             Vector3 planarVelocity = Vector3.ProjectOnPlane(incomingVelocity, up);
@@ -140,16 +154,60 @@ namespace Funguy.IdkPlatformer
             Vector3 redirectedPlanar = planarVelocity;
             if (planarSpeed > MinimumDirectionSqrMagnitude && planarDirection.sqrMagnitude > MinimumDirectionSqrMagnitude)
             {
-                redirectedPlanar = Vector3.Lerp(
-                    planarVelocity,
-                    planarDirection * planarSpeed,
-                    response.DirectionalInfluence);
+                Vector3 currentDirection = planarVelocity.normalized;
+                Vector3 blendedDirection = Vector3.Slerp(currentDirection, planarDirection, response.DirectionalInfluence);
+                if (blendedDirection.sqrMagnitude <= MinimumDirectionSqrMagnitude)
+                {
+                    blendedDirection = Vector3.Lerp(currentDirection, planarDirection, response.DirectionalInfluence);
+                }
+
+                if (blendedDirection.sqrMagnitude > MinimumDirectionSqrMagnitude)
+                {
+                    redirectedPlanar = blendedDirection.normalized * planarSpeed;
+                }
             }
 
             Vector3 planarOut = redirectedPlanar * response.VelocityScale;
             if (planarDirection.sqrMagnitude > MinimumDirectionSqrMagnitude && Mathf.Abs(response.PlanarBoost) > 0f)
             {
                 planarOut += planarDirection * response.PlanarBoost;
+            }
+
+            if (tuningProfile != null &&
+                !response.HasPlanarDragOverride &&
+                response.VelocityScale >= 1f &&
+                response.PlanarBoost >= 0f &&
+                tuningProfile.BaseBounceSpeedGain > 0f)
+            {
+                Vector3 bonusDirection = planarOut.sqrMagnitude > MinimumDirectionSqrMagnitude
+                    ? planarOut.normalized
+                    : planarDirection.sqrMagnitude > MinimumDirectionSqrMagnitude
+                        ? planarDirection
+                        : planarVelocity.normalized;
+
+                if (bonusDirection.sqrMagnitude > MinimumDirectionSqrMagnitude)
+                {
+                    planarOut += bonusDirection * tuningProfile.BaseBounceSpeedGain;
+                }
+            }
+
+            if (!response.HasPlanarDragOverride && response.VelocityScale >= 1f && response.PlanarBoost >= 0f)
+            {
+                float minimumPlanarSpeed = planarSpeed;
+                float planarOutSpeed = planarOut.magnitude;
+                if (planarOutSpeed < minimumPlanarSpeed)
+                {
+                    Vector3 fallbackDirection = planarOut.sqrMagnitude > MinimumDirectionSqrMagnitude
+                        ? planarOut.normalized
+                        : planarDirection.sqrMagnitude > MinimumDirectionSqrMagnitude
+                            ? planarDirection
+                            : planarVelocity.normalized;
+
+                    if (fallbackDirection.sqrMagnitude > MinimumDirectionSqrMagnitude)
+                    {
+                        planarOut = fallbackDirection.normalized * minimumPlanarSpeed;
+                    }
+                }
             }
 
             float verticalSpeed = Vector3.Dot(incomingVelocity, up);

@@ -30,6 +30,8 @@ namespace Funguy.IdkPlatformer
 
         public bool DashPressed { get; }
 
+        public float BrakeAmount => Mathf.Clamp01(-Move.y);
+
         public bool HasMoveInput => Magnitude > 0f && WishDirection.sqrMagnitude > 0f;
     }
 }
