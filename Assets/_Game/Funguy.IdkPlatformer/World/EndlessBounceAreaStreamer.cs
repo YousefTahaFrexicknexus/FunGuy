@@ -300,6 +300,11 @@ namespace Funguy.IdkPlatformer
                     continue;
                 }
 
+                if (!HasDesiredValidPathScatter(candidate, currentState, area.RouteNodes))
+                {
+                    continue;
+                }
+
                 if (!TryEvaluateHop(currentState, candidate, intent, out BounceReachResult result))
                 {
                     continue;
@@ -613,7 +618,7 @@ namespace Funguy.IdkPlatformer
                 _ => 1.05f
             };
 
-            float lateralLimit = Mathf.Lerp(2.1f, generationProfile.MaximumLateralOffset, difficulty01);
+            float lateralLimit = Mathf.Lerp(generationProfile.MinimumLateralOffset, generationProfile.MaximumLateralOffset, difficulty01);
             float verticalLimit = Mathf.Lerp(0.4f, generationProfile.MaximumVerticalStep, difficulty01);
             float searchLimitZ = ResolveRouteSearchLimitZ(area, currentState);
             float sampledGap = RandomRange(baseMinGap * minGapMultiplier, baseMaxGap * maxGapMultiplier);
@@ -631,10 +636,7 @@ namespace Funguy.IdkPlatformer
                 targetZ = Mathf.Max(currentState.RootPosition.z + 1.25f, searchLimitZ);
             }
 
-            float targetX = Mathf.Clamp(
-                currentState.RootPosition.x + SampleGoldenPathLateralOffset(currentState, lateralLimit, intent, difficulty01),
-                -generationProfile.AreaHalfWidth,
-                generationProfile.AreaHalfWidth);
+            float targetX = SampleGoldenPathXPosition(currentState, lateralLimit, intent, difficulty01);
 
             float targetY = Mathf.Clamp(
                 currentState.RootPosition.y + RandomRange(-verticalLimit, verticalLimit),
@@ -644,7 +646,7 @@ namespace Funguy.IdkPlatformer
             return new Vector3(targetX, targetY, targetZ);
         }
 
-        private float SampleGoldenPathLateralOffset(
+        private float SampleGoldenPathXPosition(
             RouteNodeState currentState,
             float lateralLimit,
             BounceIntentDirective intent,
@@ -652,9 +654,10 @@ namespace Funguy.IdkPlatformer
         {
             if (lateralLimit <= 0.01f)
             {
-                return 0f;
+                return currentState.RootPosition.x;
             }
 
+            float scatter = generationProfile.ValidPathScatter;
             float minimumScatter = intent switch
             {
                 BounceIntentDirective.Brake => Mathf.Lerp(0.45f, lateralLimit * 0.22f, difficulty01),
@@ -664,19 +667,143 @@ namespace Funguy.IdkPlatformer
 
             minimumScatter = Mathf.Clamp(minimumScatter, 0f, lateralLimit);
 
+            float currentX = currentState.RootPosition.x;
+            float currentAbsX = Mathf.Abs(currentX);
+            float centerWindow = Mathf.Lerp(generationProfile.AreaHalfWidth * 0.22f, generationProfile.AreaHalfWidth * 0.08f, scatter);
+            float currentSign = currentAbsX > centerWindow ? Mathf.Sign(currentX) : 0f;
+
+            float centerChance = intent switch
+            {
+                BounceIntentDirective.Brake => Mathf.Lerp(0.42f, 0.26f, scatter),
+                BounceIntentDirective.Boost => Mathf.Lerp(0.12f, 0.06f, scatter),
+                _ => Mathf.Lerp(0.26f, 0.12f, scatter)
+            };
+
+            if (random.NextDouble() < centerChance)
+            {
+                float centerBand = Mathf.Lerp(
+                    generationProfile.AreaHalfWidth * 0.24f,
+                    generationProfile.AreaHalfWidth * 0.12f,
+                    scatter);
+                return RandomRange(-centerBand, centerBand);
+            }
+
             float sign;
             float edgeThreshold = generationProfile.AreaHalfWidth * 0.72f;
-            if (Mathf.Abs(currentState.RootPosition.x) >= edgeThreshold)
+            if (currentAbsX >= edgeThreshold)
             {
-                sign = -Mathf.Sign(currentState.RootPosition.x);
+                sign = -Mathf.Sign(currentX);
             }
             else
             {
-                sign = random.NextDouble() < 0.5d ? -1f : 1f;
+                float holdSameSideChance = intent switch
+                {
+                    BounceIntentDirective.Brake => Mathf.Lerp(0.7f, 0.35f, scatter),
+                    BounceIntentDirective.Boost => Mathf.Lerp(0.45f, 0.08f, scatter),
+                    _ => Mathf.Lerp(0.55f, 0.15f, scatter)
+                };
+
+                if (currentSign == 0f)
+                {
+                    sign = random.NextDouble() < 0.5d ? -1f : 1f;
+                }
+                else
+                {
+                    sign = random.NextDouble() < holdSameSideChance ? currentSign : -currentSign;
+                }
             }
 
-            float magnitude = RandomRange(minimumScatter, lateralLimit);
-            return sign * magnitude;
+            float minAbsX = Mathf.Lerp(generationProfile.MinimumLateralOffset * 0.2f, generationProfile.MinimumLateralOffset, scatter);
+            float outerBias = Mathf.Clamp01(Mathf.Lerp(generationProfile.MainPathOuterBias, 1f, scatter * 0.45f));
+            float targetAbsX = Mathf.Lerp(Mathf.Max(minAbsX, minimumScatter), lateralLimit, SampleOuterBiased01(outerBias));
+            float targetX = sign * targetAbsX;
+
+            if (scatter > 0.55f && currentSign != 0f && sign != currentSign)
+            {
+                float crossCenterAbs = Mathf.Max(minAbsX, currentAbsX * Mathf.Lerp(0.45f, 0.85f, scatter));
+                targetX = sign * Mathf.Max(Mathf.Abs(targetX), crossCenterAbs);
+            }
+
+            float minimumHop = Mathf.Lerp(0.6f, generationProfile.MinimumLateralOffset, scatter);
+            if (Mathf.Abs(targetX - currentX) < minimumHop)
+            {
+                float adjustedAbs = Mathf.Min(generationProfile.AreaHalfWidth, currentAbsX + minimumHop);
+                targetX = sign * Mathf.Max(Mathf.Abs(targetX), adjustedAbs);
+            }
+
+            return Mathf.Clamp(targetX, -generationProfile.AreaHalfWidth, generationProfile.AreaHalfWidth);
+        }
+
+        private bool HasDesiredValidPathScatter(
+            Vector3 candidate,
+            RouteNodeState currentState,
+            List<RouteNodeState> routeNodes)
+        {
+            float scatter = generationProfile.ValidPathScatter;
+            if (scatter <= 0.05f)
+            {
+                return true;
+            }
+
+            float centerWindow = Mathf.Lerp(
+                generationProfile.AreaHalfWidth * 0.24f,
+                generationProfile.AreaHalfWidth * 0.12f,
+                scatter);
+            int candidateZone = ResolveLateralZone(candidate.x, centerWindow);
+            int currentZone = ResolveLateralZone(currentState.RootPosition.x, centerWindow);
+
+            float minimumHop = Mathf.Lerp(0.45f, generationProfile.MinimumLateralOffset * 0.9f, scatter);
+            if (candidateZone == currentZone && Mathf.Abs(candidate.x - currentState.RootPosition.x) < minimumHop)
+            {
+                return false;
+            }
+
+            float recentReuseTolerance = Mathf.Lerp(0.55f, generationProfile.MinimumLateralOffset * 0.75f, scatter);
+            int recentChecks = Mathf.Min(routeNodes.Count, 3);
+            for (int index = routeNodes.Count - recentChecks; index < routeNodes.Count; index++)
+            {
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(routeNodes[index].RootPosition.x - candidate.x) < recentReuseTolerance)
+                {
+                    return false;
+                }
+            }
+
+            if (currentZone != 0 && candidateZone == currentZone && scatter > 0.45f)
+            {
+                int sameZoneStreak = 1;
+                for (int index = routeNodes.Count - 1; index >= 0 && sameZoneStreak < 3; index--)
+                {
+                    int previousZone = ResolveLateralZone(routeNodes[index].RootPosition.x, centerWindow);
+                    if (previousZone != currentZone)
+                    {
+                        break;
+                    }
+
+                    sameZoneStreak++;
+                }
+
+                if (sameZoneStreak >= 2)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static int ResolveLateralZone(float x, float centerWindow)
+        {
+            if (Mathf.Abs(x) <= centerWindow)
+            {
+                return 0;
+            }
+
+            return x < 0f ? -1 : 1;
         }
 
         private void ResolveForwardGapRange(RouteNodeState currentState, float difficulty01, out float minimumGap, out float maximumGap)
@@ -712,8 +839,9 @@ namespace Funguy.IdkPlatformer
                 sign *= -1f;
             }
 
+            float bandPosition = Mathf.Lerp(innerBand, outerBand, SampleOuterBiased01(generationProfile.OptionalPathOuterBias));
             float x = Mathf.Clamp(
-                (sign * RandomRange(innerBand, outerBand)) + RandomRange(-0.55f, 0.55f),
+                (sign * bandPosition) + RandomRange(-0.75f, 0.75f),
                 -generationProfile.AreaHalfWidth,
                 generationProfile.AreaHalfWidth);
             float y = Mathf.Clamp(
@@ -1346,6 +1474,13 @@ namespace Funguy.IdkPlatformer
             }
 
             return minimum + ((float)random.NextDouble() * (maximum - minimum));
+        }
+
+        private float SampleOuterBiased01(float outerBias)
+        {
+            float sample = (float)random.NextDouble();
+            float exponent = Mathf.Lerp(1f, 0.35f, Mathf.Clamp01(outerBias));
+            return Mathf.Pow(sample, exponent);
         }
 
         private int RandomRangeInclusive(int minimum, int maximum)

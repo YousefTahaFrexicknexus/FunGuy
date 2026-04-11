@@ -31,7 +31,11 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private float minimumForwardGap = 4.5f;
         [SerializeField] private float maximumForwardGap = 8f;
         [SerializeField] private float maximumAdditionalForwardGapFromDifficulty = 3f;
+        [SerializeField] private float minimumLateralOffset = 2.1f;
         [SerializeField] private float maximumLateralOffset = 5.5f;
+        [SerializeField, Range(0f, 1f)] private float validPathScatter = 0.65f;
+        [SerializeField, Range(0f, 1f)] private float mainPathOuterBias = 0.55f;
+        [SerializeField, Range(0f, 1f)] private float optionalPathOuterBias = 0.7f;
         [SerializeField] private float maximumVerticalStep = 2.25f;
         [SerializeField] private float minimumExitBuffer = 2.5f;
         [SerializeField] private float bailoutForwardGap = 4.25f;
@@ -81,7 +85,11 @@ namespace Funguy.IdkPlatformer
         public float MinimumForwardGap => Mathf.Max(1f, minimumForwardGap);
         public float MaximumForwardGap => Mathf.Max(MinimumForwardGap, maximumForwardGap);
         public float MaximumAdditionalForwardGapFromDifficulty => Mathf.Max(0f, maximumAdditionalForwardGapFromDifficulty);
+        public float MinimumLateralOffset => Mathf.Clamp(minimumLateralOffset, 0f, MaximumLateralOffset);
         public float MaximumLateralOffset => Mathf.Max(0f, maximumLateralOffset);
+        public float ValidPathScatter => Mathf.Clamp01(validPathScatter);
+        public float MainPathOuterBias => Mathf.Clamp01(mainPathOuterBias);
+        public float OptionalPathOuterBias => Mathf.Clamp01(optionalPathOuterBias);
         public float MaximumVerticalStep => Mathf.Max(0f, maximumVerticalStep);
         public float MinimumExitBuffer => Mathf.Max(0.5f, minimumExitBuffer);
         public float BailoutForwardGap => Mathf.Max(1f, bailoutForwardGap);
@@ -179,7 +187,16 @@ namespace Funguy.IdkPlatformer
             minimumForwardGap = Mathf.Max(1f, minimumForwardGap);
             maximumForwardGap = Mathf.Max(minimumForwardGap, maximumForwardGap);
             maximumAdditionalForwardGapFromDifficulty = Mathf.Max(0f, maximumAdditionalForwardGapFromDifficulty);
+            minimumLateralOffset = Mathf.Max(0f, minimumLateralOffset);
             maximumLateralOffset = Mathf.Max(0f, maximumLateralOffset);
+            if (minimumLateralOffset > maximumLateralOffset)
+            {
+                minimumLateralOffset = maximumLateralOffset;
+            }
+
+            validPathScatter = Mathf.Clamp01(validPathScatter);
+            mainPathOuterBias = Mathf.Clamp01(mainPathOuterBias);
+            optionalPathOuterBias = Mathf.Clamp01(optionalPathOuterBias);
             maximumVerticalStep = Mathf.Max(0f, maximumVerticalStep);
             minimumExitBuffer = Mathf.Max(0.5f, minimumExitBuffer);
             bailoutForwardGap = Mathf.Max(1f, bailoutForwardGap);

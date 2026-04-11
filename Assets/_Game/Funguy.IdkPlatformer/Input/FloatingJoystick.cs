@@ -49,11 +49,7 @@ namespace Funguy.IdkPlatformer
 
         public void OnPointerDown(PointerEventData eventData)
         {
-            if (activePointerId >= 0)
-            {
-                return;
-            }
-
+            // Let the latest touch take control so players can replant their thumb without waiting for the old touch to lift.
             activePointerId = eventData.pointerId;
             SetVisualState(true);
 

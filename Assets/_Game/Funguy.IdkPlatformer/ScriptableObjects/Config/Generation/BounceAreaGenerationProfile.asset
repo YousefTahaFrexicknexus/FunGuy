@@ -16,7 +16,7 @@ MonoBehaviour:
   spawnAheadAreas: 4
   recycleBehindAreas: 2
   introAreaCount: 2
-  areaHalfWidth: 8
+  areaHalfWidth: 10
   minimumHeight: 0
   maximumHeight: 5
   surfaceLandingHeight: 0.94
@@ -24,14 +24,18 @@ MonoBehaviour:
   initialLandingSpeed: 2.5
   minimumMainPathNodes: 5
   maximumMainPathNodes: 7
-  minimumOptionalMushrooms: 1
-  maximumOptionalMushrooms: 3
+  minimumOptionalMushrooms: 2
+  maximumOptionalMushrooms: 6
   candidateAttemptsPerHop: 48
   optionalCandidateAttempts: 32
   minimumForwardGap: 8.5
   maximumForwardGap: 15.5
   maximumAdditionalForwardGapFromDifficulty: 7
-  maximumLateralOffset: 7.5
+  minimumLateralOffset: 2
+  maximumLateralOffset: 20
+  validPathScatter: 1
+  mainPathOuterBias: 0.452
+  optionalPathOuterBias: 0.85
   maximumVerticalStep: 2.75
   minimumExitBuffer: 2.5
   bailoutForwardGap: 8.5

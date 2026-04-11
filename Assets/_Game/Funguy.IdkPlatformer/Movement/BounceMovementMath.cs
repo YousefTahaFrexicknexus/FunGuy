@@ -60,6 +60,26 @@ namespace Funguy.IdkPlatformer
 
             Vector3 planarDirection = planarVelocity.normalized;
             float alignment = Vector3.Dot(planarDirection, wishDirection);
+            float contextualMultiplier = ResolveContextualAirControlMultiplier(
+                tuningProfile,
+                alignment,
+                inPostBounceLowControl,
+                inPostDashBoost);
+
+            float currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
+            Vector3 sideVelocity = planarVelocity - (wishDirection * currentAlongWish);
+
+            if (sideVelocity.sqrMagnitude > MinimumDirectionSqrMagnitude && tuningProfile.AirBrakeAcceleration > 0f)
+            {
+                // Bleed velocity that fights the new wish direction so diagonal swaps do not feel ignored in-air.
+                float turnSharpness = 1f - Mathf.Clamp01(alignment);
+                float turnBrakeDelta = (tuningProfile.AirBrakeAcceleration + tuningProfile.MoveAcceleration)
+                    * turnSharpness
+                    * inputFrame.Magnitude
+                    * deltaTime;
+                sideVelocity = Vector3.MoveTowards(sideVelocity, Vector3.zero, turnBrakeDelta);
+                planarVelocity = (wishDirection * currentAlongWish) + sideVelocity;
+            }
 
             if (alignment < 0f && tuningProfile.AirBrakeAcceleration > 0f)
             {
@@ -76,7 +96,7 @@ namespace Funguy.IdkPlatformer
                 planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, backwardBrakeDelta);
             }
 
-            float currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
+            currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
             float targetAlongWish = tuningProfile.MaxControllableSpeed * inputFrame.Magnitude;
             float speedToAdd = targetAlongWish - currentAlongWish;
             if (speedToAdd <= 0f)
@@ -84,12 +104,6 @@ namespace Funguy.IdkPlatformer
                 velocity = planarVelocity + verticalVelocity;
                 return;
             }
-
-            float contextualMultiplier = ResolveContextualAirControlMultiplier(
-                tuningProfile,
-                alignment,
-                inPostBounceLowControl,
-                inPostDashBoost);
 
             float accelerationDelta = tuningProfile.MoveAcceleration
                 * contextualMultiplier

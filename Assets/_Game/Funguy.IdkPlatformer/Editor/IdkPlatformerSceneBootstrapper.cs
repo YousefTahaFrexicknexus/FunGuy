@@ -835,7 +835,7 @@ namespace Funguy.IdkPlatformer.Editor
             so.FindProperty("spawnAheadAreas").intValue = 4;
             so.FindProperty("recycleBehindAreas").intValue = 2;
             so.FindProperty("introAreaCount").intValue = 2;
-            so.FindProperty("areaHalfWidth").floatValue = 8f;
+            so.FindProperty("areaHalfWidth").floatValue = 10f;
             so.FindProperty("minimumHeight").floatValue = 0f;
             so.FindProperty("maximumHeight").floatValue = 4f;
             so.FindProperty("surfaceLandingHeight").floatValue = 0.94f;
@@ -850,7 +850,11 @@ namespace Funguy.IdkPlatformer.Editor
             so.FindProperty("minimumForwardGap").floatValue = 8.5f;
             so.FindProperty("maximumForwardGap").floatValue = 15.5f;
             so.FindProperty("maximumAdditionalForwardGapFromDifficulty").floatValue = 7f;
-            so.FindProperty("maximumLateralOffset").floatValue = 7.5f;
+            so.FindProperty("minimumLateralOffset").floatValue = 3.25f;
+            so.FindProperty("maximumLateralOffset").floatValue = 9.25f;
+            so.FindProperty("validPathScatter").floatValue = 0.82f;
+            so.FindProperty("mainPathOuterBias").floatValue = 0.72f;
+            so.FindProperty("optionalPathOuterBias").floatValue = 0.85f;
             so.FindProperty("maximumVerticalStep").floatValue = 2.25f;
             so.FindProperty("minimumExitBuffer").floatValue = 2.5f;
             so.FindProperty("bailoutForwardGap").floatValue = 8.5f;
