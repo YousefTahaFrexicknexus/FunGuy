@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Block_1_3
   m_EditorClassIdentifier: Assembly-CSharp::BlockData
   prefab: {fileID: 8470396951233109412, guid: 7e38e0f182b0eff4d940952244674dc8, type: 3}
-  zLength: 80
+  zLength: 180

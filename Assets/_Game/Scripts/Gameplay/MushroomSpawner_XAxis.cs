@@ -137,7 +137,7 @@ public class MushroomSpawner_XAxis : MonoBehaviour
 
         go.transform.position = position;
         go.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
-        go.transform.localScale = Random.Range(1, 1f) * Vector3.one; // Optional random scale for variety
+        go.transform.localScale = Random.Range(1, 1.5f) * Vector3.one; // Optional random scale for variety
 
         return go;
     }

@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: TFF_Water_01A
+  m_Name: TFF_Water_01A 1x2
   m_Shader: {fileID: 4800000, guid: 21b2f218fa38d334daf2f2012e6c546d, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -52,10 +52,10 @@ Material:
     m_Ints: []
     m_Floats:
     - _AlphaCutoff: 0.5
-    - _FoamDistance: 0.025
+    - _FoamDistance: 0.094
     - _FoamHardness: 0.123
-    - _FoamOpacity: 0.4
-    - _FoamScale: 0.38
+    - _FoamOpacity: 1
+    - _FoamScale: 0.366
     - _FoamSpeed: 0.125
     - _FresnelIntensity: 0.6
     - _Opacity: 0.55
@@ -64,10 +64,10 @@ Material:
     - _QueueOffset: 0
     - _ReceiveShadows: 0
     - _ReflectionsCutoff: 0.4
-    - _ReflectionsCutoffScale: 16
+    - _ReflectionsCutoffScale: 40
     - _ReflectionsCutoffScrollSpeed: -0.025
-    - _ReflectionsOpacity: 0.85
-    - _ReflectionsScale: 22
+    - _ReflectionsOpacity: 1
+    - _ReflectionsScale: 5
     - _ReflectionsScrollSpeed: 0.045
     - _ShallowColorDepth: 4
     - _WaveAmplitude: 0.5
