@@ -10,6 +10,7 @@ namespace Funguy.IdkPlatformer
         private const float LandingVerticalTolerance = 0.25f;
         private const float GroundedContactRetention = 0.05f;
         private const float MinDirectionSqrMagnitude = 0.0001f;
+        private const float PlanarSpeedFloorMinAlignment = 0.45f;
 
         [SerializeField] private Rigidbody body;
         [SerializeField] private MovementTuningProfile tuningProfile;
@@ -24,6 +25,7 @@ namespace Funguy.IdkPlatformer
         private float lowControlUntil = float.NegativeInfinity;
         private float dashControlBoostUntil = float.NegativeInfinity;
         private float planarSpeedFloor;
+        private Vector3 planarSpeedFloorDirection;
         private Collider lastConsumedSurface;
         private Func<bool> tryConsumeDashHandler;
         private bool isGrounded;
@@ -158,6 +160,7 @@ namespace Funguy.IdkPlatformer
             {
                 bufferedDashUntil = float.NegativeInfinity;
                 planarSpeedFloor = 0f;
+                planarSpeedFloorDirection = Vector3.zero;
                 currentInput = MovementInputFrame.Empty;
             }
         }
@@ -186,6 +189,7 @@ namespace Funguy.IdkPlatformer
             lowControlUntil = float.NegativeInfinity;
             dashControlBoostUntil = float.NegativeInfinity;
             planarSpeedFloor = 0f;
+            planarSpeedFloorDirection = Vector3.zero;
             lastConsumedSurface = null;
             isGrounded = false;
             currentInput = MovementInputFrame.Empty;
@@ -270,13 +274,29 @@ namespace Funguy.IdkPlatformer
             float planarSpeed = planarVelocity.magnitude;
             float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, tuningProfile.MaxSpeed);
 
-            if (planarSpeed >= targetPlanarSpeed || planarVelocity.sqrMagnitude <= MinDirectionSqrMagnitude)
+            if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
+            {
+                planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
+
+                if (planarSpeed <= MinDirectionSqrMagnitude)
+                {
+                    planarSpeedFloorDirection = Vector3.zero;
+                }
+
+                return;
+            }
+
+            Vector3 targetDirection = planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude
+                ? planarVelocity.normalized
+                : planarSpeedFloorDirection;
+
+            if (targetDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
             {
                 return;
             }
 
             Vector3 verticalVelocity = Up * Vector3.Dot(velocity, Up);
-            velocity = (planarVelocity.normalized * targetPlanarSpeed) + verticalVelocity;
+            velocity = (targetDirection * targetPlanarSpeed) + verticalVelocity;
         }
 
         private bool TryConsumeBounceCandidate(ref Vector3 velocity, out BounceSurfaceResponse response)
@@ -340,12 +360,15 @@ namespace Funguy.IdkPlatformer
 
         private void UpdatePlanarSpeedFloor(Vector3 velocity, BounceSurfaceResponse response)
         {
-            float planarSpeed = Vector3.ProjectOnPlane(velocity, Up).magnitude;
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
+            float planarSpeed = planarVelocity.magnitude;
             if (planarSpeed <= 0f)
             {
+                planarSpeedFloorDirection = Vector3.zero;
                 return;
             }
 
+            planarSpeedFloorDirection = planarVelocity / planarSpeed;
             bool isSpeedReducingBounce = response.HasPlanarDragOverride || response.VelocityScale < 1f || response.PlanarBoost < 0f;
             planarSpeedFloor = isSpeedReducingBounce
                 ? planarSpeed
@@ -359,11 +382,18 @@ namespace Funguy.IdkPlatformer
                 return;
             }
 
-            float planarSpeed = Vector3.ProjectOnPlane(velocity, Up).magnitude;
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
+            float planarSpeed = planarVelocity.magnitude;
             if (planarSpeed <= 0f)
             {
                 planarSpeedFloor = 0f;
+                planarSpeedFloorDirection = Vector3.zero;
                 return;
+            }
+
+            if (planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude)
+            {
+                planarSpeedFloorDirection = planarVelocity.normalized;
             }
 
             planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
@@ -399,7 +429,15 @@ namespace Funguy.IdkPlatformer
                 return false;
             }
 
-            velocity += dashDirection * tuningProfile.DashForce;
+            Vector3 normalizedDashDirection = dashDirection.normalized;
+            float speedAlongDash = Vector3.Dot(velocity, normalizedDashDirection);
+            if (speedAlongDash < 0f)
+            {
+                // Treat the air jump like a fresh upward launch instead of a small brake when the player is falling.
+                velocity -= normalizedDashDirection * speedAlongDash;
+            }
+
+            velocity += normalizedDashDirection * tuningProfile.DashForce;
             bufferedDashUntil = float.NegativeInfinity;
             dashControlBoostUntil = Time.time + tuningProfile.PostDashBonusControlTime;
             Dashed?.Invoke();
@@ -480,6 +518,37 @@ namespace Funguy.IdkPlatformer
         private bool ComputeGroundedState()
         {
             return Time.time - lastSurfaceTouchTime <= GroundedContactRetention;
+        }
+
+        private bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)
+        {
+            if (planarSpeedFloorDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
+            {
+                return planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude;
+            }
+
+            if (planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude)
+            {
+                float velocityAlignment = Vector3.Dot(planarVelocity.normalized, planarSpeedFloorDirection);
+                if (velocityAlignment < PlanarSpeedFloorMinAlignment)
+                {
+                    return false;
+                }
+            }
+
+            if (!currentInput.HasMoveInput)
+            {
+                return true;
+            }
+
+            Vector3 desiredPlanarDirection = Vector3.ProjectOnPlane(currentInput.WishDirection, Up);
+            if (desiredPlanarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
+            {
+                return true;
+            }
+
+            float inputAlignment = Vector3.Dot(desiredPlanarDirection.normalized, planarSpeedFloorDirection);
+            return inputAlignment >= PlanarSpeedFloorMinAlignment;
         }
 
         private static bool TryGetBounceSurface(Collider otherCollider, out IBounceSurface surface)

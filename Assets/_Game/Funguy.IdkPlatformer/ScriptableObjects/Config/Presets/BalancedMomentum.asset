@@ -21,10 +21,10 @@ MonoBehaviour:
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
-  jumpGravityMultiplier: 1
+  jumpGravityMultiplier: 1.12
   fallGravityMultiplier: 2
-  baseJumpForce: 9
-  baseBounceSpeedGain: 1
+  baseJumpForce: 8.35
+  baseBounceSpeedGain: 2
   dashForce: 7.5
   dashCooldown: 0.16
   dashChargesPerBounce: 1

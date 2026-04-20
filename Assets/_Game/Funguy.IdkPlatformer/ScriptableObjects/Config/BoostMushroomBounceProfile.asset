@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.MushroomBounceProfile
   velocityScale: 1.12
   directionalInfluence: 0.82
-  planarBoost: 3.1
+  planarBoost: 3.35
   useAbsoluteUpwardImpulse: 0
-  upwardImpulse: 1.16
+  upwardImpulse: 1.1
   impactRecoveryFactor: 0.34
   localLaunchDirection: {x: 0, y: 1, z: 1.85}
   upBlend: 0.34

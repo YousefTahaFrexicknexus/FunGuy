@@ -192,7 +192,28 @@ namespace Funguy.IdkPlatformer
                 decorationRoot = transform;
             }
 
+            SyncTuningProfileFromPlayer();
+
             return player != null;
+        }
+
+        private void SyncTuningProfileFromPlayer()
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            MovementMotor movementMotor = player.GetComponent<MovementMotor>();
+            if (movementMotor == null)
+            {
+                movementMotor = player.GetComponentInParent<MovementMotor>();
+            }
+
+            if (movementMotor != null && movementMotor.TuningProfile != null)
+            {
+                tuningProfile = movementMotor.TuningProfile;
+            }
         }
 
         private int GetPlayerAreaIndex()
