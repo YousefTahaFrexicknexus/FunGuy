@@ -1,0 +1,28 @@
+{
+    "name": "Rowlan.YAPP.Editor",
+    "rootNamespace": "",
+    "references": [
+        "AwesomeTechnologies.VegetationStudioPro.Editor",
+        "AwesomeTechnologies.VegetationStudioPro.Runtime",
+        "Rowlan.YAPP.Runtime",
+        "JBooth.MicroVerseCore",
+        "JBooth.MicroVerseCore.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.jbooth.microverse.vegetation",
+            "expression": "",
+            "define": "__MICROVERSE_VEGETATION__"
+        }
+    ],
+    "noEngineReferences": false
+}

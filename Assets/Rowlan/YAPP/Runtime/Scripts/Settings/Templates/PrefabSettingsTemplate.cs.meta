@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 45bf222cf8e7a2b4aab9889eb62104ed
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Runtime/Scripts/Settings/Templates/PrefabSettingsTemplate.cs
+  uploadId: 842760

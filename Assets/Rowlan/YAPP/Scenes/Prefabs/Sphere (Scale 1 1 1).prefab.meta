@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 626b903f2d0f0594389f3c7eef789aba
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Scenes/Prefabs/Sphere (Scale 1 1 1).prefab
+  uploadId: 842760

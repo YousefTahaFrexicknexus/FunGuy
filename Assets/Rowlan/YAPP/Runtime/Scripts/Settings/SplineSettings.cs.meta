@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 53f5f1032bc61c348b8a61539c513825
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Runtime/Scripts/Settings/SplineSettings.cs
+  uploadId: 842760

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 949e5279c21116f4eb564d1c4565b45b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Runtime/Scripts/ControlPoint.cs
+  uploadId: 842760

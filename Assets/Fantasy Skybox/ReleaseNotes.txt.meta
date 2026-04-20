@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: f14307b5201ecdf4e89f2c843bdec16c
+timeCreated: 1434912371
+licenseType: Store
+TextScriptImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 18216
+  packageName: Fantasy Skybox
+  packageVersion: 1.6.7
+  assetPath: Assets/Fantasy Skybox/ReleaseNotes.txt
+  uploadId: 709120
