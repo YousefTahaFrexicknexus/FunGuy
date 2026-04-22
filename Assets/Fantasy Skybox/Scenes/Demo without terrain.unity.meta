@@ -1,14 +1,7 @@
 fileFormatVersion: 2
-guid: ff77168885bc3cb4faf20eccdcb73825
+guid: f7002af88df4f6a4289772800f0fb7a6
 DefaultImporter:
   externalObjects: {}
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 18216
-  packageName: Fantasy Skybox
-  packageVersion: 1.6.7
-  assetPath: Assets/Fantasy Skybox/Scenes/Demo without terrain.unity
-  uploadId: 709120
