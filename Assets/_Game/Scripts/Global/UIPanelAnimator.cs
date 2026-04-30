@@ -42,6 +42,7 @@ public class UIPanelAnimator : MonoBehaviour
     {
         this_CanvasGroup = GetComponent<CanvasGroup>();
         this_RectTransform = GetComponent<RectTransform>();
+        popupContent_Rect = this_RectTransform.GetChild(1).name == "Content" ? this_RectTransform.GetChild(1).GetComponent<RectTransform>() : null;
     }
 
     void OnEnable()

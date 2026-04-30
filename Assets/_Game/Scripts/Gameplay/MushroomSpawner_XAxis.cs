@@ -6,7 +6,7 @@ public class MushroomSpawner_XAxis : MonoBehaviour
     [Header("References")]
     [SerializeField] Transform mushroomParent;
     [SerializeField] Transform playerRoot;
-    [SerializeField] GameObject mushroomPrefab;
+    [SerializeField] List<GameObject> mushroomPrefabs;
 
     [Header("Spawn Count")]
     [SerializeField] int initialCount = 12;
@@ -132,7 +132,7 @@ public class MushroomSpawner_XAxis : MonoBehaviour
         }
         else
         {
-            go = Instantiate(mushroomPrefab, mushroomParent);
+            go = Instantiate(mushroomPrefabs[Random.Range(0, mushroomPrefabs.Count)], mushroomParent);
         }
 
         go.transform.position = position;
@@ -178,5 +178,10 @@ public class MushroomSpawner_XAxis : MonoBehaviour
         {
             SpawnNext();
         }
+    }
+
+    public GameObject GetLastSpawned()
+    {
+        return alive.Count > 0 ? alive.Last.Value.gameObject : null;
     }
 }

@@ -16,6 +16,8 @@ public class GameManager : MonoBehaviour
     }
 #endregion --- Instance ---
 
+    [Header("Managers")]
+    public MushroomSpawner_XAxis mushroomSpawner;
     [SerializeField] Transform playerRoot;
     Vector3 playerStartPos;
 
@@ -54,7 +56,8 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        playerRoot.position = playerStartPos;
+        Vector3 lastSpawnedPos = mushroomSpawner.GetLastSpawned().transform.position;
+        playerRoot.position = new Vector3(lastSpawnedPos.x, 12f, lastSpawnedPos.z);
     }
 }
 

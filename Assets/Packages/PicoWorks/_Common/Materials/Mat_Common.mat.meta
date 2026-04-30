@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e7f33ea12335749068fd645d3a3649d1
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 301956
+  packageName: 3D Mushroom Mega Pack
+  packageVersion: 1.1.0
+  assetPath: Assets/PicoWorks/_Common/Materials/Mat_Common.mat
+  uploadId: 763915
