@@ -70,10 +70,12 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private Transform player;
         [SerializeField] private Transform mushroomRoot;
         [SerializeField] private Transform decorationRoot;
+        [SerializeField] private bool generateEnvironmentDecorations = true;
         [SerializeField] private BounceAreaGenerationProfile generationProfile;
         [SerializeField] private MovementTuningProfile tuningProfile;
         [SerializeField] private ForwardProgressScoreTracker scoreTracker;
         [SerializeField] private BounceSpawnDefinition startSpawnDefinition;
+        [SerializeField] private List<Material> mushroomMaterialVariants = new();
         [SerializeField] private Vector3 startMushroomPosition = Vector3.zero;
         [SerializeField] private bool autoInitializeOnStart = true;
         [SerializeField] private Vector3 worldUp = Vector3.up;
@@ -231,7 +233,10 @@ namespace Funguy.IdkPlatformer
                 nextAreaIndexToGenerate++;
             }
 
-            EnsureEnvironmentBlocksUntil(GetAreaStartZ(targetArea) + generationProfile.AreaLength);
+            if (generateEnvironmentDecorations)
+            {
+                EnsureEnvironmentBlocksUntil(GetAreaStartZ(targetArea) + generationProfile.AreaLength);
+            }
         }
 
         private void GenerateArea(int areaIndex)
@@ -551,7 +556,7 @@ namespace Funguy.IdkPlatformer
 
         private void EnsureEnvironmentBlocksUntil(float targetCoverageEndZ)
         {
-            if (generationProfile == null)
+            if (!generateEnvironmentDecorations || generationProfile == null)
             {
                 return;
             }
@@ -1244,6 +1249,47 @@ namespace Funguy.IdkPlatformer
             return null;
         }
 
+        private Material PickMushroomMaterialVariant()
+        {
+            if (mushroomMaterialVariants == null || mushroomMaterialVariants.Count == 0)
+            {
+                return null;
+            }
+
+            int validCount = 0;
+            for (int index = 0; index < mushroomMaterialVariants.Count; index++)
+            {
+                if (mushroomMaterialVariants[index] != null)
+                {
+                    validCount++;
+                }
+            }
+
+            if (validCount == 0)
+            {
+                return null;
+            }
+
+            int targetIndex = random.Next(validCount);
+            for (int index = 0; index < mushroomMaterialVariants.Count; index++)
+            {
+                Material material = mushroomMaterialVariants[index];
+                if (material == null)
+                {
+                    continue;
+                }
+
+                if (targetIndex == 0)
+                {
+                    return material;
+                }
+
+                targetIndex--;
+            }
+
+            return null;
+        }
+
         private void SpawnMushroom(Vector3 rootPosition, BounceSpawnDefinition definition, ActiveArea area)
         {
             if (definition == null || definition.Prefab == null)
@@ -1271,6 +1317,11 @@ namespace Funguy.IdkPlatformer
             if (mushroom != null && definition.BounceProfileOverride != null)
             {
                 mushroom.SetBounceProfile(definition.BounceProfileOverride);
+            }
+
+            if (mushroom != null)
+            {
+                mushroom.ApplySpawnMaterial(PickMushroomMaterialVariant());
             }
 
             area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
@@ -1364,7 +1415,7 @@ namespace Funguy.IdkPlatformer
 
         private void RecycleEnvironmentBlocksBehindPlayer()
         {
-            if (player == null || generationProfile == null)
+            if (!generateEnvironmentDecorations || player == null || generationProfile == null)
             {
                 return;
             }

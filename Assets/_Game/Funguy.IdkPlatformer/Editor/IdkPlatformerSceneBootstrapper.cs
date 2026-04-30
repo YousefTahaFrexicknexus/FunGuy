@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -21,6 +22,19 @@ namespace Funguy.IdkPlatformer.Editor
         private const string ThemesPath = ConfigPath + "/Themes";
         private const string PresetsPath = ConfigPath + "/Presets";
         private const string ScenePath = ModuleRoot + "/Scenes/IdkPlatformerGameplay.unity";
+        private const string Main2EnvironmentSpawnerObjectName = "Main2EnvironmentBlockSpawner";
+        private const string BlockSpawnerTypeName = "BlockSpawner";
+        private const string ColliderDisablerTypeName = "SpawnedHierarchyColliderDisabler";
+        private const string DefaultAssemblyName = "Assembly-CSharp";
+        private static readonly string[] Main2EnvironmentBlockSequencePaths =
+        {
+            "Assets/_Game/Scripts/Blocks/Block_1_1.asset",
+            "Assets/_Game/Scripts/Blocks/Block_1_2.asset",
+            "Assets/_Game/Scripts/Blocks/Block_1_3.asset",
+            "Assets/_Game/Scripts/Blocks/Block_1_1.asset",
+            "Assets/_Game/Scripts/Blocks/Block_1_2.asset",
+            "Assets/_Game/Scripts/Blocks/Block_1_4.asset"
+        };
 
         [MenuItem("Funguy/IdkPlatformer/Create Fresh Gameplay Scene")]
         public static void CreateFreshGameplayScene()
@@ -33,6 +47,38 @@ namespace Funguy.IdkPlatformer.Editor
             CreateSceneAssets();
         }
 
+        [MenuItem("Funguy/IdkPlatformer/Apply Main_2 Environment To Gameplay Scene")]
+        public static void ApplyMain2EnvironmentToGameplayScene()
+        {
+            Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            GameObject generatedEnvironmentRoot = GameObject.Find("GeneratedEnvironment");
+            EndlessBounceAreaStreamer areaStreamer = Object.FindFirstObjectByType<EndlessBounceAreaStreamer>();
+            PlayerController playerController = Object.FindFirstObjectByType<PlayerController>();
+
+            if (generatedEnvironmentRoot == null)
+            {
+                throw new InvalidOperationException("[IdkPlatformerSceneBootstrapper] Could not find GeneratedEnvironment in the gameplay scene.");
+            }
+
+            if (areaStreamer == null)
+            {
+                throw new InvalidOperationException("[IdkPlatformerSceneBootstrapper] Could not find EndlessBounceAreaStreamer in the gameplay scene.");
+            }
+
+            if (playerController == null)
+            {
+                throw new InvalidOperationException("[IdkPlatformerSceneBootstrapper] Could not find PlayerController in the gameplay scene.");
+            }
+
+            ConfigureMain2Environment(scene, areaStreamer, generatedEnvironmentRoot.transform, playerController.transform);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[IdkPlatformerSceneBootstrapper] Applied Main_2 environment setup to IdkPlatformerGameplay.");
+        }
+
         private static void CreateSceneAssets()
         {
             EnsureFolders();
@@ -40,6 +86,8 @@ namespace Funguy.IdkPlatformer.Editor
             Material playerMaterial = CreateMaterial($"{MaterialsPath}/Idk_Player.mat", new Color(0.18f, 0.74f, 0.70f));
             Material mushroomCapMaterial = CreateMaterial($"{MaterialsPath}/Idk_MushroomCap.mat", new Color(0.93f, 0.39f, 0.31f));
             Material mushroomStemMaterial = CreateMaterial($"{MaterialsPath}/Idk_MushroomStem.mat", new Color(0.96f, 0.91f, 0.78f));
+            Material mushroomCapMaterialVariant01 = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/Idk_MushroomCap 1.mat");
+            Material mushroomCapMaterialVariant02 = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/Idk_MushroomCap 2.mat");
             Material groundMaterial = CreateMaterial($"{MaterialsPath}/Idk_Ground.mat", new Color(0.29f, 0.38f, 0.27f));
             Material dangerMaterial = CreateMaterial($"{MaterialsPath}/Idk_Danger.mat", new Color(0.75f, 0.17f, 0.15f));
 
@@ -123,7 +171,15 @@ namespace Funguy.IdkPlatformer.Editor
                 gloomyTheme);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            BuildScene(scene, tuningProfile, generationProfile, standardSpawnDefinition, playerPrefab, groundMaterial, dangerMaterial);
+            BuildScene(
+                scene,
+                tuningProfile,
+                generationProfile,
+                standardSpawnDefinition,
+                playerPrefab,
+                new Material[] { mushroomCapMaterial, mushroomCapMaterialVariant01, mushroomCapMaterialVariant02 },
+                groundMaterial,
+                dangerMaterial);
             EditorSceneManager.SaveScene(scene, ScenePath);
 
             AssetDatabase.SaveAssets();
@@ -137,6 +193,7 @@ namespace Funguy.IdkPlatformer.Editor
             BounceAreaGenerationProfile generationProfile,
             BounceSpawnDefinition startSpawnDefinition,
             GameObject playerPrefab,
+            Material[] mushroomMaterialVariants,
             Material groundMaterial,
             Material dangerMaterial)
         {
@@ -201,7 +258,9 @@ namespace Funguy.IdkPlatformer.Editor
             streamerSo.FindProperty("tuningProfile").objectReferenceValue = tuningProfile;
             streamerSo.FindProperty("scoreTracker").objectReferenceValue = scoreTracker;
             streamerSo.FindProperty("startSpawnDefinition").objectReferenceValue = startSpawnDefinition;
+            AssignObjectArray(streamerSo.FindProperty("mushroomMaterialVariants"), mushroomMaterialVariants);
             streamerSo.FindProperty("startMushroomPosition").vector3Value = Vector3.zero;
+            streamerSo.FindProperty("generateEnvironmentDecorations").boolValue = false;
             streamerSo.ApplyModifiedPropertiesWithoutUndo();
 
             SerializedObject resetCoordinatorSo = new(runResetCoordinator);
@@ -221,6 +280,8 @@ namespace Funguy.IdkPlatformer.Editor
             inputSo.FindProperty("dashButton").objectReferenceValue = dashButton;
             inputSo.FindProperty("movementCamera").objectReferenceValue = camera;
             inputSo.ApplyModifiedPropertiesWithoutUndo();
+
+            ConfigureMain2Environment(scene, areaStreamer, generatedEnvironmentRoot.transform, playerInstance.transform);
 
             EditorSceneManager.MarkSceneDirty(scene);
         }
@@ -316,6 +377,148 @@ namespace Funguy.IdkPlatformer.Editor
             {
                 eventSystemObject.AddComponent<StandaloneInputModule>();
             }
+        }
+
+        private static void AssignObjectArray(SerializedProperty property, Object[] values)
+        {
+            if (property == null)
+            {
+                return;
+            }
+
+            int validCount = 0;
+            if (values != null)
+            {
+                for (int index = 0; index < values.Length; index++)
+                {
+                    if (values[index] != null)
+                    {
+                        validCount++;
+                    }
+                }
+            }
+
+            property.arraySize = validCount;
+
+            int writeIndex = 0;
+            if (values == null)
+            {
+                return;
+            }
+
+            for (int index = 0; index < values.Length; index++)
+            {
+                if (values[index] == null)
+                {
+                    continue;
+                }
+
+                property.GetArrayElementAtIndex(writeIndex++).objectReferenceValue = values[index];
+            }
+        }
+
+        private static void ConfigureMain2Environment(
+            Scene scene,
+            EndlessBounceAreaStreamer areaStreamer,
+            Transform generatedEnvironmentRoot,
+            Transform playerTransform)
+        {
+            SerializedObject streamerSo = new(areaStreamer);
+            SerializedProperty generateEnvironmentProperty = streamerSo.FindProperty("generateEnvironmentDecorations");
+            if (generateEnvironmentProperty != null)
+            {
+                generateEnvironmentProperty.boolValue = false;
+            }
+
+            SerializedProperty decorationRootProperty = streamerSo.FindProperty("decorationRoot");
+            if (decorationRootProperty != null)
+            {
+                decorationRootProperty.objectReferenceValue = generatedEnvironmentRoot;
+            }
+
+            streamerSo.ApplyModifiedPropertiesWithoutUndo();
+            EnsureMain2EnvironmentSpawner(scene, generatedEnvironmentRoot, playerTransform);
+        }
+
+        private static void EnsureMain2EnvironmentSpawner(Scene scene, Transform generatedEnvironmentRoot, Transform playerTransform)
+        {
+            Type blockSpawnerType = ResolveRequiredType(BlockSpawnerTypeName, DefaultAssemblyName);
+            Type colliderDisablerType = ResolveRequiredType(ColliderDisablerTypeName, DefaultAssemblyName);
+
+            Transform existingSpawnerTransform = generatedEnvironmentRoot.Find(Main2EnvironmentSpawnerObjectName);
+            GameObject spawnerObject = existingSpawnerTransform != null
+                ? existingSpawnerTransform.gameObject
+                : new GameObject(Main2EnvironmentSpawnerObjectName);
+
+            if (existingSpawnerTransform == null)
+            {
+                SceneManager.MoveGameObjectToScene(spawnerObject, scene);
+                spawnerObject.transform.SetParent(generatedEnvironmentRoot, false);
+            }
+
+            spawnerObject.transform.localPosition = Vector3.zero;
+            spawnerObject.transform.localRotation = Quaternion.identity;
+            spawnerObject.transform.localScale = Vector3.one;
+
+            Component blockSpawner = spawnerObject.GetComponent(blockSpawnerType) ?? spawnerObject.AddComponent(blockSpawnerType);
+            if (spawnerObject.GetComponent(colliderDisablerType) == null)
+            {
+                spawnerObject.AddComponent(colliderDisablerType);
+            }
+
+            SerializedObject blockSpawnerSo = new(blockSpawner);
+            SerializedProperty blockSequenceProperty = blockSpawnerSo.FindProperty("blockSequence");
+            if (blockSequenceProperty == null)
+            {
+                throw new InvalidOperationException("[IdkPlatformerSceneBootstrapper] BlockSpawner.blockSequence could not be found.");
+            }
+
+            blockSequenceProperty.arraySize = Main2EnvironmentBlockSequencePaths.Length;
+            for (int index = 0; index < Main2EnvironmentBlockSequencePaths.Length; index++)
+            {
+                Object blockData = AssetDatabase.LoadAssetAtPath<Object>(Main2EnvironmentBlockSequencePaths[index]);
+                if (blockData == null)
+                {
+                    throw new InvalidOperationException($"[IdkPlatformerSceneBootstrapper] Missing BlockData asset at '{Main2EnvironmentBlockSequencePaths[index]}'.");
+                }
+
+                blockSequenceProperty.GetArrayElementAtIndex(index).objectReferenceValue = blockData;
+            }
+
+            blockSpawnerSo.FindProperty("player").objectReferenceValue = playerTransform;
+            blockSpawnerSo.FindProperty("spawnAheadDistance").floatValue = 200f;
+            blockSpawnerSo.FindProperty("initialSpawnZ").floatValue = 0f;
+            blockSpawnerSo.FindProperty("preSpawnCount").intValue = 6;
+            blockSpawnerSo.FindProperty("despawnBehindDistance").floatValue = 20f;
+            blockSpawnerSo.FindProperty("loopSequence").boolValue = true;
+            blockSpawnerSo.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static Type ResolveRequiredType(string typeName, string assemblyName)
+        {
+            Type resolvedType = Type.GetType($"{typeName}, {assemblyName}");
+            if (resolvedType != null)
+            {
+                return resolvedType;
+            }
+
+            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (int index = 0; index < assemblies.Length; index++)
+            {
+                Assembly assembly = assemblies[index];
+                if (assembly.GetName().Name != assemblyName)
+                {
+                    continue;
+                }
+
+                resolvedType = assembly.GetType(typeName);
+                if (resolvedType != null)
+                {
+                    return resolvedType;
+                }
+            }
+
+            throw new InvalidOperationException($"[IdkPlatformerSceneBootstrapper] Could not resolve type '{typeName}' from assembly '{assemblyName}'.");
         }
 
         private static void CreateHud(Scene scene, ForwardProgressScoreTracker scoreTracker, out FloatingJoystick joystick, out TouchDashButton dashButton)

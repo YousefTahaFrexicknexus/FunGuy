@@ -1,3 +1,4 @@
+using System.Reflection;
 using UnityEngine;
 
 namespace Funguy.IdkPlatformer
@@ -5,6 +6,9 @@ namespace Funguy.IdkPlatformer
     [DisallowMultipleComponent]
     public sealed class RunResetCoordinator : MonoBehaviour
     {
+        private const string Main2EnvironmentSpawnerTypeName = "BlockSpawner";
+        private const string ResetSpawnerMethodName = "ResetSpawner";
+
         [SerializeField] private PlayerController player;
         [SerializeField] private EndlessBounceAreaStreamer areaStreamer;
         [SerializeField] private Transform spawnPoint;
@@ -42,6 +46,8 @@ namespace Funguy.IdkPlatformer
             {
                 areaStreamer.BuildInitialWorld();
             }
+
+            ResetExternalEnvironmentSpawners();
         }
 
         public void SetSpawnPoint(Transform newSpawnPoint)
@@ -104,6 +110,33 @@ namespace Funguy.IdkPlatformer
                 cachedSpawnPosition = player.transform.position;
                 cachedSpawnRotation = player.transform.rotation;
                 hasCachedSpawnPose = true;
+            }
+        }
+
+        private static void ResetExternalEnvironmentSpawners()
+        {
+            MonoBehaviour[] behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            for (int index = 0; index < behaviours.Length; index++)
+            {
+                MonoBehaviour behaviour = behaviours[index];
+                if (behaviour == null || behaviour.GetType().Name != Main2EnvironmentSpawnerTypeName)
+                {
+                    continue;
+                }
+
+                MethodInfo resetMethod = behaviour.GetType().GetMethod(
+                    ResetSpawnerMethodName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    binder: null,
+                    types: System.Type.EmptyTypes,
+                    modifiers: null);
+
+                if (resetMethod == null)
+                {
+                    continue;
+                }
+
+                resetMethod.Invoke(behaviour, null);
             }
         }
     }
