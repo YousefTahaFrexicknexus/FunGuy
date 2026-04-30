@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a219f70e3141c59d6f086db2693155, type: 3}
+  m_Name: GloomyTheme
+  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.EnvironmentThemeTierDefinition
+  scoreThreshold: 300
+  minimumDecorationsPerArea: 5
+  maximumDecorationsPerArea: 9
+  minimumDistanceFromRoute: 8.5
+  minimumLateralOffset: 10
+  maximumLateralOffset: 18
+  minimumVerticalOffset: -1.2
+  maximumVerticalOffset: 4.25
+  routeClearanceRadius: 5.75
+  cameraClearanceRadius: 6.5
+  decorations:
+  - {fileID: 11400000, guid: 1dd5d2096cedf97469bd3cd86407a4ec, type: 2}
+  - {fileID: 11400000, guid: e9fa5cd62667ec642b0d0f93abf35e8e, type: 2}

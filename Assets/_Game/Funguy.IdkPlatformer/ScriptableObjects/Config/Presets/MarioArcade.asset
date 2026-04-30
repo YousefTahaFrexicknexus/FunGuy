@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
+  m_Name: MarioArcade
+  m_EditorClassIdentifier: Funguy.IdkPlatformer::Funguy.IdkPlatformer.MovementTuningProfile
+  moveAcceleration: 16
+  airControlStrength: 0.35
+  forwardAirControlMultiplier: 0.45
+  airBrakeAcceleration: 28
+  maxControllableSpeed: 10.5
+  maxSpeed: 14
+  overSpeedDrag: 10
+  airDrag: 0.28
+  gravityScale: 1.1
+  jumpGravityMultiplier: 1.05
+  fallGravityMultiplier: 2.6
+  baseJumpForce: 8.5
+  dashForce: 6.5
+  dashCooldown: 0.18
+  dashChargesPerBounce: 1
+  postBounceLowControlTime: 0.12
+  postBounceAirControlMultiplier: 0.28
+  postDashBonusControlTime: 0.12
+  postDashAirControlMultiplier: 1.1
+  bounceGraceTime: 0.1
+  dashBufferTime: 0.1
+  minGroundDot: 0.65
