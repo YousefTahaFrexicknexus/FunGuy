@@ -86,8 +86,6 @@ namespace Funguy.IdkPlatformer.Editor
             Material playerMaterial = CreateMaterial($"{MaterialsPath}/Idk_Player.mat", new Color(0.18f, 0.74f, 0.70f));
             Material mushroomCapMaterial = CreateMaterial($"{MaterialsPath}/Idk_MushroomCap.mat", new Color(0.93f, 0.39f, 0.31f));
             Material mushroomStemMaterial = CreateMaterial($"{MaterialsPath}/Idk_MushroomStem.mat", new Color(0.96f, 0.91f, 0.78f));
-            Material mushroomCapMaterialVariant01 = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/Idk_MushroomCap 1.mat");
-            Material mushroomCapMaterialVariant02 = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/Idk_MushroomCap 2.mat");
             Material groundMaterial = CreateMaterial($"{MaterialsPath}/Idk_Ground.mat", new Color(0.29f, 0.38f, 0.27f));
             Material dangerMaterial = CreateMaterial($"{MaterialsPath}/Idk_Danger.mat", new Color(0.75f, 0.17f, 0.15f));
 
@@ -171,15 +169,7 @@ namespace Funguy.IdkPlatformer.Editor
                 gloomyTheme);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            BuildScene(
-                scene,
-                tuningProfile,
-                generationProfile,
-                standardSpawnDefinition,
-                playerPrefab,
-                new Material[] { mushroomCapMaterial, mushroomCapMaterialVariant01, mushroomCapMaterialVariant02 },
-                groundMaterial,
-                dangerMaterial);
+            BuildScene(scene, tuningProfile, generationProfile, standardSpawnDefinition, playerPrefab, groundMaterial, dangerMaterial);
             EditorSceneManager.SaveScene(scene, ScenePath);
 
             AssetDatabase.SaveAssets();
@@ -193,7 +183,6 @@ namespace Funguy.IdkPlatformer.Editor
             BounceAreaGenerationProfile generationProfile,
             BounceSpawnDefinition startSpawnDefinition,
             GameObject playerPrefab,
-            Material[] mushroomMaterialVariants,
             Material groundMaterial,
             Material dangerMaterial)
         {
@@ -258,7 +247,6 @@ namespace Funguy.IdkPlatformer.Editor
             streamerSo.FindProperty("tuningProfile").objectReferenceValue = tuningProfile;
             streamerSo.FindProperty("scoreTracker").objectReferenceValue = scoreTracker;
             streamerSo.FindProperty("startSpawnDefinition").objectReferenceValue = startSpawnDefinition;
-            AssignObjectArray(streamerSo.FindProperty("mushroomMaterialVariants"), mushroomMaterialVariants);
             streamerSo.FindProperty("startMushroomPosition").vector3Value = Vector3.zero;
             streamerSo.FindProperty("generateEnvironmentDecorations").boolValue = false;
             streamerSo.ApplyModifiedPropertiesWithoutUndo();
@@ -376,44 +364,6 @@ namespace Funguy.IdkPlatformer.Editor
             else
             {
                 eventSystemObject.AddComponent<StandaloneInputModule>();
-            }
-        }
-
-        private static void AssignObjectArray(SerializedProperty property, Object[] values)
-        {
-            if (property == null)
-            {
-                return;
-            }
-
-            int validCount = 0;
-            if (values != null)
-            {
-                for (int index = 0; index < values.Length; index++)
-                {
-                    if (values[index] != null)
-                    {
-                        validCount++;
-                    }
-                }
-            }
-
-            property.arraySize = validCount;
-
-            int writeIndex = 0;
-            if (values == null)
-            {
-                return;
-            }
-
-            for (int index = 0; index < values.Length; index++)
-            {
-                if (values[index] == null)
-                {
-                    continue;
-                }
-
-                property.GetArrayElementAtIndex(writeIndex++).objectReferenceValue = values[index];
             }
         }
 
@@ -649,10 +599,36 @@ namespace Funguy.IdkPlatformer.Editor
             scoreText.raycastTarget = false;
             scoreText.text = "SCORE 0000";
 
+            GameObject momentumObject = new("MomentumText", typeof(RectTransform), typeof(Text), typeof(Outline));
+            momentumObject.transform.SetParent(scoreObject.transform, false);
+
+            RectTransform momentumRect = momentumObject.GetComponent<RectTransform>();
+            momentumRect.anchorMin = new Vector2(0.5f, 1f);
+            momentumRect.anchorMax = new Vector2(0.5f, 1f);
+            momentumRect.pivot = new Vector2(0.5f, 1f);
+            momentumRect.anchoredPosition = new Vector2(0f, -54f);
+            momentumRect.sizeDelta = new Vector2(560f, 40f);
+
+            Text momentumText = momentumObject.GetComponent<Text>();
+            momentumText.font = font;
+            momentumText.fontSize = 24;
+            momentumText.fontStyle = FontStyle.Bold;
+            momentumText.alignment = TextAnchor.MiddleCenter;
+            momentumText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            momentumText.verticalOverflow = VerticalWrapMode.Overflow;
+            momentumText.color = new Color(1f, 1f, 1f, 0f);
+            momentumText.raycastTarget = false;
+            momentumText.text = string.Empty;
+
+            Outline momentumOutline = momentumObject.GetComponent<Outline>();
+            momentumOutline.effectColor = new Color(0.04f, 0.05f, 0.08f, 0.55f);
+            momentumOutline.effectDistance = new Vector2(1.75f, -1.75f);
+
             ForwardProgressScoreView scoreView = scoreObject.GetComponent<ForwardProgressScoreView>();
             SerializedObject scoreViewSo = new(scoreView);
             scoreViewSo.FindProperty("scoreTracker").objectReferenceValue = scoreTracker;
             scoreViewSo.FindProperty("scoreText").objectReferenceValue = scoreText;
+            scoreViewSo.FindProperty("statusText").objectReferenceValue = momentumText;
             scoreViewSo.ApplyModifiedPropertiesWithoutUndo();
         }
 

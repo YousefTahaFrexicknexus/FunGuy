@@ -17,6 +17,7 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private bool motorEnabled = true;
         [SerializeField] private Vector3 worldUp = Vector3.up;
 
+        private Collider[] bodyColliders = Array.Empty<Collider>();
         private MovementInputFrame currentInput = MovementInputFrame.Empty;
         private BounceCandidate lastBounceCandidate;
         private bool hasBounceCandidate;
@@ -27,6 +28,8 @@ namespace Funguy.IdkPlatformer
         private float planarSpeedFloor;
         private Vector3 planarSpeedFloorDirection;
         private Collider lastConsumedSurface;
+        private Collider ignoredBounceSurface;
+        private float ignoredBounceSurfaceUntil = float.NegativeInfinity;
         private Func<bool> tryConsumeDashHandler;
         private bool isGrounded;
 
@@ -46,6 +49,7 @@ namespace Funguy.IdkPlatformer
         private void Reset()
         {
             body = GetComponent<Rigidbody>();
+            CacheBodyColliders();
         }
 
         private void Awake()
@@ -55,6 +59,7 @@ namespace Funguy.IdkPlatformer
                 body = GetComponent<Rigidbody>();
             }
 
+            CacheBodyColliders();
             ConfigureRigidbody();
         }
 
@@ -71,10 +76,18 @@ namespace Funguy.IdkPlatformer
             {
                 ConfigureRigidbody();
             }
+
+            CacheBodyColliders();
+        }
+
+        private void OnDisable()
+        {
+            RestoreIgnoredBounceSurface();
         }
 
         private void FixedUpdate()
         {
+            RestoreIgnoredBounceSurfaceIfExpired();
             isGrounded = ComputeGroundedState();
 
             if (body == null || tuningProfile == null)
@@ -201,6 +214,7 @@ namespace Funguy.IdkPlatformer
             body.rotation = worldRotation;
             Physics.SyncTransforms();
             body.WakeUp();
+            RestoreIgnoredBounceSurface();
         }
 
         private void OnCollisionEnter(Collision collision)
@@ -345,6 +359,7 @@ namespace Funguy.IdkPlatformer
                 velocity,
                 response));
 
+            ApplyPostBounceCollisionIgnore(lastBounceCandidate.Surface, lastBounceCandidate.Collider);
             lastConsumedSurface = lastBounceCandidate.Collider;
             hasBounceCandidate = false;
             lastSurfaceTouchTime = float.NegativeInfinity;
@@ -467,32 +482,15 @@ namespace Funguy.IdkPlatformer
                 return;
             }
 
-            if (Vector3.Dot(body.linearVelocity, Up) > LandingVerticalTolerance)
+            if (Vector3.Dot(body.linearVelocity, Up) > LandingVerticalTolerance && !AllowsBounceWhileMovingUpward(surface))
             {
                 return;
             }
 
-            ContactPoint bestContact = default;
-            float bestGroundDot = float.NegativeInfinity;
-            bool hasValidContact = false;
-
-            int contactCount = collision.contactCount;
-            for (int index = 0; index < contactCount; index++)
-            {
-                ContactPoint contact = collision.GetContact(index);
-                float groundDot = Vector3.Dot(contact.normal, Up);
-                if (groundDot < tuningProfile.MinGroundDot)
-                {
-                    continue;
-                }
-
-                if (!hasValidContact || groundDot > bestGroundDot)
-                {
-                    bestContact = contact;
-                    bestGroundDot = groundDot;
-                    hasValidContact = true;
-                }
-            }
+            Vector3 bestContactPoint;
+            Vector3 bestContactNormal;
+            float bestGroundDot;
+            bool hasValidContact = TryResolveBounceContact(collision, surface, out bestContactPoint, out bestContactNormal, out bestGroundDot);
 
             if (!hasValidContact)
             {
@@ -507,17 +505,144 @@ namespace Funguy.IdkPlatformer
                 lastBounceCandidate = new BounceCandidate(
                     surface,
                     otherCollider,
-                    bestContact.point,
-                    bestContact.normal,
+                    bestContactPoint,
+                    bestContactNormal,
                     timestamp,
                     bestGroundDot);
                 hasBounceCandidate = true;
             }
         }
 
+        private bool TryResolveBounceContact(
+            Collision collision,
+            IBounceSurface surface,
+            out Vector3 contactPoint,
+            out Vector3 contactNormal,
+            out float groundDot)
+        {
+            if (surface is IBounceContactResolver contactResolver &&
+                contactResolver.TryResolveBounceContact(collision, Up, tuningProfile.MinGroundDot, out contactPoint, out contactNormal, out groundDot))
+            {
+                return true;
+            }
+
+            contactPoint = default;
+            contactNormal = default;
+            groundDot = float.NegativeInfinity;
+
+            ContactPoint bestContact = default;
+            bool hasValidContact = false;
+            int contactCount = collision.contactCount;
+            for (int index = 0; index < contactCount; index++)
+            {
+                ContactPoint contact = collision.GetContact(index);
+                float currentGroundDot = Vector3.Dot(contact.normal, Up);
+                if (currentGroundDot < tuningProfile.MinGroundDot)
+                {
+                    continue;
+                }
+
+                if (!hasValidContact || currentGroundDot > groundDot)
+                {
+                    bestContact = contact;
+                    groundDot = currentGroundDot;
+                    hasValidContact = true;
+                }
+            }
+
+            if (!hasValidContact)
+            {
+                return false;
+            }
+
+            contactPoint = bestContact.point;
+            contactNormal = bestContact.normal;
+            return true;
+        }
+
         private bool ComputeGroundedState()
         {
             return Time.time - lastSurfaceTouchTime <= GroundedContactRetention;
+        }
+
+        private bool AllowsBounceWhileMovingUpward(IBounceSurface surface)
+        {
+            return surface is IBounceSurfaceBehavior behavior && behavior.AllowsBounceWhileMovingUpward;
+        }
+
+        private void ApplyPostBounceCollisionIgnore(IBounceSurface surface, Collider surfaceCollider)
+        {
+            if (surfaceCollider == null || bodyColliders == null || bodyColliders.Length == 0)
+            {
+                return;
+            }
+
+            float ignoreDuration = surface is IBounceSurfaceBehavior behavior
+                ? Mathf.Max(0f, behavior.PostBounceCollisionIgnoreDuration)
+                : 0f;
+
+            if (ignoreDuration <= 0f)
+            {
+                return;
+            }
+
+            if (ignoredBounceSurface != null && ignoredBounceSurface != surfaceCollider)
+            {
+                RestoreIgnoredBounceSurface();
+            }
+
+            ignoredBounceSurface = surfaceCollider;
+            ignoredBounceSurfaceUntil = Mathf.Max(ignoredBounceSurfaceUntil, Time.time + ignoreDuration);
+
+            for (int index = 0; index < bodyColliders.Length; index++)
+            {
+                Collider bodyCollider = bodyColliders[index];
+                if (bodyCollider == null)
+                {
+                    continue;
+                }
+
+                Physics.IgnoreCollision(bodyCollider, surfaceCollider, true);
+            }
+        }
+
+        private void RestoreIgnoredBounceSurfaceIfExpired()
+        {
+            if (ignoredBounceSurface == null || Time.time < ignoredBounceSurfaceUntil)
+            {
+                return;
+            }
+
+            RestoreIgnoredBounceSurface();
+        }
+
+        private void RestoreIgnoredBounceSurface()
+        {
+            if (ignoredBounceSurface == null || bodyColliders == null)
+            {
+                ignoredBounceSurface = null;
+                ignoredBounceSurfaceUntil = float.NegativeInfinity;
+                return;
+            }
+
+            for (int index = 0; index < bodyColliders.Length; index++)
+            {
+                Collider bodyCollider = bodyColliders[index];
+                if (bodyCollider == null)
+                {
+                    continue;
+                }
+
+                Physics.IgnoreCollision(bodyCollider, ignoredBounceSurface, false);
+            }
+
+            ignoredBounceSurface = null;
+            ignoredBounceSurfaceUntil = float.NegativeInfinity;
+        }
+
+        private void CacheBodyColliders()
+        {
+            bodyColliders = GetComponentsInChildren<Collider>(true);
         }
 
         private bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)

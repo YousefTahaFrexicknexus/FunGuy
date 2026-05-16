@@ -4,39 +4,49 @@ using System.Collections;
 namespace Funguy.IdkPlatformer
 {
     [DisallowMultipleComponent]
-    public sealed class Mushroom : MonoBehaviour, IBounceSurface
+    public sealed class Mushroom : MonoBehaviour, IBounceSurface, IBounceContactResolver, IBounceSurfaceBehavior
     {
         [SerializeField] private MushroomBounceProfile bounceProfile;
+        [Header("Collision")]
+        [SerializeField] private MeshFilter collisionMeshSource;
+        [SerializeField] private MeshCollider collisionMeshCollider;
+        [Header("Bounce Feel")]
+        [SerializeField] private bool bounceOnGlancingTouches = true;
+        [SerializeField, Range(0f, 0.2f)] private float postBounceCollisionIgnoreDuration = 0.08f;
         [Header("Squash")]
         [SerializeField] private Transform squashTarget;
         [SerializeField, Range(0.3f, 0.9f)] private float squashY = 0.65f;
         [SerializeField, Range(0.02f, 0.2f)] private float squashDuration = 0.07f;
         [SerializeField, Range(0.1f, 0.8f)] private float recoverDuration = 0.28f;
         [SerializeField, Range(1f, 5f)] private float elasticOscillations = 3f;
-        [Header("Visual Variants")]
-        [SerializeField] private Material randomizedBaseMaterial;
-        [SerializeField] private Renderer[] randomizedMaterialRenderers;
 
         private Vector3 originalSquashScale = Vector3.one;
         private Coroutine squashRoutine;
-        private Material appliedRandomizedMaterial;
 
         public MushroomBounceProfile BounceProfile => bounceProfile;
 
+        public bool AllowsBounceWhileMovingUpward => bounceOnGlancingTouches;
+
+        public float PostBounceCollisionIgnoreDuration => Mathf.Max(0f, postBounceCollisionIgnoreDuration);
+
         private void Reset()
         {
+            EnsureCollisionSetup();
             ResolveSquashTarget();
-            ResolveRandomizedMaterialRenderers(true);
             CacheOriginalSquashScale();
         }
 
         private void Awake()
         {
+            EnsureCollisionSetup();
             ResolveSquashTarget();
-            ResolveRandomizedMaterialRenderers(false);
             CacheOriginalSquashScale();
             RestoreSquashState();
-            ApplySpawnMaterial(null);
+        }
+
+        private void OnValidate()
+        {
+            EnsureCollisionSetup();
         }
 
         private void OnEnable()
@@ -60,33 +70,6 @@ namespace Funguy.IdkPlatformer
             bounceProfile = profile;
         }
 
-        public void ApplySpawnMaterial(Material material)
-        {
-            ResolveRandomizedMaterialRenderers(false);
-
-            Material resolvedMaterial = material != null ? material : randomizedBaseMaterial;
-            if (resolvedMaterial == null || randomizedMaterialRenderers == null || randomizedMaterialRenderers.Length == 0)
-            {
-                return;
-            }
-
-            if (appliedRandomizedMaterial == resolvedMaterial)
-            {
-                return;
-            }
-
-            for (int index = 0; index < randomizedMaterialRenderers.Length; index++)
-            {
-                Renderer renderer = randomizedMaterialRenderers[index];
-                if (renderer != null && renderer.sharedMaterial != resolvedMaterial)
-                {
-                    renderer.sharedMaterial = resolvedMaterial;
-                }
-            }
-
-            appliedRandomizedMaterial = resolvedMaterial;
-        }
-
         public BounceSurfaceResponse GetBounceResponse(in BounceContext context)
         {
             TriggerSquash();
@@ -104,6 +87,42 @@ namespace Funguy.IdkPlatformer
                 0.25f,
                 transform.up,
                 1f);
+        }
+
+        public bool TryResolveBounceContact(
+            in Collision collision,
+            Vector3 worldUp,
+            float minGroundDot,
+            out Vector3 contactPoint,
+            out Vector3 contactNormal,
+            out float groundDot)
+        {
+            contactPoint = transform.position;
+            contactNormal = ResolveStableBounceNormal(worldUp);
+            groundDot = 1f;
+
+            if (collision == null || collision.contactCount <= 0)
+            {
+                return false;
+            }
+
+            float bestHeight = float.NegativeInfinity;
+            Vector3 up = worldUp.sqrMagnitude > 0.0001f ? worldUp.normalized : Vector3.up;
+
+            for (int index = 0; index < collision.contactCount; index++)
+            {
+                ContactPoint contact = collision.GetContact(index);
+                float height = Vector3.Dot(contact.point, up);
+                if (height <= bestHeight)
+                {
+                    continue;
+                }
+
+                bestHeight = height;
+                contactPoint = contact.point;
+            }
+
+            return true;
         }
 
         private void TriggerSquash()
@@ -209,74 +228,95 @@ namespace Funguy.IdkPlatformer
             return squashTarget;
         }
 
-        private void ResolveRandomizedMaterialRenderers(bool forceRefresh)
+        private void EnsureCollisionSetup()
         {
-            if (!forceRefresh && randomizedMaterialRenderers != null && randomizedMaterialRenderers.Length > 0)
+            MeshFilter meshSource = ResolveCollisionMeshSource();
+            if (meshSource == null || meshSource.sharedMesh == null)
             {
-                if (randomizedBaseMaterial == null)
-                {
-                    for (int index = 0; index < randomizedMaterialRenderers.Length; index++)
-                    {
-                        if (randomizedMaterialRenderers[index] != null)
-                        {
-                            randomizedBaseMaterial = randomizedMaterialRenderers[index].sharedMaterial;
-                            break;
-                        }
-                    }
-                }
-
                 return;
             }
 
-            Renderer capRenderer = ResolveCapRenderer();
-            if (randomizedBaseMaterial == null && capRenderer != null)
+            collisionMeshSource = meshSource;
+            collisionMeshCollider = meshSource.GetComponent<MeshCollider>();
+            if (collisionMeshCollider == null)
             {
-                randomizedBaseMaterial = capRenderer.sharedMaterial;
+                collisionMeshCollider = meshSource.gameObject.AddComponent<MeshCollider>();
             }
 
-            if (randomizedBaseMaterial == null)
+            collisionMeshCollider.sharedMesh = meshSource.sharedMesh;
+            collisionMeshCollider.enabled = true;
+
+            DisableOtherColliders(collisionMeshCollider);
+        }
+
+        private MeshFilter ResolveCollisionMeshSource()
+        {
+            if (collisionMeshSource != null && collisionMeshSource.sharedMesh != null)
             {
-                randomizedMaterialRenderers = capRenderer != null ? new[] { capRenderer } : new Renderer[0];
-                return;
+                return collisionMeshSource;
             }
 
-            Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
-            int matchCount = 0;
-            for (int index = 0; index < renderers.Length; index++)
+            MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>(true);
+            MeshFilter bestFilter = null;
+            float bestScore = float.NegativeInfinity;
+
+            for (int index = 0; index < meshFilters.Length; index++)
             {
-                if (renderers[index] != null && renderers[index].sharedMaterial == randomizedBaseMaterial)
+                MeshFilter meshFilter = meshFilters[index];
+                if (meshFilter == null || meshFilter.sharedMesh == null || !meshFilter.gameObject.activeInHierarchy)
                 {
-                    matchCount++;
+                    continue;
+                }
+
+                Renderer renderer = meshFilter.GetComponent<Renderer>();
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                float score = renderer.bounds.size.sqrMagnitude;
+                if (bestFilter == null || score > bestScore)
+                {
+                    bestFilter = meshFilter;
+                    bestScore = score;
                 }
             }
 
-            if (matchCount == 0)
-            {
-                randomizedMaterialRenderers = capRenderer != null ? new[] { capRenderer } : new Renderer[0];
-                return;
-            }
+            return bestFilter;
+        }
 
-            randomizedMaterialRenderers = new Renderer[matchCount];
-            int writeIndex = 0;
-            for (int index = 0; index < renderers.Length; index++)
+        private void DisableOtherColliders(Collider keepCollider)
+        {
+            Collider[] colliders = GetComponentsInChildren<Collider>(true);
+            for (int index = 0; index < colliders.Length; index++)
             {
-                Renderer renderer = renderers[index];
-                if (renderer != null && renderer.sharedMaterial == randomizedBaseMaterial)
+                Collider collider = colliders[index];
+                if (collider == null || collider == keepCollider)
                 {
-                    randomizedMaterialRenderers[writeIndex++] = renderer;
+                    continue;
                 }
+
+                collider.enabled = false;
             }
         }
 
-        private Renderer ResolveCapRenderer()
+        private Vector3 ResolveStableBounceNormal(Vector3 worldUp)
         {
-            Transform capTransform = transform.Find("Cap");
-            if (capTransform != null && capTransform.TryGetComponent(out Renderer capRenderer))
+            Vector3 stableUp = transform.up;
+            if (stableUp.sqrMagnitude <= 0.0001f)
             {
-                return capRenderer;
+                stableUp = worldUp;
             }
 
-            return null;
+            if (stableUp.sqrMagnitude <= 0.0001f)
+            {
+                stableUp = Vector3.up;
+            }
+
+            stableUp.Normalize();
+
+            Vector3 fallbackUp = worldUp.sqrMagnitude > 0.0001f ? worldUp.normalized : Vector3.up;
+            return Vector3.Dot(stableUp, fallbackUp) >= 0f ? stableUp : fallbackUp;
         }
     }
 }

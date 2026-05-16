@@ -75,7 +75,6 @@ namespace Funguy.IdkPlatformer
         [SerializeField] private MovementTuningProfile tuningProfile;
         [SerializeField] private ForwardProgressScoreTracker scoreTracker;
         [SerializeField] private BounceSpawnDefinition startSpawnDefinition;
-        [SerializeField] private List<Material> mushroomMaterialVariants = new();
         [SerializeField] private Vector3 startMushroomPosition = Vector3.zero;
         [SerializeField] private bool autoInitializeOnStart = true;
         [SerializeField] private Vector3 worldUp = Vector3.up;
@@ -1248,48 +1247,6 @@ namespace Funguy.IdkPlatformer
 
             return null;
         }
-
-        private Material PickMushroomMaterialVariant()
-        {
-            if (mushroomMaterialVariants == null || mushroomMaterialVariants.Count == 0)
-            {
-                return null;
-            }
-
-            int validCount = 0;
-            for (int index = 0; index < mushroomMaterialVariants.Count; index++)
-            {
-                if (mushroomMaterialVariants[index] != null)
-                {
-                    validCount++;
-                }
-            }
-
-            if (validCount == 0)
-            {
-                return null;
-            }
-
-            int targetIndex = random.Next(validCount);
-            for (int index = 0; index < mushroomMaterialVariants.Count; index++)
-            {
-                Material material = mushroomMaterialVariants[index];
-                if (material == null)
-                {
-                    continue;
-                }
-
-                if (targetIndex == 0)
-                {
-                    return material;
-                }
-
-                targetIndex--;
-            }
-
-            return null;
-        }
-
         private void SpawnMushroom(Vector3 rootPosition, BounceSpawnDefinition definition, ActiveArea area)
         {
             if (definition == null || definition.Prefab == null)
@@ -1317,11 +1274,6 @@ namespace Funguy.IdkPlatformer
             if (mushroom != null && definition.BounceProfileOverride != null)
             {
                 mushroom.SetBounceProfile(definition.BounceProfileOverride);
-            }
-
-            if (mushroom != null)
-            {
-                mushroom.ApplySpawnMaterial(PickMushroomMaterialVariant());
             }
 
             area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
