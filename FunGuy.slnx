@@ -1,10 +1,12 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Rowlan.YAPP.Runtime.csproj" />
+  <Project Path="Funguy.MushroomRunner.csproj" />
   <Project Path="Rowlan.YAPP.Editor.csproj" />
-  <Project Path="Funguy.IdkPlatformer.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
-  <Project Path="Funguy.IdkPlatformer.Editor.csproj" />
+  <Project Path="Funguy.MushroomRunner.Editor.csproj" />
+  <Project Path="Funguy.MushroomRunner.EditMode.Tests.csproj" />
   <Project Path="Sirenix.OdinInspector.Modules.UnityMathematics.csproj" />
+  <Project Path="Funguy.MushroomRunner.PlayMode.Tests.csproj" />
 </Solution>
