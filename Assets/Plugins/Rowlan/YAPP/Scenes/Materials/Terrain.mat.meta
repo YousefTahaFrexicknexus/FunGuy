@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 898c188d37a8d194ab1c25f9cd3e05c5
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Scenes/Materials/Terrain.mat
+  uploadId: 842760

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 12b3263d886ad6041997af76ce6971b3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Runtime/Scripts/Settings/FilterSettings.cs
+  uploadId: 842760

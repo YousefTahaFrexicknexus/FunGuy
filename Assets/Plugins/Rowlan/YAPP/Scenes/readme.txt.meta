@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 9b04d680ab38af344b52ef28608b510e
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Scenes/readme.txt
+  uploadId: 842760

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 4e258c28fad700142b4a9b64758b6511
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Editor/Scripts/Testing/ShowPenetration.cs
+  uploadId: 842760

@@ -47,20 +47,39 @@ public class Mushroom : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        CreatureBouncer bouncer = collision.gameObject.GetComponent<CreatureBouncer>();
-        if (bouncer == null) return;
-
         float impactSpeed = collision.relativeVelocity.magnitude;
         if (impactSpeed < minImpactSpeed) return;
 
         Vector3? direction = overrideLaunchDirection ? launchDirection.normalized : null;
-        bouncer.TriggerBounce(bounceMultiplier, direction);
+        if (!TryTriggerBounce(collision.gameObject, bounceMultiplier, direction))
+        {
+            return;
+        }
 
         if (squashRoutine != null) StopCoroutine(squashRoutine);
         squashRoutine = StartCoroutine(MushroomSquash());
 
         PlayVFX(impactSpeed);
         PlaySFX();
+    }
+
+    bool TryTriggerBounce(GameObject target, float mushroomMultiplier, Vector3? direction)
+    {
+        CreatureBouncer_XAxis xAxisBouncer = target.GetComponent<CreatureBouncer_XAxis>();
+        if (xAxisBouncer != null)
+        {
+            xAxisBouncer.TriggerBounce(mushroomMultiplier, direction);
+            return true;
+        }
+
+        CreatureBouncer legacyBouncer = target.GetComponent<CreatureBouncer>();
+        if (legacyBouncer != null)
+        {
+            legacyBouncer.TriggerBounce(mushroomMultiplier, direction);
+            return true;
+        }
+
+        return false;
     }
 
     void PlayVFX(float impactSpeed)

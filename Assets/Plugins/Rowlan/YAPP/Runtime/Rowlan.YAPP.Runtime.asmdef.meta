@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f9b0e25cf728c8949815efdedd876d41
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Runtime/Rowlan.YAPP.Runtime.asmdef
+  uploadId: 842760

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: ced705fda68decc48adeb3054d45f09f
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Editor/Scripts/Testing/Cube.prefab
+  uploadId: 842760

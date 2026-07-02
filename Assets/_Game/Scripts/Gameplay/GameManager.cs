@@ -16,22 +16,48 @@ public class GameManager : MonoBehaviour
     }
 #endregion --- Instance ---
 
-    CreatureBouncer creatureBouncer;
+    [Header("Managers")]
+    public MushroomSpawner_XAxis mushroomSpawner;
+    [SerializeField] Transform playerRoot;
     Vector3 playerStartPos;
 
     void Awake()
     {
-        if(!creatureBouncer)
+        if (!playerRoot)
         {
-            creatureBouncer = FindAnyObjectByType<CreatureBouncer>();
+            CreatureBouncer_XAxis xAxisBouncer = FindAnyObjectByType<CreatureBouncer_XAxis>();
+            if (xAxisBouncer != null)
+            {
+                playerRoot = xAxisBouncer.transform;
+            }
+            else
+            {
+                CreatureBouncer legacyBouncer = FindAnyObjectByType<CreatureBouncer>();
+                if (legacyBouncer != null)
+                {
+                    playerRoot = legacyBouncer.transform;
+                }
+            }
         }
 
-        playerStartPos = creatureBouncer.transform.position;
+        if (playerRoot == null)
+        {
+            Debug.LogWarning("GameManager could not find a player root to reset.");
+            return;
+        }
+
+        playerStartPos = playerRoot.position;
     }
 
     public void ResetPlayerPosition()
     {
-        creatureBouncer.transform.position = playerStartPos;
+        if (playerRoot == null)
+        {
+            return;
+        }
+
+        Vector3 lastSpawnedPos = mushroomSpawner.GetLastSpawned().transform.position;
+        playerRoot.position = new Vector3(lastSpawnedPos.x, 12f, lastSpawnedPos.z);
     }
 }
 

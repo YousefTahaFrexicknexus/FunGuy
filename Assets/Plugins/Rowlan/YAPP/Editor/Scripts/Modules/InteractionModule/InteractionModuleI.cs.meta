@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 953eccc5a8e02e94287c7d440a0015c2
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Editor/Scripts/Modules/InteractionModule/InteractionModuleI.cs
+  uploadId: 842760

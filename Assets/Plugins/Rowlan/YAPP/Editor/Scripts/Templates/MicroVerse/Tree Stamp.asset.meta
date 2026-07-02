@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 222ce83dbd12c86419f91308f56bd591
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223381
+  packageName: YAPP - Yet Another Prefab Painter
+  packageVersion: 1.26.0
+  assetPath: Assets/Rowlan/YAPP/Editor/Scripts/Templates/MicroVerse/Tree Stamp.asset
+  uploadId: 842760
