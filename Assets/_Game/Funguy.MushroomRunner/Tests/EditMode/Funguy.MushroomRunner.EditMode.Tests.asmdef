@@ -1,0 +1,21 @@
+{
+  "name": "Funguy.MushroomRunner.EditMode.Tests",
+  "rootNamespace": "Funguy.MushroomRunner.Tests.EditMode",
+  "references": [
+    "Funguy.MushroomRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}
