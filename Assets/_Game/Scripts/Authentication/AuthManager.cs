@@ -1,10 +1,10 @@
 using System;
-using System.Runtime.InteropServices;
+
+using UnityEngine;
+using UnityEngine.UI;
+
 using PlayFab;
 using PlayFab.ClientModels;
-using UnityEngine;
-using UnityEngine.SocialPlatforms;
-using UnityEngine.UI;
 
 #if UNITY_ANDROID
 using GooglePlayGames;
@@ -18,31 +18,31 @@ public sealed class AuthManager : MonoBehaviour
 {
     [Header("Scene References")]
     [SerializeField]
-    private TMPro.TextMeshProUGUI statusLabel;
+    TMPro.TextMeshProUGUI statusLabel;
 
     [SerializeField]
-    private Button retryButton;
+    Button retryButton;
 
     [Header("iOS")]
     [SerializeField]
-    private bool useGamePlayerIdForAppleArcade;
+    bool useGamePlayerIdForAppleArcade;
 
-    private bool _isAuthenticating;
-    private bool _guestFallbackStarted;
-    private bool _loginCompleted;
+    bool _isAuthenticating;
+    bool _guestFallbackStarted;
+    bool _loginCompleted;
 
-    private const string LogPrefix = "[AuthManager]";
+    const string LogPrefix = "[AuthManager]";
 
 #if UNITY_IOS && !UNITY_EDITOR
     [DllImport("__Internal")]
-    private static extern void PlayFabAuth_RequestGameCenterIdentityVerification(
+    static extern void PlayFabAuth_RequestGameCenterIdentityVerification(
         string gameObjectName,
         string successCallbackName,
         string errorCallbackName);
 #endif
 
     [Serializable]
-    private sealed class GameCenterIdentityPayload
+    sealed class GameCenterIdentityPayload
     {
         public string playerId;
         public string teamPlayerId;
@@ -53,7 +53,7 @@ public sealed class AuthManager : MonoBehaviour
         public string timestamp;
     }
 
-    private void Awake()
+    void Awake()
     {
         if (retryButton != null)
         {
@@ -65,12 +65,12 @@ public sealed class AuthManager : MonoBehaviour
         UpdateStatus("Ready to sign in.");
     }
 
-    private void Start()
+    void Start()
     {
         BeginAuthentication();
     }
 
-    private void OnDestroy()
+    void OnDestroy()
     {
         if (retryButton != null)
         {
@@ -121,7 +121,7 @@ public sealed class AuthManager : MonoBehaviour
 
     #region Android Authentication
 
-    private void BeginAndroidAuthentication()
+    void BeginAndroidAuthentication()
     {
 #if UNITY_ANDROID
         UpdateStatus("Signing in with Google Play Games...");
@@ -173,7 +173,7 @@ public sealed class AuthManager : MonoBehaviour
 #endif
     }
 
-    private void LoginWithGooglePlayGames(string serverAuthCode)
+    void LoginWithGooglePlayGames(string serverAuthCode)
     {
 #if UNITY_ANDROID
         var request = new LoginWithGooglePlayGamesServicesRequest
@@ -190,7 +190,7 @@ public sealed class AuthManager : MonoBehaviour
 #endif
     }
 
-    private bool IsGooglePlayGamesConfigured(out string issue)
+    bool IsGooglePlayGamesConfigured(out string issue)
     {
 #if UNITY_ANDROID
         if (!GameInfo.ApplicationIdInitialized())
@@ -214,7 +214,7 @@ public sealed class AuthManager : MonoBehaviour
 
     #region iOS Authentication
 
-    private void BeginIosAuthentication()
+    void BeginIosAuthentication()
     {
         UpdateStatus("Signing in with Game Center...");
 
@@ -238,7 +238,7 @@ public sealed class AuthManager : MonoBehaviour
         }
     }
 
-    private void RequestGameCenterIdentityVerification()
+    void RequestGameCenterIdentityVerification()
     {
 #if UNITY_IOS && !UNITY_EDITOR
         try
@@ -310,7 +310,7 @@ public sealed class AuthManager : MonoBehaviour
         FallBackToGuest("Game Center", message);
     }
 
-    private string ResolveGameCenterPlayerId(GameCenterIdentityPayload payload)
+    string ResolveGameCenterPlayerId(GameCenterIdentityPayload payload)
     {
         if (payload == null)
         {
@@ -339,7 +339,7 @@ public sealed class AuthManager : MonoBehaviour
 
     #region Guest Authentication
 
-    private void BeginGuestAuthentication(string reason)
+    void BeginGuestAuthentication(string reason)
     {
         if (_guestFallbackStarted || _loginCompleted)
         {
@@ -371,7 +371,7 @@ public sealed class AuthManager : MonoBehaviour
             error => HandleGuestLoginFailure(error));
     }
 
-    private void HandleGuestLoginFailure(PlayFabError error)
+    void HandleGuestLoginFailure(PlayFabError error)
     {
         Debug.LogError($"{LogPrefix} Guest login failed.\n{error.GenerateErrorReport()}");
         FailAuthentication(BuildFriendlyFailureMessage("Guest sign-in failed", error));
@@ -381,7 +381,7 @@ public sealed class AuthManager : MonoBehaviour
 
     #region Shared Helpers
 
-    private void HandleLoginSuccess(LoginResult result, string authProvider, string successStatus)
+    void HandleLoginSuccess(LoginResult result, string authProvider, string successStatus)
     {
         _loginCompleted = true;
         _isAuthenticating = false;
@@ -395,14 +395,14 @@ public sealed class AuthManager : MonoBehaviour
         UpdateStatus($"{successStatus}\nPlayFabId: {result.PlayFabId}");
     }
 
-    private void FallBackToGuest(string provider, string reason)
+    void FallBackToGuest(string provider, string reason)
     {
         Debug.LogWarning($"{LogPrefix} {provider} sign-in failed and will fall back to guest. Reason: {reason}");
         UpdateStatus($"{provider} unavailable. Falling back to Guest...");
         BeginGuestAuthentication(reason);
     }
 
-    private void FallBackToGuest(string provider, string reason, Exception exception)
+    void FallBackToGuest(string provider, string reason, Exception exception)
     {
         if (exception != null)
         {
@@ -417,7 +417,7 @@ public sealed class AuthManager : MonoBehaviour
         BeginGuestAuthentication(reason);
     }
 
-    private void FallBackToGuestFromPlayFab(string provider, string reason, PlayFabError error)
+    void FallBackToGuestFromPlayFab(string provider, string reason, PlayFabError error)
     {
         if (error != null)
         {
@@ -432,12 +432,12 @@ public sealed class AuthManager : MonoBehaviour
         BeginGuestAuthentication(reason);
     }
 
-    private bool IsPlayFabConfigured()
+    bool IsPlayFabConfigured()
     {
         return !string.IsNullOrWhiteSpace(PlayFabSettings.TitleId);
     }
 
-    private void FailAuthentication(string message)
+    void FailAuthentication(string message)
     {
         _isAuthenticating = false;
         _loginCompleted = false;
@@ -448,7 +448,7 @@ public sealed class AuthManager : MonoBehaviour
         ShowRetryButton();
     }
 
-    private void UpdateStatus(string message)
+    void UpdateStatus(string message)
     {
         if (statusLabel != null)
         {
@@ -458,7 +458,7 @@ public sealed class AuthManager : MonoBehaviour
         Debug.Log($"{LogPrefix} Status: {message}");
     }
 
-    private void ShowRetryButton()
+    void ShowRetryButton()
     {
         if (retryButton != null)
         {
@@ -466,7 +466,7 @@ public sealed class AuthManager : MonoBehaviour
         }
     }
 
-    private void HideRetryButton()
+    void HideRetryButton()
     {
         if (retryButton != null)
         {
@@ -474,7 +474,7 @@ public sealed class AuthManager : MonoBehaviour
         }
     }
 
-    private static string BuildFriendlyFailureMessage(string prefix, PlayFabError error)
+    static string BuildFriendlyFailureMessage(string prefix, PlayFabError error)
     {
         if (error == null)
         {

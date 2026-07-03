@@ -56,22 +56,32 @@ public class PlayFab_Leaderboards : MonoBehaviour
             Debug.Log($"Position: {entry.Position}, PlayFabId: {entry.PlayFabId}, DisplayName: {entry.DisplayName}, Score: {entry.StatValue}");
         }
     }
-}
 
-[CustomEditor(typeof(PlayFab_Leaderboards))]
-public class LeaderboardManagerEditor : Editor
-{
-    public override void OnInspectorGUI()
+    [Header("PlayFab Leaderboards")]
+    public int DebuggingScore = 0;
+    
+    #if UNITY_EDITOR
+    [CustomEditor(typeof(PlayFab_Leaderboards))]
+    public class LeaderboardManagerEditor : Editor
     {
-        DrawDefaultInspector();
-
-        PlayFab_Leaderboards manager = (PlayFab_Leaderboards)target;
-
-        GUILayout.Space(10);
-
-        if (GUILayout.Button("Get Leaderboard"))
+        public override void OnInspectorGUI()
         {
-            manager.GetLeaderboard();
+            DrawDefaultInspector();
+
+            PlayFab_Leaderboards manager = (PlayFab_Leaderboards) target;
+
+            GUILayout.Space(10);
+
+            if (GUILayout.Button("Get Leaderboard"))
+            {
+                manager.GetLeaderboard();
+            }
+
+            if (GUILayout.Button("Send Leaderboard"))
+            {
+                manager.SendLeaderBoard(manager.DebuggingScore);
+            }
         }
     }
+    #endif
 }

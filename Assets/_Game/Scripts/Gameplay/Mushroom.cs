@@ -41,8 +41,12 @@ public class Mushroom : MonoBehaviour
     {
         originalScale = transform.localScale;
         audioSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
-        audioSource.spatialBlend = 1f;
-        audioSource.playOnAwake = false;
+
+        if(audioSource != null)
+        {
+            audioSource.spatialBlend = 1f;
+            audioSource.playOnAwake = false;
+        }
     }
 
     void OnCollisionEnter(Collision collision)
