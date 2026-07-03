@@ -538,9 +538,11 @@ namespace Funguy.MushroomRunner
             float preferredSideSign = random.NextDouble() <= 0.5d ? -1f : 1f;
             for (int count = 0; count < targetCount; count++)
             {
+                int seedAnchorIndex = ResolveOptionalAnchorIndex(count, targetCount, area.RouteNodes.Count);
                 for (int attempt = 0; attempt < generationProfile.OptionalCandidateAttempts; attempt++)
                 {
-                    RouteNodeState anchor = area.RouteNodes[random.Next(area.RouteNodes.Count)];
+                    int anchorIndex = (seedAnchorIndex + attempt) % area.RouteNodes.Count;
+                    RouteNodeState anchor = area.RouteNodes[anchorIndex];
                     Vector3 candidate = SampleOptionalPosition(anchor, area, areaScore, preferredSideSign);
 
                     if (!IsPositionClear(candidate, occupiedPositions, generationProfile.OptionalMushroomClearanceRadius))
@@ -848,15 +850,49 @@ namespace Funguy.MushroomRunner
         private void ResolveForwardGapRange(RouteNodeState currentState, float difficulty01, out float minimumGap, out float maximumGap)
         {
             float speedGapBonus = ResolveOverspeedGapBonus(currentState);
-            minimumGap = generationProfile.MinimumForwardGap + (speedGapBonus * 0.4f);
-            maximumGap = generationProfile.MaximumForwardGap
+            float openingGapScale = ResolveOpeningGapScale(currentState);
+            minimumGap = (generationProfile.MinimumForwardGap + (speedGapBonus * 0.4f)) * openingGapScale;
+            maximumGap = (generationProfile.MaximumForwardGap
                 + (generationProfile.MaximumAdditionalForwardGapFromDifficulty * difficulty01)
-                + speedGapBonus;
+                + speedGapBonus) * openingGapScale;
 
             if (maximumGap < minimumGap)
             {
                 maximumGap = minimumGap;
             }
+        }
+
+        private float ResolveOpeningGapScale(RouteNodeState currentState)
+        {
+            float introDistance = generationProfile.AreaLength * Mathf.Max(1, generationProfile.IntroAreaCount);
+            if (introDistance <= 0f)
+            {
+                return 1f;
+            }
+
+            float routeProgress = Mathf.Max(0f, currentState.RootPosition.z - runStartZ);
+            float openingProgress01 = Mathf.Clamp01(routeProgress / introDistance);
+            return Mathf.Lerp(0.72f, 1f, openingProgress01);
+        }
+
+        private int ResolveOptionalAnchorIndex(int optionalIndex, int totalOptionalCount, int routeNodeCount)
+        {
+            if (routeNodeCount <= 1)
+            {
+                return 0;
+            }
+
+            if (totalOptionalCount <= 1)
+            {
+                return routeNodeCount / 2;
+            }
+
+            float anchorT = (optionalIndex + 0.5f) / totalOptionalCount;
+            float jitteredAnchorT = Mathf.Clamp01(anchorT + RandomRange(-0.16f, 0.16f));
+            return Mathf.Clamp(
+                Mathf.RoundToInt(jitteredAnchorT * (routeNodeCount - 1)),
+                0,
+                routeNodeCount - 1);
         }
 
         private Vector3 SampleOptionalPosition(RouteNodeState anchor, ActiveArea area, int areaScore, float preferredSideSign)
@@ -873,22 +909,22 @@ namespace Funguy.MushroomRunner
             {
                 sign = -Mathf.Sign(anchor.RootPosition.x);
             }
-            else if (random.NextDouble() < 0.2d)
-            {
-                sign *= -1f;
-            }
 
             float bandPosition = Mathf.Lerp(innerBand, outerBand, SampleOuterBiased01(generationProfile.OptionalPathOuterBias));
             float x = Mathf.Clamp(
-                (sign * bandPosition) + RandomRange(-0.75f, 0.75f),
+                (sign * bandPosition) + RandomRange(-0.45f, 0.45f),
                 -generationProfile.AreaHalfWidth,
                 generationProfile.AreaHalfWidth);
             float y = Mathf.Clamp(
-                anchor.RootPosition.y + RandomRange(-1f, 1.25f),
+                anchor.RootPosition.y + RandomRange(-0.85f, 1f),
                 generationProfile.MinimumHeight,
                 generationProfile.MaximumHeight);
+            float localDepthWindow = Mathf.Lerp(
+                Mathf.Max(0.75f, generationProfile.MinimumForwardGap * 0.16f),
+                Mathf.Max(1.5f, generationProfile.MinimumForwardGap * 0.28f),
+                difficulty01);
             float z = Mathf.Clamp(
-                anchor.RootPosition.z + RandomRange(-generationProfile.MinimumForwardGap * 0.45f, generationProfile.MaximumForwardGap * 0.85f),
+                anchor.RootPosition.z + RandomRange(-localDepthWindow, localDepthWindow),
                 area.StartZ + 0.5f,
                 area.EndZ - generationProfile.MinimumExitBuffer);
             return new Vector3(x, y, z);

@@ -211,7 +211,15 @@ namespace Funguy.MushroomRunner
 
         public int GetSeed()
         {
-            return randomizeSeed ? Environment.TickCount : seed;
+            if (!randomizeSeed)
+            {
+                return seed;
+            }
+
+            unchecked
+            {
+                return Guid.NewGuid().GetHashCode() ^ Environment.TickCount ^ seed;
+            }
         }
 
         private void OnValidate()
