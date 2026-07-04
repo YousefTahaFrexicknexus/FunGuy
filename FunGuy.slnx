@@ -33,6 +33,8 @@
   <Project Path="Unity.Cinemachine.csproj" />
   <Project Path="Unity.Burst.CodeGen.csproj" />
   <Project Path="Rowlan.YAPP.Runtime.csproj" />
+  <Project Path="Funguy.MushroomRunner.csproj" />
+  <Project Path="Rowlan.YAPP.Editor.csproj" />
   <Project Path="Unity.VisualScripting.Flow.csproj" />
   <Project Path="Google.Play.Games.Editor.csproj" />
   <Project Path="Unity.Splines.Editor.csproj" />
@@ -61,6 +63,10 @@
   <Project Path="Unity.VisualScripting.SettingsProvider.Editor.csproj" />
   <Project Path="UnityEditor.UI.Analytics.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Funguy.MushroomRunner.Editor.csproj" />
+  <Project Path="Funguy.MushroomRunner.EditMode.Tests.csproj" />
+  <Project Path="Sirenix.OdinInspector.Modules.UnityMathematics.csproj" />
+  <Project Path="Funguy.MushroomRunner.PlayMode.Tests.csproj" />
   <Project Path="Unity.Settings.Editor.csproj" />
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
   <Project Path="Unity.ShaderGraph.Utilities.csproj" />

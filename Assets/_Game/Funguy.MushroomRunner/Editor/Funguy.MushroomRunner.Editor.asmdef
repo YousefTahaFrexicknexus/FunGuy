@@ -1,0 +1,20 @@
+﻿{
+  "name": "Funguy.MushroomRunner.Editor",
+  "rootNamespace": "Funguy.MushroomRunner.Editor",
+  "references": [
+    "Funguy.MushroomRunner",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+
