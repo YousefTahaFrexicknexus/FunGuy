@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BalancedMomentum
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   moveAcceleration: 19
-  airControlStrength: 0.75
+  airControlStrength: 1.5
   forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
   maxControllableSpeed: 15
