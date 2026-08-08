@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -23,7 +23,18 @@ MonoBehaviour:
   gravityScale: 0.95
   jumpGravityMultiplier: 0.95
   fallGravityMultiplier: 1.75
+  useBounceFlightShaper: 1
+  referencePlanarSpeed: 13.5
+  maximumPlanarSpeed: 30
+  slowRiseGravityMultiplier: 1.05
+  fastRiseGravityMultiplier: 0.9
+  slowFallGravityMultiplier: 2.15
+  fastFallGravityMultiplier: 1.95
+  apexTransitionVerticalSpeed: 1.1
+  apexExtraDownAcceleration: 12
+  apexExtraDownDuration: 0.06
   baseJumpForce: 9.5
+  baseBounceSpeedGain: 1
   dashForce: 8.5
   dashCooldown: 0.12
   dashChargesPerBounce: 1
@@ -34,4 +45,3 @@ MonoBehaviour:
   bounceGraceTime: 0.1
   dashBufferTime: 0.1
   minGroundDot: 0.65
-

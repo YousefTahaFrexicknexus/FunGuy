@@ -2,6 +2,79 @@
 
 namespace Funguy.MushroomRunner
 {
+    public struct BounceFlightShapeState
+    {
+        public BounceFlightShapeState(
+            float launchPlanarSpeed,
+            float normalizedSpeedFactor,
+            float riseGravityMultiplier,
+            float fallGravityMultiplier,
+            float apexTransitionVerticalSpeed,
+            float apexExtraDownAcceleration,
+            float apexExtraDownDuration)
+        {
+            LaunchPlanarSpeed = Mathf.Max(0f, launchPlanarSpeed);
+            NormalizedSpeedFactor = Mathf.Clamp01(normalizedSpeedFactor);
+            RiseGravityMultiplier = Mathf.Max(0f, riseGravityMultiplier);
+            FallGravityMultiplier = Mathf.Max(0f, fallGravityMultiplier);
+            ApexTransitionVerticalSpeed = Mathf.Max(0f, apexTransitionVerticalSpeed);
+            ApexExtraDownAcceleration = Mathf.Max(0f, apexExtraDownAcceleration);
+            ApexExtraDownDuration = Mathf.Max(0f, apexExtraDownDuration);
+            RemainingApexSnapTime = 0f;
+            HasEnteredApexWindow = false;
+            IsActive = true;
+        }
+
+        public float LaunchPlanarSpeed { get; private set; }
+
+        public float NormalizedSpeedFactor { get; private set; }
+
+        public float RiseGravityMultiplier { get; private set; }
+
+        public float FallGravityMultiplier { get; private set; }
+
+        public float ApexTransitionVerticalSpeed { get; private set; }
+
+        public float ApexExtraDownAcceleration { get; private set; }
+
+        public float ApexExtraDownDuration { get; private set; }
+
+        public float RemainingApexSnapTime { get; private set; }
+
+        public bool HasEnteredApexWindow { get; private set; }
+
+        public bool IsActive { get; private set; }
+
+        public void EnterApexWindow()
+        {
+            if (HasEnteredApexWindow)
+            {
+                return;
+            }
+
+            HasEnteredApexWindow = true;
+            RemainingApexSnapTime = ApexExtraDownDuration;
+        }
+
+        public float ConsumeApexSnapTime(float deltaTime)
+        {
+            float consumed = Mathf.Min(RemainingApexSnapTime, Mathf.Max(0f, deltaTime));
+            RemainingApexSnapTime = Mathf.Max(0f, RemainingApexSnapTime - consumed);
+            return consumed;
+        }
+
+        public void Deactivate()
+        {
+            IsActive = false;
+            RemainingApexSnapTime = 0f;
+        }
+
+        public void Reset()
+        {
+            this = default;
+        }
+    }
+
     public static class BounceMovementMath
     {
         public const float MinimumDirectionSqrMagnitude = 0.0001f;
@@ -25,6 +98,80 @@ namespace Funguy.MushroomRunner
                 : tuningProfile.FallGravityMultiplier;
 
             velocity += Physics.gravity * tuningProfile.GravityScale * gravityMultiplier * deltaTime;
+        }
+
+        public static bool ShouldUseBounceFlightShaper(MovementTuningProfile tuningProfile)
+        {
+            return tuningProfile != null && tuningProfile.UseBounceFlightShaper;
+        }
+
+        public static BounceFlightShapeState CreateBounceFlightShapeState(
+            Vector3 outgoingVelocity,
+            MovementTuningProfile tuningProfile,
+            Vector3 worldUp)
+        {
+            if (!ShouldUseBounceFlightShaper(tuningProfile))
+            {
+                return default;
+            }
+
+            BounceFlightShaperSettings settings = tuningProfile.BounceFlightShaper;
+            Vector3 up = GetSafeUp(worldUp);
+            float planarSpeed = Vector3.ProjectOnPlane(outgoingVelocity, up).magnitude;
+            float speedFactor = settings.MaximumPlanarSpeed > settings.ReferencePlanarSpeed
+                ? Mathf.InverseLerp(settings.ReferencePlanarSpeed, settings.MaximumPlanarSpeed, planarSpeed)
+                : planarSpeed >= settings.ReferencePlanarSpeed
+                    ? 1f
+                    : 0f;
+            float riseGravityMultiplier = Mathf.Lerp(settings.SlowRiseGravityMultiplier, settings.FastRiseGravityMultiplier, speedFactor);
+            float fallGravityMultiplier = Mathf.Lerp(settings.SlowFallGravityMultiplier, settings.FastFallGravityMultiplier, speedFactor);
+
+            return new BounceFlightShapeState(
+                planarSpeed,
+                speedFactor,
+                riseGravityMultiplier,
+                fallGravityMultiplier,
+                settings.ApexTransitionVerticalSpeed,
+                settings.ApexExtraDownAcceleration,
+                settings.ApexExtraDownDuration);
+        }
+
+        public static bool ApplyBounceFlightShaper(
+            ref Vector3 velocity,
+            MovementTuningProfile tuningProfile,
+            Vector3 worldUp,
+            ref BounceFlightShapeState bounceFlightShape,
+            float deltaTime)
+        {
+            if (!ShouldUseBounceFlightShaper(tuningProfile) ||
+                !bounceFlightShape.IsActive ||
+                deltaTime <= 0f)
+            {
+                return false;
+            }
+
+            Vector3 up = GetSafeUp(worldUp);
+            float verticalSpeed = Vector3.Dot(velocity, up);
+
+            if (verticalSpeed > 0f)
+            {
+                ApplyGravityMultiplier(ref velocity, tuningProfile.GravityScale, bounceFlightShape.RiseGravityMultiplier, deltaTime);
+
+                if (verticalSpeed <= bounceFlightShape.ApexTransitionVerticalSpeed)
+                {
+                    bounceFlightShape.EnterApexWindow();
+                    float apexSnapStep = bounceFlightShape.ConsumeApexSnapTime(deltaTime);
+                    if (apexSnapStep > 0f)
+                    {
+                        ApplyVerticalAcceleration(ref velocity, up, bounceFlightShape.ApexExtraDownAcceleration, apexSnapStep);
+                    }
+                }
+
+                return true;
+            }
+
+            ApplyGravityMultiplier(ref velocity, tuningProfile.GravityScale, bounceFlightShape.FallGravityMultiplier, deltaTime);
+            return true;
         }
 
         public static void ApplyAirAcceleration(
@@ -184,7 +331,14 @@ namespace Funguy.MushroomRunner
             Vector3 planarOut = redirectedPlanar * response.VelocityScale;
             if (planarDirection.sqrMagnitude > MinimumDirectionSqrMagnitude && Mathf.Abs(response.PlanarBoost) > 0f)
             {
-                planarOut += planarDirection * response.PlanarBoost;
+                float planarBoost = response.PlanarBoost;
+                if (planarBoost < 0f)
+                {
+                    float speedAlongLaunchDirection = Mathf.Max(0f, Vector3.Dot(planarOut, planarDirection));
+                    planarBoost = Mathf.Max(planarBoost, -speedAlongLaunchDirection);
+                }
+
+                planarOut += planarDirection * planarBoost;
             }
 
             if (tuningProfile != null &&
@@ -308,6 +462,26 @@ namespace Funguy.MushroomRunner
             return worldUp.sqrMagnitude > MinimumDirectionSqrMagnitude
                 ? worldUp.normalized
                 : Vector3.up;
+        }
+
+        private static void ApplyGravityMultiplier(ref Vector3 velocity, float gravityScale, float gravityMultiplier, float deltaTime)
+        {
+            if (deltaTime <= 0f || gravityScale <= 0f || gravityMultiplier <= 0f)
+            {
+                return;
+            }
+
+            velocity += Physics.gravity * gravityScale * gravityMultiplier * deltaTime;
+        }
+
+        private static void ApplyVerticalAcceleration(ref Vector3 velocity, Vector3 up, float accelerationMagnitude, float deltaTime)
+        {
+            if (accelerationMagnitude <= 0f || deltaTime <= 0f)
+            {
+                return;
+            }
+
+            velocity -= up * accelerationMagnitude * deltaTime;
         }
     }
 }

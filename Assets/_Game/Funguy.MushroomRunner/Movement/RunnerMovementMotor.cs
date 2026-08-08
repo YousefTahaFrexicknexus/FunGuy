@@ -32,6 +32,7 @@ namespace Funguy.MushroomRunner
         private float ignoredBounceSurfaceUntil = float.NegativeInfinity;
         private Func<bool> tryConsumeDashHandler;
         private bool isGrounded;
+        private BounceFlightShapeState activeBounceFlightShape;
 
         public event Action<BounceEventData> Bounced;
         public event Action Dashed;
@@ -89,6 +90,10 @@ namespace Funguy.MushroomRunner
         {
             RestoreIgnoredBounceSurfaceIfExpired();
             isGrounded = ComputeGroundedState();
+            if (isGrounded)
+            {
+                activeBounceFlightShape = default;
+            }
 
             if (body == null || tuningProfile == null)
             {
@@ -163,6 +168,11 @@ namespace Funguy.MushroomRunner
         public void SetTuningProfile(MovementTuningProfile profile)
         {
             tuningProfile = profile;
+
+            if (!BounceMovementMath.ShouldUseBounceFlightShaper(tuningProfile))
+            {
+                activeBounceFlightShape = default;
+            }
         }
 
         public void SetMotorEnabled(bool enabled)
@@ -175,6 +185,7 @@ namespace Funguy.MushroomRunner
                 planarSpeedFloor = 0f;
                 planarSpeedFloorDirection = Vector3.zero;
                 currentInput = MovementInputFrame.Empty;
+                activeBounceFlightShape = default;
             }
         }
 
@@ -206,6 +217,7 @@ namespace Funguy.MushroomRunner
             lastConsumedSurface = null;
             isGrounded = false;
             currentInput = MovementInputFrame.Empty;
+            activeBounceFlightShape = default;
 
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
@@ -215,6 +227,64 @@ namespace Funguy.MushroomRunner
             Physics.SyncTransforms();
             body.WakeUp();
             RestoreIgnoredBounceSurface();
+        }
+
+        public bool ApplyForce(Transform forceDirection, MushroomBounceProfile bounceProfile)
+        {
+            return ApplyForce(forceDirection, bounceProfile, null, transform.position, Up);
+        }
+
+        public bool ApplyForce(
+            Transform forceDirection,
+            MushroomBounceProfile bounceProfile,
+            Collider sourceCollider,
+            Vector3 contactPoint,
+            Vector3 contactNormal)
+        {
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody>();
+            }
+
+            if (body == null || tuningProfile == null || bounceProfile == null || !motorEnabled)
+            {
+                return false;
+            }
+
+            Vector3 safeContactNormal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude
+                ? contactNormal.normalized
+                : Up;
+            Vector3 incomingVelocity = body.linearVelocity;
+            BounceContext context = new(
+                incomingVelocity,
+                contactPoint,
+                safeContactNormal,
+                Up,
+                tuningProfile.BaseJumpForce,
+                currentInput);
+
+            BounceSurfaceResponse response = bounceProfile.CreateDirectedResponse(forceDirection, context);
+            Vector3 outgoingVelocity = ApplyBounceResponse(incomingVelocity, response);
+            Vector3 forceDelta = outgoingVelocity - incomingVelocity;
+            body.AddForce(forceDelta, ForceMode.VelocityChange);
+
+            activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
+            UpdatePlanarSpeedFloor(outgoingVelocity, response);
+            lastConsumedSurface = sourceCollider;
+            hasBounceCandidate = false;
+            lastSurfaceTouchTime = float.NegativeInfinity;
+            lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
+            isGrounded = false;
+
+            Bounced?.Invoke(new BounceEventData(
+                sourceCollider,
+                contactPoint,
+                safeContactNormal,
+                incomingVelocity,
+                outgoingVelocity,
+                response));
+
+            return true;
         }
 
         private void OnCollisionEnter(Collision collision)
@@ -252,6 +322,11 @@ namespace Funguy.MushroomRunner
 
         private void ApplyShapedGravity(ref Vector3 velocity, float deltaTime)
         {
+            if (BounceMovementMath.ApplyBounceFlightShaper(ref velocity, tuningProfile, Up, ref activeBounceFlightShape, deltaTime))
+            {
+                return;
+            }
+
             BounceMovementMath.ApplyShapedGravity(ref velocity, tuningProfile, Up, deltaTime);
         }
 
@@ -350,6 +425,7 @@ namespace Funguy.MushroomRunner
 
             response = lastBounceCandidate.Surface.GetBounceResponse(in context);
             velocity = ApplyBounceResponse(incomingVelocity, response);
+            activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(velocity, tuningProfile, Up);
 
             Bounced?.Invoke(new BounceEventData(
                 lastBounceCandidate.Collider,
@@ -445,6 +521,7 @@ namespace Funguy.MushroomRunner
             }
 
             Vector3 normalizedDashDirection = dashDirection.normalized;
+            activeBounceFlightShape = default;
             float speedAlongDash = Vector3.Dot(velocity, normalizedDashDirection);
             if (speedAlongDash < 0f)
             {
