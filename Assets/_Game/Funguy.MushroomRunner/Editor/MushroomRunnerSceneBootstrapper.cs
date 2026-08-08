@@ -26,6 +26,16 @@ namespace Funguy.MushroomRunner.Editor
         private const string BlockSpawnerTypeName = "BlockSpawner";
         private const string ColliderDisablerTypeName = "SpawnedHierarchyColliderDisabler";
         private const string DefaultAssemblyName = "Assembly-CSharp";
+        private const bool DefaultUseBounceFlightShaper = true;
+        private const float DefaultReferencePlanarSpeed = 13.5f;
+        private const float DefaultMaximumPlanarSpeed = 30f;
+        private const float DefaultSlowRiseGravityMultiplier = 1.05f;
+        private const float DefaultFastRiseGravityMultiplier = 0.90f;
+        private const float DefaultSlowFallGravityMultiplier = 2.15f;
+        private const float DefaultFastFallGravityMultiplier = 1.95f;
+        private const float DefaultApexTransitionVerticalSpeed = 1.1f;
+        private const float DefaultApexExtraDownAcceleration = 12f;
+        private const float DefaultApexExtraDownDuration = 0.06f;
         private static readonly string[] Main2EnvironmentBlockSequencePaths =
         {
             "Assets/_Game/Scripts/Blocks/Block_1_1.asset",
@@ -826,6 +836,16 @@ namespace Funguy.MushroomRunner.Editor
             so.FindProperty("gravityScale").floatValue = preset.GravityScale;
             so.FindProperty("jumpGravityMultiplier").floatValue = preset.JumpGravityMultiplier;
             so.FindProperty("fallGravityMultiplier").floatValue = preset.FallGravityMultiplier;
+            so.FindProperty("useBounceFlightShaper").boolValue = preset.UseBounceFlightShaper;
+            so.FindProperty("referencePlanarSpeed").floatValue = preset.ReferencePlanarSpeed;
+            so.FindProperty("maximumPlanarSpeed").floatValue = preset.MaximumPlanarSpeed;
+            so.FindProperty("slowRiseGravityMultiplier").floatValue = preset.SlowRiseGravityMultiplier;
+            so.FindProperty("fastRiseGravityMultiplier").floatValue = preset.FastRiseGravityMultiplier;
+            so.FindProperty("slowFallGravityMultiplier").floatValue = preset.SlowFallGravityMultiplier;
+            so.FindProperty("fastFallGravityMultiplier").floatValue = preset.FastFallGravityMultiplier;
+            so.FindProperty("apexTransitionVerticalSpeed").floatValue = preset.ApexTransitionVerticalSpeed;
+            so.FindProperty("apexExtraDownAcceleration").floatValue = preset.ApexExtraDownAcceleration;
+            so.FindProperty("apexExtraDownDuration").floatValue = preset.ApexExtraDownDuration;
             so.FindProperty("baseJumpForce").floatValue = preset.BaseJumpForce;
             so.FindProperty("baseBounceSpeedGain").floatValue = preset.BaseBounceSpeedGain;
             so.FindProperty("dashForce").floatValue = preset.DashForce;
@@ -854,6 +874,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 1f,
                 jumpGravityMultiplier: 1.2f,
                 fallGravityMultiplier: 2.1f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 9f,
                 baseBounceSpeedGain: 1f,
                 dashForce: 7.5f,
@@ -882,6 +912,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 1.1f,
                 jumpGravityMultiplier: 1.05f,
                 fallGravityMultiplier: 2.6f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 8.5f,
                 baseBounceSpeedGain: 0.75f,
                 dashForce: 6.5f,
@@ -910,6 +950,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 1.15f,
                 jumpGravityMultiplier: 1.15f,
                 fallGravityMultiplier: 2.8f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 8.75f,
                 baseBounceSpeedGain: 0.85f,
                 dashForce: 8f,
@@ -938,6 +988,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 0.95f,
                 jumpGravityMultiplier: 0.95f,
                 fallGravityMultiplier: 1.75f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 9.5f,
                 baseBounceSpeedGain: 1.15f,
                 dashForce: 8.5f,
@@ -966,6 +1026,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 1.05f,
                 jumpGravityMultiplier: 1.1f,
                 fallGravityMultiplier: 2f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 9f,
                 baseBounceSpeedGain: 0.9f,
                 dashForce: 8.5f,
@@ -994,6 +1064,16 @@ namespace Funguy.MushroomRunner.Editor
                 gravityScale: 1f,
                 jumpGravityMultiplier: 1f,
                 fallGravityMultiplier: 1.85f,
+                useBounceFlightShaper: DefaultUseBounceFlightShaper,
+                referencePlanarSpeed: DefaultReferencePlanarSpeed,
+                maximumPlanarSpeed: DefaultMaximumPlanarSpeed,
+                slowRiseGravityMultiplier: DefaultSlowRiseGravityMultiplier,
+                fastRiseGravityMultiplier: DefaultFastRiseGravityMultiplier,
+                slowFallGravityMultiplier: DefaultSlowFallGravityMultiplier,
+                fastFallGravityMultiplier: DefaultFastFallGravityMultiplier,
+                apexTransitionVerticalSpeed: DefaultApexTransitionVerticalSpeed,
+                apexExtraDownAcceleration: DefaultApexExtraDownAcceleration,
+                apexExtraDownDuration: DefaultApexExtraDownDuration,
                 baseJumpForce: 9.25f,
                 baseBounceSpeedGain: 1f,
                 dashForce: 7.25f,
@@ -1360,6 +1440,16 @@ namespace Funguy.MushroomRunner.Editor
                 float gravityScale,
                 float jumpGravityMultiplier,
                 float fallGravityMultiplier,
+                bool useBounceFlightShaper,
+                float referencePlanarSpeed,
+                float maximumPlanarSpeed,
+                float slowRiseGravityMultiplier,
+                float fastRiseGravityMultiplier,
+                float slowFallGravityMultiplier,
+                float fastFallGravityMultiplier,
+                float apexTransitionVerticalSpeed,
+                float apexExtraDownAcceleration,
+                float apexExtraDownDuration,
                 float baseJumpForce,
                 float baseBounceSpeedGain,
                 float dashForce,
@@ -1384,6 +1474,16 @@ namespace Funguy.MushroomRunner.Editor
                 GravityScale = gravityScale;
                 JumpGravityMultiplier = jumpGravityMultiplier;
                 FallGravityMultiplier = fallGravityMultiplier;
+                UseBounceFlightShaper = useBounceFlightShaper;
+                ReferencePlanarSpeed = referencePlanarSpeed;
+                MaximumPlanarSpeed = maximumPlanarSpeed;
+                SlowRiseGravityMultiplier = slowRiseGravityMultiplier;
+                FastRiseGravityMultiplier = fastRiseGravityMultiplier;
+                SlowFallGravityMultiplier = slowFallGravityMultiplier;
+                FastFallGravityMultiplier = fastFallGravityMultiplier;
+                ApexTransitionVerticalSpeed = apexTransitionVerticalSpeed;
+                ApexExtraDownAcceleration = apexExtraDownAcceleration;
+                ApexExtraDownDuration = apexExtraDownDuration;
                 BaseJumpForce = baseJumpForce;
                 BaseBounceSpeedGain = baseBounceSpeedGain;
                 DashForce = dashForce;
@@ -1419,6 +1519,26 @@ namespace Funguy.MushroomRunner.Editor
             public float JumpGravityMultiplier { get; }
 
             public float FallGravityMultiplier { get; }
+
+            public bool UseBounceFlightShaper { get; }
+
+            public float ReferencePlanarSpeed { get; }
+
+            public float MaximumPlanarSpeed { get; }
+
+            public float SlowRiseGravityMultiplier { get; }
+
+            public float FastRiseGravityMultiplier { get; }
+
+            public float SlowFallGravityMultiplier { get; }
+
+            public float FastFallGravityMultiplier { get; }
+
+            public float ApexTransitionVerticalSpeed { get; }
+
+            public float ApexExtraDownAcceleration { get; }
+
+            public float ApexExtraDownDuration { get; }
 
             public float BaseJumpForce { get; }
 

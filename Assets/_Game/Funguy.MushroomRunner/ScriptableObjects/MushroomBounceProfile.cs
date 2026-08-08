@@ -43,6 +43,25 @@ namespace Funguy.MushroomRunner
                 ? origin.TransformDirection(GetSafeLaunchDirection())
                 : GetSafeLaunchDirection();
 
+            return CreateResponse(worldLaunchDirection, context);
+        }
+
+        public BounceSurfaceResponse CreateDirectedResponse(Transform launchDirectionTransform, in BounceContext context)
+        {
+            Vector3 worldLaunchDirection = launchDirectionTransform != null
+                ? launchDirectionTransform.forward
+                : Vector3.forward;
+
+            if (worldLaunchDirection.sqrMagnitude <= 0.0001f)
+            {
+                worldLaunchDirection = Vector3.forward;
+            }
+
+            return CreateResponse(worldLaunchDirection, context);
+        }
+
+        private BounceSurfaceResponse CreateResponse(Vector3 worldLaunchDirection, in BounceContext context)
+        {
             float resolvedUpwardImpulse = useAbsoluteUpwardImpulse
                 ? upwardImpulse
                 : context.BaseJumpForce * upwardImpulse;

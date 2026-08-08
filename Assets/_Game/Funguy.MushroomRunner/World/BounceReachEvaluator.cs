@@ -116,11 +116,15 @@ namespace Funguy.MushroomRunner
             float drag = bounceResponse.HasPlanarDragOverride
                 ? bounceResponse.PlanarDragOverride
                 : request.TuningProfile.AirDrag;
+            BounceFlightShapeState bounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(launchVelocity, request.TuningProfile, up);
 
             while (elapsedTime < maxTime)
             {
                 Vector3 previousPosition = position;
-                BounceMovementMath.ApplyShapedGravity(ref velocity, request.TuningProfile, up, deltaTime);
+                if (!BounceMovementMath.ApplyBounceFlightShaper(ref velocity, request.TuningProfile, up, ref bounceFlightShape, deltaTime))
+                {
+                    BounceMovementMath.ApplyShapedGravity(ref velocity, request.TuningProfile, up, deltaTime);
+                }
 
                 if (elapsedTime > 0f)
                 {
