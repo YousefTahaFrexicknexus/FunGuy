@@ -1,7 +1,5 @@
 ﻿using UnityEngine;
 
-namespace Funguy.MushroomRunner
-{
     public interface IBounceSurface
     {
         BounceSurfaceResponse GetBounceResponse(in BounceContext context);
@@ -24,5 +22,3 @@ namespace Funguy.MushroomRunner
 
         float PostBounceCollisionIgnoreDuration { get; }
     }
-}
-

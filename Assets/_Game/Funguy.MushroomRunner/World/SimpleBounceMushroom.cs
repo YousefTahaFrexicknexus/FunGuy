@@ -1,191 +1,188 @@
 using UnityEngine;
 
-namespace Funguy.MushroomRunner
+[DisallowMultipleComponent]
+[RequireComponent(typeof(Collider))]
+public sealed class SimpleBounceMushroom : MonoBehaviour
 {
-    [DisallowMultipleComponent]
-    [RequireComponent(typeof(Collider))]
-    public sealed class SimpleBounceMushroom : MonoBehaviour
+    [SerializeField] MushroomBounceProfile bounceProfile;
+    [SerializeField, Tooltip("Optional transform whose local Z/forward axis points in the launch direction. If empty, world forward is used.")]
+    Transform launchDirection;
+    [SerializeField] Collider triggerCollider;
+    [SerializeField] MushroomBouncePresentation presentation;
+    [SerializeField, Tooltip("Optional future extension points for special mushroom effects.")]
+    MonoBehaviour[] modifierBehaviours;
+
+    public MushroomBounceProfile BounceProfile => bounceProfile;
+
+    public Transform LaunchDirection => launchDirection;
+
+    public Collider TriggerCollider => triggerCollider;
+
+    void Reset()
     {
-        [SerializeField] private MushroomBounceProfile bounceProfile;
-        [SerializeField, Tooltip("Optional transform whose local Z/forward axis points in the launch direction. If empty, world forward is used.")]
-        private Transform launchDirection;
-        [SerializeField] private Collider triggerCollider;
-        [SerializeField] private MushroomBouncePresentation presentation;
-        [SerializeField, Tooltip("Optional future extension points for special mushroom effects.")]
-        private MonoBehaviour[] modifierBehaviours;
+        ResolveReferences();
+        ConfigureTriggerCollider();
+    }
 
-        public MushroomBounceProfile BounceProfile => bounceProfile;
+    void Awake()
+    {
+        ResolveReferences();
+        ConfigureTriggerCollider();
+    }
 
-        public Transform LaunchDirection => launchDirection;
+    void OnValidate()
+    {
+        ResolveReferences();
+        ConfigureTriggerCollider();
+    }
 
-        public Collider TriggerCollider => triggerCollider;
-
-        private void Reset()
+    void OnTriggerEnter(Collider other)
+    {
+        if (other == null)
         {
-            ResolveReferences();
-            ConfigureTriggerCollider();
+            return;
         }
 
-        private void Awake()
+        RunnerMovementMotor movementMotor = ResolveMovementMotor(other);
+        if (movementMotor == null)
         {
-            ResolveReferences();
-            ConfigureTriggerCollider();
+            return;
         }
 
-        private void OnValidate()
+        TryBounce(movementMotor, other);
+    }
+
+    public void SetBounceProfile(MushroomBounceProfile profile)
+    {
+        bounceProfile = profile;
+    }
+
+    public void SetLaunchDirection(Transform direction)
+    {
+        launchDirection = direction;
+    }
+
+    public bool TryBounce(RunnerMovementMotor movementMotor, Collider playerCollider)
+    {
+        if (movementMotor == null || bounceProfile == null)
         {
-            ResolveReferences();
-            ConfigureTriggerCollider();
+            return false;
         }
 
-        private void OnTriggerEnter(Collider other)
+        Collider sourceCollider = ResolveTriggerCollider();
+        Vector3 contactPoint = ResolveContactPoint(sourceCollider, playerCollider, movementMotor.transform.position);
+        bool didBounce = movementMotor.ApplyForce(
+            launchDirection,
+            bounceProfile,
+            sourceCollider,
+            contactPoint,
+            Vector3.up);
+
+        if (!didBounce)
         {
-            if (other == null)
-            {
-                return;
-            }
-
-            RunnerMovementMotor movementMotor = ResolveMovementMotor(other);
-            if (movementMotor == null)
-            {
-                return;
-            }
-
-            TryBounce(movementMotor, other);
+            return false;
         }
 
-        public void SetBounceProfile(MushroomBounceProfile profile)
+        ResolvePresentation()?.PlayBounce();
+        NotifyModifiers(movementMotor, sourceCollider, playerCollider);
+        return true;
+    }
+
+    void ResolveReferences()
+    {
+        ResolveTriggerCollider();
+        ResolveLaunchDirection();
+        ResolvePresentation();
+    }
+
+    Collider ResolveTriggerCollider()
+    {
+        if (triggerCollider == null)
         {
-            bounceProfile = profile;
+            triggerCollider = GetComponent<Collider>();
         }
 
-        public void SetLaunchDirection(Transform direction)
+        return triggerCollider;
+    }
+
+    Transform ResolveLaunchDirection()
+    {
+        if (launchDirection != null)
         {
-            launchDirection = direction;
-        }
-
-        public bool TryBounce(RunnerMovementMotor movementMotor, Collider playerCollider)
-        {
-            if (movementMotor == null || bounceProfile == null)
-            {
-                return false;
-            }
-
-            Collider sourceCollider = ResolveTriggerCollider();
-            Vector3 contactPoint = ResolveContactPoint(sourceCollider, playerCollider, movementMotor.transform.position);
-            bool didBounce = movementMotor.ApplyForce(
-                launchDirection,
-                bounceProfile,
-                sourceCollider,
-                contactPoint,
-                Vector3.up);
-
-            if (!didBounce)
-            {
-                return false;
-            }
-
-            ResolvePresentation()?.PlayBounce();
-            NotifyModifiers(movementMotor, sourceCollider, playerCollider);
-            return true;
-        }
-
-        private void ResolveReferences()
-        {
-            ResolveTriggerCollider();
-            ResolveLaunchDirection();
-            ResolvePresentation();
-        }
-
-        private Collider ResolveTriggerCollider()
-        {
-            if (triggerCollider == null)
-            {
-                triggerCollider = GetComponent<Collider>();
-            }
-
-            return triggerCollider;
-        }
-
-        private Transform ResolveLaunchDirection()
-        {
-            if (launchDirection != null)
-            {
-                return launchDirection;
-            }
-
-            Transform searchRoot = transform.parent != null ? transform.parent : transform;
-            Transform foundDirection = searchRoot.Find("LaunchDirection");
-            if (foundDirection != null)
-            {
-                launchDirection = foundDirection;
-            }
-
             return launchDirection;
         }
 
-        private MushroomBouncePresentation ResolvePresentation()
+        Transform searchRoot = transform.parent != null ? transform.parent : transform;
+        Transform foundDirection = searchRoot.Find("LaunchDirection");
+        if (foundDirection != null)
         {
-            if (presentation != null)
-            {
-                return presentation;
-            }
+            launchDirection = foundDirection;
+        }
 
-            Transform searchRoot = transform.parent != null ? transform.parent : transform;
-            presentation = searchRoot.GetComponentInChildren<MushroomBouncePresentation>(true);
+        return launchDirection;
+    }
+
+    MushroomBouncePresentation ResolvePresentation()
+    {
+        if (presentation != null)
+        {
             return presentation;
         }
 
-        private void ConfigureTriggerCollider()
+        Transform searchRoot = transform.parent != null ? transform.parent : transform;
+        presentation = searchRoot.GetComponentInChildren<MushroomBouncePresentation>(true);
+        return presentation;
+    }
+
+    void ConfigureTriggerCollider()
+    {
+        Collider collider = ResolveTriggerCollider();
+        if (collider != null)
         {
-            Collider collider = ResolveTriggerCollider();
-            if (collider != null)
-            {
-                collider.isTrigger = true;
-            }
+            collider.isTrigger = true;
+        }
+    }
+
+    void NotifyModifiers(RunnerMovementMotor movementMotor, Collider sourceCollider, Collider playerCollider)
+    {
+        if (modifierBehaviours == null)
+        {
+            return;
         }
 
-        private void NotifyModifiers(RunnerMovementMotor movementMotor, Collider sourceCollider, Collider playerCollider)
+        MushroomBounceModifierContext context = new(this, movementMotor, sourceCollider, playerCollider);
+        for (int index = 0; index < modifierBehaviours.Length; index++)
         {
-            if (modifierBehaviours == null)
+            if (modifierBehaviours[index] is IMushroomBounceModifier modifier)
             {
-                return;
-            }
-
-            MushroomBounceModifierContext context = new(this, movementMotor, sourceCollider, playerCollider);
-            for (int index = 0; index < modifierBehaviours.Length; index++)
-            {
-                if (modifierBehaviours[index] is IMushroomBounceModifier modifier)
-                {
-                    modifier.OnMushroomBounce(in context);
-                }
+                modifier.OnMushroomBounce(in context);
             }
         }
+    }
 
-        private static Vector3 ResolveContactPoint(Collider sourceCollider, Collider playerCollider, Vector3 fallback)
+    static Vector3 ResolveContactPoint(Collider sourceCollider, Collider playerCollider, Vector3 fallback)
+    {
+        if (sourceCollider != null && playerCollider != null)
         {
-            if (sourceCollider != null && playerCollider != null)
-            {
-                return sourceCollider.ClosestPoint(playerCollider.bounds.center);
-            }
-
-            if (sourceCollider != null)
-            {
-                return sourceCollider.bounds.center;
-            }
-
-            return fallback;
+            return sourceCollider.ClosestPoint(playerCollider.bounds.center);
         }
 
-        private static RunnerMovementMotor ResolveMovementMotor(Collider other)
+        if (sourceCollider != null)
         {
-            Rigidbody attachedBody = other.attachedRigidbody;
-            if (attachedBody != null && attachedBody.TryGetComponent(out RunnerMovementMotor motor))
-            {
-                return motor;
-            }
-
-            return other.GetComponentInParent<RunnerMovementMotor>();
+            return sourceCollider.bounds.center;
         }
+
+        return fallback;
+    }
+
+    static RunnerMovementMotor ResolveMovementMotor(Collider other)
+    {
+        Rigidbody attachedBody = other.attachedRigidbody;
+        if (attachedBody != null && attachedBody.TryGetComponent(out RunnerMovementMotor motor))
+        {
+            return motor;
+        }
+
+        return other.GetComponentInParent<RunnerMovementMotor>();
     }
 }

@@ -3,1215 +3,1193 @@ using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Funguy.MushroomRunner
+[DisallowMultipleComponent]
+public sealed class RunnerCourseStreamer : MonoBehaviour
 {
-    [DisallowMultipleComponent]
-    public sealed class RunnerCourseStreamer : MonoBehaviour
+    const float OverspeedGapMultiplier = 0.65f;
+    const float OverspeedLookaheadMultiplier = 1.35f;
+    const float MaximumAreaLookaheadMultiplier = 1.5f;
+    const float EmergencySearchStep = 1.25f;
+    const int EmergencyLateralSampleCount = 5;
+    const float ForcedRecoveryMinimumGap = 5.5f;
+    const float ForcedRecoveryMaximumGap = 8.5f;
+    const float ForcedRecoveryClearanceMultiplier = 0.9f;
+
+    sealed class ActiveArea
     {
-        private const float OverspeedGapMultiplier = 0.65f;
-        private const float OverspeedLookaheadMultiplier = 1.35f;
-        private const float MaximumAreaLookaheadMultiplier = 1.5f;
-        private const float EmergencySearchStep = 1.25f;
-        private const int EmergencyLateralSampleCount = 5;
-        private const float ForcedRecoveryMinimumGap = 5.5f;
-        private const float ForcedRecoveryMaximumGap = 8.5f;
-        private const float ForcedRecoveryClearanceMultiplier = 0.9f;
+        public int Index;
+        public float StartZ;
+        public float EndZ;
+        public readonly List<SpawnedRuntime> SpawnedObjects = new();
+        public readonly List<RouteNodeState> RouteNodes = new();
+    }
 
-        private sealed class ActiveArea
+    sealed class ActiveEnvironmentBlock
+    {
+        public float StartZ;
+        public float EndZ;
+        public readonly List<SpawnedRuntime> SpawnedObjects = new();
+    }
+
+    readonly struct SpawnedRuntime
+    {
+        public SpawnedRuntime(Object poolKey, GameObject instance, bool usePooling)
         {
-            public int Index;
-            public float StartZ;
-            public float EndZ;
-            public readonly List<SpawnedRuntime> SpawnedObjects = new();
-            public readonly List<RouteNodeState> RouteNodes = new();
+            PoolKey = poolKey;
+            Instance = instance;
+            UsePooling = usePooling;
         }
 
-        private sealed class ActiveEnvironmentBlock
+        public Object PoolKey { get; }
+
+        public GameObject Instance { get; }
+
+        public bool UsePooling { get; }
+    }
+
+    readonly struct RouteNodeState
+    {
+        public RouteNodeState(Vector3 rootPosition, Vector3 incomingVelocity, BounceSpawnDefinition spawnDefinition)
         {
-            public float StartZ;
-            public float EndZ;
-            public readonly List<SpawnedRuntime> SpawnedObjects = new();
+            RootPosition = rootPosition;
+            IncomingVelocity = incomingVelocity;
+            SpawnDefinition = spawnDefinition;
         }
 
-        private readonly struct SpawnedRuntime
+        public Vector3 RootPosition { get; }
+
+        public Vector3 IncomingVelocity { get; }
+
+        public BounceSpawnDefinition SpawnDefinition { get; }
+
+        public MushroomBounceProfile BounceProfile => SpawnDefinition != null ? SpawnDefinition.BounceProfileOverride : null;
+    }
+
+    [SerializeField, Tooltip("Player transform used as the streaming and scoring anchor.")]
+    Transform player;
+    [SerializeField, Tooltip("Parent transform used for spawned mushroom instances.")]
+    Transform mushroomRoot;
+    [SerializeField, Tooltip("Parent transform used for spawned environment decorations.")]
+    Transform decorationRoot;
+    [SerializeField, Tooltip("If enabled, theme decorations stream alongside the mushroom route.")]
+    bool generateEnvironmentDecorations = true;
+    [SerializeField, Tooltip("ScriptableObject that defines route spacing, difficulty ramp, and available content.")]
+    BounceAreaGenerationProfile generationProfile;
+    [SerializeField, Tooltip("Movement profile used when validating whether sampled hops are reachable. This is refreshed from the player when available.")]
+    MovementTuningProfile tuningProfile;
+    [SerializeField, Tooltip("Score service reset and rebound whenever a new run is built.")]
+    RunScoreService scoreTracker;
+    [SerializeField, Tooltip("Explicit spawn definition used for the very first mushroom in a run.")]
+    BounceSpawnDefinition startSpawnDefinition;
+    [SerializeField, Tooltip("World position of the first route mushroom.")]
+    Vector3 startMushroomPosition = Vector3.zero;
+    [SerializeField, Tooltip("If enabled, the streamer builds an initial world automatically on Start.")]
+    bool autoInitializeOnStart = true;
+    [SerializeField, Tooltip("Up direction used for route generation and bounce reach simulation.")]
+    Vector3 worldUp = Vector3.up;
+
+    readonly Queue<ActiveArea> activeAreas = new();
+    readonly Queue<ActiveEnvironmentBlock> activeEnvironmentBlocks = new();
+    readonly Dictionary<Object, Stack<GameObject>> pools = new();
+    readonly List<Vector3> occupiedPositions = new(32);
+
+    System.Random random;
+    RouteNodeState routeExitState;
+    float runStartZ;
+    float nextEnvironmentBlockStartZ;
+    int nextAreaIndexToGenerate;
+    bool initialized;
+
+    Vector3 Up => worldUp.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude
+        ? worldUp.normalized
+        : Vector3.up;
+
+    void Reset()
+    {
+        ResolveReferences();
+    }
+
+    void Awake()
+    {
+        ResolveReferences();
+    }
+
+    void Start()
+    {
+        if (autoInitializeOnStart)
         {
-            public SpawnedRuntime(Object poolKey, GameObject instance, bool usePooling)
-            {
-                PoolKey = poolKey;
-                Instance = instance;
-                UsePooling = usePooling;
-            }
+            BuildInitialWorld();
+        }
+    }
 
-            public Object PoolKey { get; }
-
-            public GameObject Instance { get; }
-
-            public bool UsePooling { get; }
+    void Update()
+    {
+        if (!initialized || !ResolveReferences())
+        {
+            return;
         }
 
-        private readonly struct RouteNodeState
+        int playerArea = GetPlayerAreaIndex();
+        EnsureAreasForPlayer(playerArea);
+        RecycleAreasBehindPlayer(playerArea);
+        RecycleEnvironmentBlocksBehindPlayer();
+    }
+
+    public void BuildInitialWorld()
+    {
+        if (!ResolveReferences() || generationProfile == null || tuningProfile == null)
         {
-            public RouteNodeState(Vector3 rootPosition, Vector3 incomingVelocity, BounceSpawnDefinition spawnDefinition)
-            {
-                RootPosition = rootPosition;
-                IncomingVelocity = incomingVelocity;
-                SpawnDefinition = spawnDefinition;
-            }
-
-            public Vector3 RootPosition { get; }
-
-            public Vector3 IncomingVelocity { get; }
-
-            public BounceSpawnDefinition SpawnDefinition { get; }
-
-            public MushroomBounceProfile BounceProfile => SpawnDefinition != null ? SpawnDefinition.BounceProfileOverride : null;
+            Debug.LogError("[RunnerCourseStreamer] Missing required references.");
+            return;
         }
 
-        [SerializeField, Tooltip("Player transform used as the streaming and scoring anchor.")]
-        private Transform player;
-        [SerializeField, Tooltip("Parent transform used for spawned mushroom instances.")]
-        private Transform mushroomRoot;
-        [SerializeField, Tooltip("Parent transform used for spawned environment decorations.")]
-        private Transform decorationRoot;
-        [SerializeField, Tooltip("If enabled, theme decorations stream alongside the mushroom route.")]
-        private bool generateEnvironmentDecorations = true;
-        [SerializeField, Tooltip("ScriptableObject that defines route spacing, difficulty ramp, and available content.")]
-        private BounceAreaGenerationProfile generationProfile;
-        [SerializeField, Tooltip("Movement profile used when validating whether sampled hops are reachable. This is refreshed from the player when available.")]
-        private MovementTuningProfile tuningProfile;
-        [SerializeField, Tooltip("Score service reset and rebound whenever a new run is built.")]
-        private RunScoreService scoreTracker;
-        [SerializeField, Tooltip("Explicit spawn definition used for the very first mushroom in a run.")]
-        private BounceSpawnDefinition startSpawnDefinition;
-        [SerializeField, Tooltip("World position of the first route mushroom.")]
-        private Vector3 startMushroomPosition = Vector3.zero;
-        [SerializeField, Tooltip("If enabled, the streamer builds an initial world automatically on Start.")]
-        private bool autoInitializeOnStart = true;
-        [SerializeField, Tooltip("Up direction used for route generation and bounce reach simulation.")]
-        private Vector3 worldUp = Vector3.up;
-
-        private readonly Queue<ActiveArea> activeAreas = new();
-        private readonly Queue<ActiveEnvironmentBlock> activeEnvironmentBlocks = new();
-        private readonly Dictionary<Object, Stack<GameObject>> pools = new();
-        private readonly List<Vector3> occupiedPositions = new(32);
-
-        private System.Random random;
-        private RouteNodeState routeExitState;
-        private float runStartZ;
-        private float nextEnvironmentBlockStartZ;
-        private int nextAreaIndexToGenerate;
-        private bool initialized;
-
-        private Vector3 Up => worldUp.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude
-            ? worldUp.normalized
-            : Vector3.up;
-
-        private void Reset()
+        BounceSpawnDefinition initialDefinition = ResolveStartDefinition();
+        if (initialDefinition == null || initialDefinition.Prefab == null || initialDefinition.BounceProfileOverride == null)
         {
-            ResolveReferences();
+            Debug.LogError("[RunnerCourseStreamer] Missing a valid start bounce definition.");
+            return;
         }
 
-        private void Awake()
+        ClearSpawnedWorld();
+
+        random = new System.Random(generationProfile.GetSeed());
+        runStartZ = startMushroomPosition.z;
+        routeExitState = new RouteNodeState(
+            startMushroomPosition,
+            -Up * generationProfile.InitialLandingSpeed,
+            initialDefinition);
+        nextEnvironmentBlockStartZ = runStartZ;
+        nextAreaIndexToGenerate = 0;
+        initialized = true;
+
+        if (scoreTracker != null)
         {
-            ResolveReferences();
+            scoreTracker.SetTarget(player);
+            scoreTracker.ResetProgress(runStartZ);
         }
 
-        private void Start()
+        EnsureAreasForPlayer(GetPlayerAreaIndex());
+    }
+
+    public void ClearGeneratedWorld()
+    {
+        ClearSpawnedWorld();
+        initialized = false;
+    }
+
+    public void SetPlayer(Transform playerTransform)
+    {
+        player = playerTransform;
+        SyncTuningProfileFromPlayer();
+    }
+
+    public void SetScoreService(RunScoreService scoreService)
+    {
+        scoreTracker = scoreService;
+    }
+
+    bool ResolveReferences()
+    {
+        if (mushroomRoot == null)
         {
-            if (autoInitializeOnStart)
-            {
-                BuildInitialWorld();
-            }
+            mushroomRoot = transform;
         }
 
-        private void Update()
+        if (decorationRoot == null)
         {
-            if (!initialized || !ResolveReferences())
-            {
-                return;
-            }
-
-            int playerArea = GetPlayerAreaIndex();
-            EnsureAreasForPlayer(playerArea);
-            RecycleAreasBehindPlayer(playerArea);
-            RecycleEnvironmentBlocksBehindPlayer();
+            decorationRoot = transform;
         }
 
-        public void BuildInitialWorld()
+        SyncTuningProfileFromPlayer();
+
+        return player != null;
+    }
+
+    void SyncTuningProfileFromPlayer()
+    {
+        if (player == null)
         {
-            if (!ResolveReferences() || generationProfile == null || tuningProfile == null)
-            {
-                Debug.LogError("[RunnerCourseStreamer] Missing required references.");
-                return;
-            }
-
-            BounceSpawnDefinition initialDefinition = ResolveStartDefinition();
-            if (initialDefinition == null || initialDefinition.Prefab == null || initialDefinition.BounceProfileOverride == null)
-            {
-                Debug.LogError("[RunnerCourseStreamer] Missing a valid start bounce definition.");
-                return;
-            }
-
-            ClearSpawnedWorld();
-
-            random = new System.Random(generationProfile.GetSeed());
-            runStartZ = startMushroomPosition.z;
-            routeExitState = new RouteNodeState(
-                startMushroomPosition,
-                -Up * generationProfile.InitialLandingSpeed,
-                initialDefinition);
-            nextEnvironmentBlockStartZ = runStartZ;
-            nextAreaIndexToGenerate = 0;
-            initialized = true;
-
-            if (scoreTracker != null)
-            {
-                scoreTracker.SetTarget(player);
-                scoreTracker.ResetProgress(runStartZ);
-            }
-
-            EnsureAreasForPlayer(GetPlayerAreaIndex());
+            return;
         }
 
-        public void ClearGeneratedWorld()
+        RunnerMovementMotor movementMotor = player.GetComponent<RunnerMovementMotor>();
+        if (movementMotor == null)
         {
-            ClearSpawnedWorld();
-            initialized = false;
+            movementMotor = player.GetComponentInParent<RunnerMovementMotor>();
         }
 
-        public void SetPlayer(Transform playerTransform)
+        if (movementMotor != null && movementMotor.TuningProfile != null)
         {
-            player = playerTransform;
-            SyncTuningProfileFromPlayer();
+            tuningProfile = movementMotor.TuningProfile;
         }
 
-        public void SetScoreService(RunScoreService scoreService)
+        if (scoreTracker != null)
         {
-            scoreTracker = scoreService;
+            scoreTracker.SetTarget(player);
+        }
+    }
+
+    int GetPlayerAreaIndex()
+    {
+        float relativeZ = player.position.z - runStartZ;
+        return Mathf.Max(0, Mathf.FloorToInt(relativeZ / Mathf.Max(1, generationProfile.AreaLength)));
+    }
+
+    void EnsureAreasForPlayer(int playerArea)
+    {
+        int targetArea = playerArea + generationProfile.SpawnAheadAreas;
+        while (nextAreaIndexToGenerate <= targetArea)
+        {
+            GenerateArea(nextAreaIndexToGenerate);
+            nextAreaIndexToGenerate++;
         }
 
-        private bool ResolveReferences()
+        if (generateEnvironmentDecorations)
         {
-            if (mushroomRoot == null)
-            {
-                mushroomRoot = transform;
-            }
+            EnsureEnvironmentBlocksUntil(GetAreaStartZ(targetArea) + generationProfile.AreaLength);
+        }
+    }
 
-            if (decorationRoot == null)
-            {
-                decorationRoot = transform;
-            }
+    void GenerateArea(int areaIndex)
+    {
+        ActiveArea area = new()
+        {
+            Index = areaIndex,
+            StartZ = GetAreaStartZ(areaIndex),
+            EndZ = GetAreaStartZ(areaIndex) + generationProfile.AreaLength
+        };
 
-            SyncTuningProfileFromPlayer();
+        bool isIntroArea = areaIndex < generationProfile.IntroAreaCount;
+        int areaScore = Mathf.Max(0, Mathf.FloorToInt(area.StartZ - runStartZ));
+        RouteNodeState currentState = routeExitState;
 
-            return player != null;
+        if (areaIndex == 0)
+        {
+            SpawnMushroom(currentState.RootPosition, currentState.SpawnDefinition, area);
+            area.RouteNodes.Add(currentState);
         }
 
-        private void SyncTuningProfileFromPlayer()
+        int targetNodes = ResolveMainPathNodeCount(areaScore, isIntroArea);
+        int safetyBudget = Mathf.Max(10, targetNodes * 3);
+        int generatedNodes = 0;
+
+        while (safetyBudget-- > 0 &&
+               (generatedNodes < targetNodes || currentState.RootPosition.z < ResolveRouteTargetEndZ(area, currentState)))
         {
-            if (player == null)
+            BounceIntentDirective intent = ResolveIntentForCurrentNode(currentState, isIntroArea);
+            BounceSpawnDefinition nextDefinition = PickNextRouteDefinition(areaScore, isIntroArea);
+
+            if (!TryBuildRouteNode(currentState, nextDefinition, intent, area, isIntroArea, areaScore, out RouteNodeState nextState))
             {
-                return;
-            }
-
-            RunnerMovementMotor movementMotor = player.GetComponent<RunnerMovementMotor>();
-            if (movementMotor == null)
-            {
-                movementMotor = player.GetComponentInParent<RunnerMovementMotor>();
-            }
-
-            if (movementMotor != null && movementMotor.TuningProfile != null)
-            {
-                tuningProfile = movementMotor.TuningProfile;
-            }
-
-            if (scoreTracker != null)
-            {
-                scoreTracker.SetTarget(player);
-            }
-        }
-
-        private int GetPlayerAreaIndex()
-        {
-            float relativeZ = player.position.z - runStartZ;
-            return Mathf.Max(0, Mathf.FloorToInt(relativeZ / Mathf.Max(1, generationProfile.AreaLength)));
-        }
-
-        private void EnsureAreasForPlayer(int playerArea)
-        {
-            int targetArea = playerArea + generationProfile.SpawnAheadAreas;
-            while (nextAreaIndexToGenerate <= targetArea)
-            {
-                GenerateArea(nextAreaIndexToGenerate);
-                nextAreaIndexToGenerate++;
-            }
-
-            if (generateEnvironmentDecorations)
-            {
-                EnsureEnvironmentBlocksUntil(GetAreaStartZ(targetArea) + generationProfile.AreaLength);
-            }
-        }
-
-        private void GenerateArea(int areaIndex)
-        {
-            ActiveArea area = new()
-            {
-                Index = areaIndex,
-                StartZ = GetAreaStartZ(areaIndex),
-                EndZ = GetAreaStartZ(areaIndex) + generationProfile.AreaLength
-            };
-
-            bool isIntroArea = areaIndex < generationProfile.IntroAreaCount;
-            int areaScore = Mathf.Max(0, Mathf.FloorToInt(area.StartZ - runStartZ));
-            RouteNodeState currentState = routeExitState;
-
-            if (areaIndex == 0)
-            {
-                SpawnMushroom(currentState.RootPosition, currentState.SpawnDefinition, area);
-                area.RouteNodes.Add(currentState);
-            }
-
-            int targetNodes = ResolveMainPathNodeCount(areaScore, isIntroArea);
-            int safetyBudget = Mathf.Max(10, targetNodes * 3);
-            int generatedNodes = 0;
-
-            while (safetyBudget-- > 0 &&
-                   (generatedNodes < targetNodes || currentState.RootPosition.z < ResolveRouteTargetEndZ(area, currentState)))
-            {
-                BounceIntentDirective intent = ResolveIntentForCurrentNode(currentState, isIntroArea);
-                BounceSpawnDefinition nextDefinition = PickNextRouteDefinition(areaScore, isIntroArea);
-
-                if (!TryBuildRouteNode(currentState, nextDefinition, intent, area, isIntroArea, areaScore, out RouteNodeState nextState))
+                if (!TryBuildBailoutNode(currentState, nextDefinition, area, out nextState))
                 {
-                    if (!TryBuildBailoutNode(currentState, nextDefinition, area, out nextState))
-                    {
-                        break;
-                    }
-                }
-
-                SpawnMushroom(nextState.RootPosition, nextState.SpawnDefinition, area);
-                area.RouteNodes.Add(nextState);
-                currentState = nextState;
-                generatedNodes++;
-            }
-
-            if (generatedNodes == 0 || currentState.RootPosition.z < area.EndZ - generationProfile.MinimumExitBuffer)
-            {
-                while (generatedNodes < targetNodes || currentState.RootPosition.z < area.EndZ - generationProfile.MinimumExitBuffer)
-                {
-                    if (!TryBuildEmergencyRecoveryNode(currentState, area, areaScore, out RouteNodeState recoveryState))
-                    {
-                        break;
-                    }
-
-                    SpawnMushroom(recoveryState.RootPosition, recoveryState.SpawnDefinition, area);
-                    area.RouteNodes.Add(recoveryState);
-                    currentState = recoveryState;
-                    generatedNodes++;
-                }
-            }
-
-            routeExitState = currentState;
-            SpawnOptionalMushrooms(area, areaScore, isIntroArea);
-            activeAreas.Enqueue(area);
-        }
-
-        private bool TryBuildRouteNode(
-            RouteNodeState currentState,
-            BounceSpawnDefinition nextDefinition,
-            BounceIntentDirective intent,
-            ActiveArea area,
-            bool isIntroArea,
-            int areaScore,
-            out RouteNodeState nextState)
-        {
-            float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
-            if (isIntroArea)
-            {
-                difficulty01 *= 0.45f;
-            }
-
-            for (int attempt = 0; attempt < generationProfile.CandidateAttemptsPerHop; attempt++)
-            {
-                Vector3 candidate = SampleGoldenPathPosition(currentState, area, intent, difficulty01);
-                if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
-                {
-                    continue;
-                }
-
-                if (!HasDesiredValidPathScatter(candidate, currentState, area.RouteNodes))
-                {
-                    continue;
-                }
-
-                if (!TryEvaluateHop(currentState, candidate, intent, out BounceReachResult result))
-                {
-                    continue;
-                }
-
-                nextState = new RouteNodeState(candidate, result.LandingVelocity, nextDefinition);
-                return true;
-            }
-
-            nextState = default;
-            return false;
-        }
-
-        private bool TryBuildBailoutNode(
-            RouteNodeState currentState,
-            BounceSpawnDefinition preferredNextDefinition,
-            ActiveArea area,
-            out RouteNodeState nextState)
-        {
-            BounceSpawnDefinition fallbackDefinition = preferredNextDefinition ?? ResolveStartDefinition();
-            float fallbackGap = generationProfile.BailoutForwardGap;
-
-            for (int attempt = 0; attempt < 5; attempt++)
-            {
-                float targetZ = Mathf.Min(
-                    currentState.RootPosition.z + fallbackGap + (attempt * 0.35f),
-                    area.EndZ - Mathf.Max(0.75f, generationProfile.MinimumExitBuffer * 0.5f));
-
-                if (targetZ <= currentState.RootPosition.z + 0.5f)
-                {
-                    continue;
-                }
-
-                Vector3 candidate = new(
-                    Mathf.MoveTowards(currentState.RootPosition.x, 0f, 1.75f + attempt),
-                    Mathf.Clamp(
-                        Mathf.MoveTowards(currentState.RootPosition.y, 0.75f, generationProfile.BailoutVerticalStep + (attempt * 0.15f)),
-                        generationProfile.MinimumHeight,
-                        generationProfile.MaximumHeight),
-                    targetZ);
-
-                if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
-                {
-                    continue;
-                }
-
-                if (!TryEvaluateHop(currentState, candidate, ResolveIntentForCurrentNode(currentState, false), out BounceReachResult result))
-                {
-                    continue;
-                }
-
-                nextState = new RouteNodeState(candidate, result.LandingVelocity, fallbackDefinition);
-                return true;
-            }
-
-            nextState = default;
-            return false;
-        }
-
-        private bool TryBuildEmergencyRecoveryNode(
-            RouteNodeState currentState,
-            ActiveArea area,
-            int areaScore,
-            out RouteNodeState nextState)
-        {
-            nextState = default;
-
-            BounceDifficultyTier difficultyTier = generationProfile.EvaluateDifficultyTier(areaScore);
-            BounceSpawnDefinition recoveryDefinition = PickDefinitionByTag(BounceSpawnTag.Slow, difficultyTier, true)
-                ?? PickDefinitionByTag(BounceSpawnTag.Normal, difficultyTier, true)
-                ?? ResolveStartDefinition();
-
-            if (recoveryDefinition == null)
-            {
-                return false;
-            }
-
-            float baseSearchZ = currentState.RootPosition.z + Mathf.Max(generationProfile.BailoutForwardGap, 2f);
-            float searchEndZ = ResolveRouteSearchLimitZ(area, currentState) + (generationProfile.AreaLength * 0.35f);
-            float centeredY = Mathf.Clamp(
-                Mathf.MoveTowards(currentState.RootPosition.y, Mathf.Max(generationProfile.MinimumHeight, 0.8f), generationProfile.BailoutVerticalStep + 0.25f),
-                generationProfile.MinimumHeight,
-                generationProfile.MaximumHeight);
-
-            for (float targetZ = baseSearchZ; targetZ <= searchEndZ; targetZ += EmergencySearchStep)
-            {
-                for (int lateralIndex = 0; lateralIndex < EmergencyLateralSampleCount; lateralIndex++)
-                {
-                    float lateralT = EmergencyLateralSampleCount == 1
-                        ? 0f
-                        : lateralIndex / (float)(EmergencyLateralSampleCount - 1);
-                    float lateralOffset = Mathf.Lerp(-1.75f, 1.75f, lateralT);
-                    float targetX = Mathf.Clamp(
-                        Mathf.MoveTowards(currentState.RootPosition.x, 0f, 2.25f) + lateralOffset,
-                        -generationProfile.AreaHalfWidth,
-                        generationProfile.AreaHalfWidth);
-
-                    Vector3 candidate = new(targetX, centeredY, targetZ);
-                    if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
-                    {
-                        continue;
-                    }
-
-                    if (!TryEvaluateHop(currentState, candidate, BounceIntentDirective.Brake, out BounceReachResult result) &&
-                        !TryEvaluateHop(currentState, candidate, BounceIntentDirective.Maintain, out result))
-                    {
-                        continue;
-                    }
-
-                    nextState = new RouteNodeState(candidate, result.LandingVelocity, recoveryDefinition);
-                    return true;
-                }
-            }
-
-            if (TryBuildForcedRecoveryNode(currentState, area, recoveryDefinition, out nextState))
-            {
-                return true;
-            }
-
-            Debug.LogWarning($"[RunnerCourseStreamer] Failed to build a recovery bridge for area {area.Index}. Current route position: {currentState.RootPosition}");
-            return false;
-        }
-
-        private bool TryBuildForcedRecoveryNode(
-            RouteNodeState currentState,
-            ActiveArea area,
-            BounceSpawnDefinition recoveryDefinition,
-            out RouteNodeState nextState)
-        {
-            nextState = default;
-
-            float conservativeGap = Mathf.Clamp(
-                Mathf.Min(generationProfile.BailoutForwardGap, generationProfile.MinimumForwardGap),
-                ForcedRecoveryMinimumGap,
-                ForcedRecoveryMaximumGap);
-            float targetY = Mathf.Clamp(
-                Mathf.MoveTowards(currentState.RootPosition.y, Mathf.Max(generationProfile.MinimumHeight, 0.9f), generationProfile.BailoutVerticalStep + 0.35f),
-                generationProfile.MinimumHeight,
-                generationProfile.MaximumHeight);
-            float targetZ = Mathf.Min(
-                currentState.RootPosition.z + conservativeGap,
-                ResolveRouteSearchLimitZ(area, currentState));
-
-            if (targetZ <= currentState.RootPosition.z + 0.5f)
-            {
-                targetZ = currentState.RootPosition.z + 0.5f;
-            }
-
-            float[] lateralOffsets = { 0f, -0.75f, 0.75f, -1.5f, 1.5f };
-            float relaxedClearance = Mathf.Max(0.5f, generationProfile.MainRouteClearanceRadius * ForcedRecoveryClearanceMultiplier);
-
-            for (int index = 0; index < lateralOffsets.Length; index++)
-            {
-                float targetX = Mathf.Clamp(
-                    Mathf.MoveTowards(currentState.RootPosition.x, 0f, 1.5f) + lateralOffsets[index],
-                    -generationProfile.AreaHalfWidth,
-                    generationProfile.AreaHalfWidth);
-                Vector3 candidate = new(targetX, targetY, targetZ);
-
-                if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, relaxedClearance))
-                {
-                    continue;
-                }
-
-                nextState = new RouteNodeState(
-                    candidate,
-                    EstimateForcedLandingVelocity(currentState),
-                    recoveryDefinition);
-                return true;
-            }
-
-            return false;
-        }
-
-        private void SpawnOptionalMushrooms(ActiveArea area, int areaScore, bool isIntroArea)
-        {
-            if (isIntroArea || area.RouteNodes.Count == 0)
-            {
-                return;
-            }
-
-            int targetCount = RandomRangeInclusive(
-                generationProfile.MinimumOptionalMushrooms,
-                generationProfile.MaximumOptionalMushrooms);
-
-            occupiedPositions.Clear();
-            for (int index = 0; index < area.RouteNodes.Count; index++)
-            {
-                occupiedPositions.Add(area.RouteNodes[index].RootPosition);
-            }
-
-            float preferredSideSign = random.NextDouble() <= 0.5d ? -1f : 1f;
-            for (int count = 0; count < targetCount; count++)
-            {
-                int seedAnchorIndex = ResolveOptionalAnchorIndex(count, targetCount, area.RouteNodes.Count);
-                for (int attempt = 0; attempt < generationProfile.OptionalCandidateAttempts; attempt++)
-                {
-                    int anchorIndex = (seedAnchorIndex + attempt) % area.RouteNodes.Count;
-                    RouteNodeState anchor = area.RouteNodes[anchorIndex];
-                    Vector3 candidate = SampleOptionalPosition(anchor, area, areaScore, preferredSideSign);
-
-                    if (!IsPositionClear(candidate, occupiedPositions, generationProfile.OptionalMushroomClearanceRadius))
-                    {
-                        continue;
-                    }
-
-                    if (!HasOptionalLateralScatter(candidate, area.RouteNodes))
-                    {
-                        continue;
-                    }
-
-                    if (!TryEvaluateHop(anchor, candidate, ResolveIntentForCurrentNode(anchor, false), out _))
-                    {
-                        continue;
-                    }
-
-                    BounceSpawnDefinition definition = PickNextRouteDefinition(areaScore, false);
-                    SpawnMushroom(candidate, definition, area);
-                    occupiedPositions.Add(candidate);
-                    preferredSideSign = candidate.x >= 0f ? -1f : 1f;
                     break;
                 }
             }
+
+            SpawnMushroom(nextState.RootPosition, nextState.SpawnDefinition, area);
+            area.RouteNodes.Add(nextState);
+            currentState = nextState;
+            generatedNodes++;
         }
 
-        private void EnsureEnvironmentBlocksUntil(float targetCoverageEndZ)
+        if (generatedNodes == 0 || currentState.RootPosition.z < area.EndZ - generationProfile.MinimumExitBuffer)
         {
-            if (!generateEnvironmentDecorations || generationProfile == null)
+            while (generatedNodes < targetNodes || currentState.RootPosition.z < area.EndZ - generationProfile.MinimumExitBuffer)
             {
+                if (!TryBuildEmergencyRecoveryNode(currentState, area, areaScore, out RouteNodeState recoveryState))
+                {
+                    break;
+                }
+
+                SpawnMushroom(recoveryState.RootPosition, recoveryState.SpawnDefinition, area);
+                area.RouteNodes.Add(recoveryState);
+                currentState = recoveryState;
+                generatedNodes++;
+            }
+        }
+
+        routeExitState = currentState;
+        SpawnOptionalMushrooms(area, areaScore, isIntroArea);
+        activeAreas.Enqueue(area);
+    }
+
+    bool TryBuildRouteNode(
+        RouteNodeState currentState,
+        BounceSpawnDefinition nextDefinition,
+        BounceIntentDirective intent,
+        ActiveArea area,
+        bool isIntroArea,
+        int areaScore,
+        out RouteNodeState nextState)
+    {
+        float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
+        if (isIntroArea)
+        {
+            difficulty01 *= 0.45f;
+        }
+
+        for (int attempt = 0; attempt < generationProfile.CandidateAttemptsPerHop; attempt++)
+        {
+            Vector3 candidate = SampleGoldenPathPosition(currentState, area, intent, difficulty01);
+            if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
+            {
+                continue;
+            }
+
+            if (!HasDesiredValidPathScatter(candidate, currentState, area.RouteNodes))
+            {
+                continue;
+            }
+
+            if (!TryEvaluateHop(currentState, candidate, intent, out BounceReachResult result))
+            {
+                continue;
+            }
+
+            nextState = new RouteNodeState(candidate, result.LandingVelocity, nextDefinition);
+            return true;
+        }
+
+        nextState = default;
+        return false;
+    }
+
+    bool TryBuildBailoutNode(
+        RouteNodeState currentState,
+        BounceSpawnDefinition preferredNextDefinition,
+        ActiveArea area,
+        out RouteNodeState nextState)
+    {
+        BounceSpawnDefinition fallbackDefinition = preferredNextDefinition ?? ResolveStartDefinition();
+        float fallbackGap = generationProfile.BailoutForwardGap;
+
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            float targetZ = Mathf.Min(
+                currentState.RootPosition.z + fallbackGap + (attempt * 0.35f),
+                area.EndZ - Mathf.Max(0.75f, generationProfile.MinimumExitBuffer * 0.5f));
+
+            if (targetZ <= currentState.RootPosition.z + 0.5f)
+            {
+                continue;
+            }
+
+            Vector3 candidate = new(
+                Mathf.MoveTowards(currentState.RootPosition.x, 0f, 1.75f + attempt),
+                Mathf.Clamp(
+                    Mathf.MoveTowards(currentState.RootPosition.y, 0.75f, generationProfile.BailoutVerticalStep + (attempt * 0.15f)),
+                    generationProfile.MinimumHeight,
+                    generationProfile.MaximumHeight),
+                targetZ);
+
+            if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
+            {
+                continue;
+            }
+
+            if (!TryEvaluateHop(currentState, candidate, ResolveIntentForCurrentNode(currentState, false), out BounceReachResult result))
+            {
+                continue;
+            }
+
+            nextState = new RouteNodeState(candidate, result.LandingVelocity, fallbackDefinition);
+            return true;
+        }
+
+        nextState = default;
+        return false;
+    }
+
+    bool TryBuildEmergencyRecoveryNode(
+        RouteNodeState currentState,
+        ActiveArea area,
+        int areaScore,
+        out RouteNodeState nextState)
+    {
+        nextState = default;
+
+        BounceDifficultyTier difficultyTier = generationProfile.EvaluateDifficultyTier(areaScore);
+        BounceSpawnDefinition recoveryDefinition = PickDefinitionByTag(BounceSpawnTag.Slow, difficultyTier, true)
+            ?? PickDefinitionByTag(BounceSpawnTag.Normal, difficultyTier, true)
+            ?? ResolveStartDefinition();
+
+        if (recoveryDefinition == null)
+        {
+            return false;
+        }
+
+        float baseSearchZ = currentState.RootPosition.z + Mathf.Max(generationProfile.BailoutForwardGap, 2f);
+        float searchEndZ = ResolveRouteSearchLimitZ(area, currentState) + (generationProfile.AreaLength * 0.35f);
+        float centeredY = Mathf.Clamp(
+            Mathf.MoveTowards(currentState.RootPosition.y, Mathf.Max(generationProfile.MinimumHeight, 0.8f), generationProfile.BailoutVerticalStep + 0.25f),
+            generationProfile.MinimumHeight,
+            generationProfile.MaximumHeight);
+
+        for (float targetZ = baseSearchZ; targetZ <= searchEndZ; targetZ += EmergencySearchStep)
+        {
+            for (int lateralIndex = 0; lateralIndex < EmergencyLateralSampleCount; lateralIndex++)
+            {
+                float lateralT = EmergencyLateralSampleCount == 1
+                    ? 0f
+                    : lateralIndex / (float)(EmergencyLateralSampleCount - 1);
+                float lateralOffset = Mathf.Lerp(-1.75f, 1.75f, lateralT);
+                float targetX = Mathf.Clamp(
+                    Mathf.MoveTowards(currentState.RootPosition.x, 0f, 2.25f) + lateralOffset,
+                    -generationProfile.AreaHalfWidth,
+                    generationProfile.AreaHalfWidth);
+
+                Vector3 candidate = new(targetX, centeredY, targetZ);
+                if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, generationProfile.MainRouteClearanceRadius))
+                {
+                    continue;
+                }
+
+                if (!TryEvaluateHop(currentState, candidate, BounceIntentDirective.Brake, out BounceReachResult result) &&
+                    !TryEvaluateHop(currentState, candidate, BounceIntentDirective.Maintain, out result))
+                {
+                    continue;
+                }
+
+                nextState = new RouteNodeState(candidate, result.LandingVelocity, recoveryDefinition);
+                return true;
+            }
+        }
+
+        if (TryBuildForcedRecoveryNode(currentState, area, recoveryDefinition, out nextState))
+        {
+            return true;
+        }
+
+        Debug.LogWarning($"[RunnerCourseStreamer] Failed to build a recovery bridge for area {area.Index}. Current route position: {currentState.RootPosition}");
+        return false;
+    }
+
+    bool TryBuildForcedRecoveryNode(
+        RouteNodeState currentState,
+        ActiveArea area,
+        BounceSpawnDefinition recoveryDefinition,
+        out RouteNodeState nextState)
+    {
+        nextState = default;
+
+        float conservativeGap = Mathf.Clamp(
+            Mathf.Min(generationProfile.BailoutForwardGap, generationProfile.MinimumForwardGap),
+            ForcedRecoveryMinimumGap,
+            ForcedRecoveryMaximumGap);
+        float targetY = Mathf.Clamp(
+            Mathf.MoveTowards(currentState.RootPosition.y, Mathf.Max(generationProfile.MinimumHeight, 0.9f), generationProfile.BailoutVerticalStep + 0.35f),
+            generationProfile.MinimumHeight,
+            generationProfile.MaximumHeight);
+        float targetZ = Mathf.Min(
+            currentState.RootPosition.z + conservativeGap,
+            ResolveRouteSearchLimitZ(area, currentState));
+
+        if (targetZ <= currentState.RootPosition.z + 0.5f)
+        {
+            targetZ = currentState.RootPosition.z + 0.5f;
+        }
+
+        float[] lateralOffsets = { 0f, -0.75f, 0.75f, -1.5f, 1.5f };
+        float relaxedClearance = Mathf.Max(0.5f, generationProfile.MainRouteClearanceRadius * ForcedRecoveryClearanceMultiplier);
+
+        for (int index = 0; index < lateralOffsets.Length; index++)
+        {
+            float targetX = Mathf.Clamp(
+                Mathf.MoveTowards(currentState.RootPosition.x, 0f, 1.5f) + lateralOffsets[index],
+                -generationProfile.AreaHalfWidth,
+                generationProfile.AreaHalfWidth);
+            Vector3 candidate = new(targetX, targetY, targetZ);
+
+            if (!IsRoutePositionClear(candidate, currentState.RootPosition, area.RouteNodes, relaxedClearance))
+            {
+                continue;
+            }
+
+            nextState = new RouteNodeState(
+                candidate,
+                EstimateForcedLandingVelocity(currentState),
+                recoveryDefinition);
+            return true;
+        }
+
+        return false;
+    }
+
+    void SpawnOptionalMushrooms(ActiveArea area, int areaScore, bool isIntroArea)
+    {
+        if (isIntroArea || area.RouteNodes.Count == 0)
+        {
+            return;
+        }
+
+        int targetCount = RandomRangeInclusive(
+            generationProfile.MinimumOptionalMushrooms,
+            generationProfile.MaximumOptionalMushrooms);
+
+        occupiedPositions.Clear();
+        for (int index = 0; index < area.RouteNodes.Count; index++)
+        {
+            occupiedPositions.Add(area.RouteNodes[index].RootPosition);
+        }
+
+        float preferredSideSign = random.NextDouble() <= 0.5d ? -1f : 1f;
+        for (int count = 0; count < targetCount; count++)
+        {
+            int seedAnchorIndex = ResolveOptionalAnchorIndex(count, targetCount, area.RouteNodes.Count);
+            for (int attempt = 0; attempt < generationProfile.OptionalCandidateAttempts; attempt++)
+            {
+                int anchorIndex = (seedAnchorIndex + attempt) % area.RouteNodes.Count;
+                RouteNodeState anchor = area.RouteNodes[anchorIndex];
+                Vector3 candidate = SampleOptionalPosition(anchor, area, areaScore, preferredSideSign);
+
+                if (!IsPositionClear(candidate, occupiedPositions, generationProfile.OptionalMushroomClearanceRadius))
+                {
+                    continue;
+                }
+
+                if (!HasOptionalLateralScatter(candidate, area.RouteNodes))
+                {
+                    continue;
+                }
+
+                if (!TryEvaluateHop(anchor, candidate, ResolveIntentForCurrentNode(anchor, false), out _))
+                {
+                    continue;
+                }
+
+                BounceSpawnDefinition definition = PickNextRouteDefinition(areaScore, false);
+                SpawnMushroom(candidate, definition, area);
+                occupiedPositions.Add(candidate);
+                preferredSideSign = candidate.x >= 0f ? -1f : 1f;
+                break;
+            }
+        }
+    }
+
+    void EnsureEnvironmentBlocksUntil(float targetCoverageEndZ)
+    {
+        if (!generateEnvironmentDecorations || generationProfile == null)
+        {
+            return;
+        }
+
+        while (nextEnvironmentBlockStartZ < targetCoverageEndZ)
+        {
+            int blockScore = Mathf.Max(0, Mathf.FloorToInt(nextEnvironmentBlockStartZ - runStartZ));
+            EnvironmentThemeTierDefinition theme = generationProfile.GetActiveTheme(blockScore);
+            if (theme == null || theme.Blocks == null || theme.Blocks.Count == 0)
+            {
+                nextEnvironmentBlockStartZ = targetCoverageEndZ;
                 return;
             }
 
-            while (nextEnvironmentBlockStartZ < targetCoverageEndZ)
+            EnvironmentDecorationDefinition definition = PickDecorationDefinition(theme);
+            if (definition == null || definition.Prefab == null)
             {
-                int blockScore = Mathf.Max(0, Mathf.FloorToInt(nextEnvironmentBlockStartZ - runStartZ));
-                EnvironmentThemeTierDefinition theme = generationProfile.GetActiveTheme(blockScore);
-                if (theme == null || theme.Blocks == null || theme.Blocks.Count == 0)
-                {
-                    nextEnvironmentBlockStartZ = targetCoverageEndZ;
-                    return;
-                }
-
-                EnvironmentDecorationDefinition definition = PickDecorationDefinition(theme);
-                if (definition == null || definition.Prefab == null)
-                {
-                    nextEnvironmentBlockStartZ = targetCoverageEndZ;
-                    return;
-                }
-
-                ActiveEnvironmentBlock block = new()
-                {
-                    StartZ = nextEnvironmentBlockStartZ,
-                    EndZ = nextEnvironmentBlockStartZ + definition.BlockLength
-                };
-
-                SpawnEnvironmentBlockInstance(block, definition);
-                activeEnvironmentBlocks.Enqueue(block);
-                nextEnvironmentBlockStartZ = block.EndZ;
-            }
-        }
-
-        private bool TryEvaluateHop(
-            RouteNodeState currentState,
-            Vector3 targetPosition,
-            BounceIntentDirective intent,
-            out BounceReachResult result)
-        {
-            result = default;
-
-            MushroomBounceProfile launchProfile = currentState.BounceProfile;
-            if (launchProfile == null)
-            {
-                return false;
+                nextEnvironmentBlockStartZ = targetCoverageEndZ;
+                return;
             }
 
-            BounceReachRequest request = new(
-                currentState.RootPosition,
-                currentState.IncomingVelocity,
-                targetPosition,
-                launchProfile,
-                tuningProfile,
-                intent,
-                Up,
-                generationProfile.SurfaceLandingHeight,
-                generationProfile.PlayerCollisionRadius,
-                generationProfile.LandingRadius,
-                generationProfile.LandingHeightTolerance,
-                generationProfile.SimulationTimeStep,
-                generationProfile.MaxSimulationTime);
-
-            return BounceReachEvaluator.TryEvaluate(request, out result);
-        }
-
-        private Vector3 SampleGoldenPathPosition(
-            RouteNodeState currentState,
-            ActiveArea area,
-            BounceIntentDirective intent,
-            float difficulty01)
-        {
-            ResolveForwardGapRange(currentState, difficulty01, out float baseMinGap, out float baseMaxGap);
-
-            float minGapMultiplier = intent switch
+            ActiveEnvironmentBlock block = new()
             {
-                BounceIntentDirective.Brake => 0.82f,
-                BounceIntentDirective.Boost => 1.2f,
-                _ => 1f
+                StartZ = nextEnvironmentBlockStartZ,
+                EndZ = nextEnvironmentBlockStartZ + definition.BlockLength
             };
 
-            float maxGapMultiplier = intent switch
-            {
-                BounceIntentDirective.Brake => 0.92f,
-                BounceIntentDirective.Boost => 1.35f,
-                _ => 1.05f
-            };
+            SpawnEnvironmentBlockInstance(block, definition);
+            activeEnvironmentBlocks.Enqueue(block);
+            nextEnvironmentBlockStartZ = block.EndZ;
+        }
+    }
 
-            float lateralLimit = Mathf.Lerp(generationProfile.MinimumLateralOffset, generationProfile.MaximumLateralOffset, difficulty01);
-            float verticalLimit = Mathf.Lerp(0.4f, generationProfile.MaximumVerticalStep, difficulty01);
-            float searchLimitZ = ResolveRouteSearchLimitZ(area, currentState);
-            float sampledGap = RandomRange(baseMinGap * minGapMultiplier, baseMaxGap * maxGapMultiplier);
-            float minimumForwardStep = Mathf.Min(
-                baseMaxGap * maxGapMultiplier,
-                Mathf.Max(generationProfile.MainRouteClearanceRadius, baseMinGap * 0.72f));
+    bool TryEvaluateHop(
+        RouteNodeState currentState,
+        Vector3 targetPosition,
+        BounceIntentDirective intent,
+        out BounceReachResult result)
+    {
+        result = default;
 
-            float targetZ = currentState.RootPosition.z + sampledGap;
-            if (searchLimitZ > currentState.RootPosition.z + minimumForwardStep)
-            {
-                targetZ = Mathf.Clamp(targetZ, currentState.RootPosition.z + minimumForwardStep, searchLimitZ);
-            }
-            else
-            {
-                targetZ = Mathf.Max(currentState.RootPosition.z + 1.25f, searchLimitZ);
-            }
-
-            float targetX = SampleGoldenPathXPosition(currentState, lateralLimit, intent, difficulty01);
-
-            float targetY = Mathf.Clamp(
-                currentState.RootPosition.y + RandomRange(-verticalLimit, verticalLimit),
-                generationProfile.MinimumHeight,
-                generationProfile.MaximumHeight);
-
-            return new Vector3(targetX, targetY, targetZ);
+        MushroomBounceProfile launchProfile = currentState.BounceProfile;
+        if (launchProfile == null)
+        {
+            return false;
         }
 
-        private float SampleGoldenPathXPosition(
-            RouteNodeState currentState,
-            float lateralLimit,
-            BounceIntentDirective intent,
-            float difficulty01)
+        BounceReachRequest request = new(
+            currentState.RootPosition,
+            currentState.IncomingVelocity,
+            targetPosition,
+            launchProfile,
+            tuningProfile,
+            intent,
+            Up,
+            generationProfile.SurfaceLandingHeight,
+            generationProfile.PlayerCollisionRadius,
+            generationProfile.LandingRadius,
+            generationProfile.LandingHeightTolerance,
+            generationProfile.SimulationTimeStep,
+            generationProfile.MaxSimulationTime);
+
+        return BounceReachEvaluator.TryEvaluate(request, out result);
+    }
+
+    Vector3 SampleGoldenPathPosition(
+        RouteNodeState currentState,
+        ActiveArea area,
+        BounceIntentDirective intent,
+        float difficulty01)
+    {
+        ResolveForwardGapRange(currentState, difficulty01, out float baseMinGap, out float baseMaxGap);
+
+        float minGapMultiplier = intent switch
         {
-            if (lateralLimit <= 0.01f)
-            {
-                return currentState.RootPosition.x;
-            }
+            BounceIntentDirective.Brake => 0.82f,
+            BounceIntentDirective.Boost => 1.2f,
+            _ => 1f
+        };
 
-            float scatter = generationProfile.ValidPathScatter;
-            float minimumScatter = intent switch
-            {
-                BounceIntentDirective.Brake => Mathf.Lerp(0.45f, lateralLimit * 0.22f, difficulty01),
-                BounceIntentDirective.Boost => Mathf.Lerp(1.35f, lateralLimit * 0.5f, difficulty01),
-                _ => Mathf.Lerp(0.9f, lateralLimit * 0.38f, difficulty01)
-            };
+        float maxGapMultiplier = intent switch
+        {
+            BounceIntentDirective.Brake => 0.92f,
+            BounceIntentDirective.Boost => 1.35f,
+            _ => 1.05f
+        };
 
-            minimumScatter = Mathf.Clamp(minimumScatter, 0f, lateralLimit);
+        float lateralLimit = Mathf.Lerp(generationProfile.MinimumLateralOffset, generationProfile.MaximumLateralOffset, difficulty01);
+        float verticalLimit = Mathf.Lerp(0.4f, generationProfile.MaximumVerticalStep, difficulty01);
+        float searchLimitZ = ResolveRouteSearchLimitZ(area, currentState);
+        float sampledGap = RandomRange(baseMinGap * minGapMultiplier, baseMaxGap * maxGapMultiplier);
+        float minimumForwardStep = Mathf.Min(
+            baseMaxGap * maxGapMultiplier,
+            Mathf.Max(generationProfile.MainRouteClearanceRadius, baseMinGap * 0.72f));
 
-            float currentX = currentState.RootPosition.x;
-            float currentAbsX = Mathf.Abs(currentX);
-            float centerWindow = Mathf.Lerp(generationProfile.AreaHalfWidth * 0.22f, generationProfile.AreaHalfWidth * 0.08f, scatter);
-            float currentSign = currentAbsX > centerWindow ? Mathf.Sign(currentX) : 0f;
-
-            float centerChance = intent switch
-            {
-                BounceIntentDirective.Brake => Mathf.Lerp(0.42f, 0.26f, scatter),
-                BounceIntentDirective.Boost => Mathf.Lerp(0.12f, 0.06f, scatter),
-                _ => Mathf.Lerp(0.26f, 0.12f, scatter)
-            };
-
-            if (random.NextDouble() < centerChance)
-            {
-                float centerBand = Mathf.Lerp(
-                    generationProfile.AreaHalfWidth * 0.24f,
-                    generationProfile.AreaHalfWidth * 0.12f,
-                    scatter);
-                return RandomRange(-centerBand, centerBand);
-            }
-
-            float sign;
-            float edgeThreshold = generationProfile.AreaHalfWidth * 0.72f;
-            if (currentAbsX >= edgeThreshold)
-            {
-                sign = -Mathf.Sign(currentX);
-            }
-            else
-            {
-                float holdSameSideChance = intent switch
-                {
-                    BounceIntentDirective.Brake => Mathf.Lerp(0.7f, 0.35f, scatter),
-                    BounceIntentDirective.Boost => Mathf.Lerp(0.45f, 0.08f, scatter),
-                    _ => Mathf.Lerp(0.55f, 0.15f, scatter)
-                };
-
-                if (currentSign == 0f)
-                {
-                    sign = random.NextDouble() < 0.5d ? -1f : 1f;
-                }
-                else
-                {
-                    sign = random.NextDouble() < holdSameSideChance ? currentSign : -currentSign;
-                }
-            }
-
-            float minAbsX = Mathf.Lerp(generationProfile.MinimumLateralOffset * 0.2f, generationProfile.MinimumLateralOffset, scatter);
-            float outerBias = Mathf.Clamp01(Mathf.Lerp(generationProfile.MainPathOuterBias, 1f, scatter * 0.45f));
-            float targetAbsX = Mathf.Lerp(Mathf.Max(minAbsX, minimumScatter), lateralLimit, SampleOuterBiased01(outerBias));
-            float targetX = sign * targetAbsX;
-
-            if (scatter > 0.55f && currentSign != 0f && sign != currentSign)
-            {
-                float crossCenterAbs = Mathf.Max(minAbsX, currentAbsX * Mathf.Lerp(0.45f, 0.85f, scatter));
-                targetX = sign * Mathf.Max(Mathf.Abs(targetX), crossCenterAbs);
-            }
-
-            float minimumHop = Mathf.Lerp(0.6f, generationProfile.MinimumLateralOffset, scatter);
-            if (Mathf.Abs(targetX - currentX) < minimumHop)
-            {
-                float adjustedAbs = Mathf.Min(generationProfile.AreaHalfWidth, currentAbsX + minimumHop);
-                targetX = sign * Mathf.Max(Mathf.Abs(targetX), adjustedAbs);
-            }
-
-            return Mathf.Clamp(targetX, -generationProfile.AreaHalfWidth, generationProfile.AreaHalfWidth);
+        float targetZ = currentState.RootPosition.z + sampledGap;
+        if (searchLimitZ > currentState.RootPosition.z + minimumForwardStep)
+        {
+            targetZ = Mathf.Clamp(targetZ, currentState.RootPosition.z + minimumForwardStep, searchLimitZ);
+        }
+        else
+        {
+            targetZ = Mathf.Max(currentState.RootPosition.z + 1.25f, searchLimitZ);
         }
 
-        private bool HasDesiredValidPathScatter(
-            Vector3 candidate,
-            RouteNodeState currentState,
-            List<RouteNodeState> routeNodes)
-        {
-            float scatter = generationProfile.ValidPathScatter;
-            if (scatter <= 0.05f)
-            {
-                return true;
-            }
+        float targetX = SampleGoldenPathXPosition(currentState, lateralLimit, intent, difficulty01);
 
-            float centerWindow = Mathf.Lerp(
+        float targetY = Mathf.Clamp(
+            currentState.RootPosition.y + RandomRange(-verticalLimit, verticalLimit),
+            generationProfile.MinimumHeight,
+            generationProfile.MaximumHeight);
+
+        return new Vector3(targetX, targetY, targetZ);
+    }
+
+    float SampleGoldenPathXPosition(
+        RouteNodeState currentState,
+        float lateralLimit,
+        BounceIntentDirective intent,
+        float difficulty01)
+    {
+        if (lateralLimit <= 0.01f)
+        {
+            return currentState.RootPosition.x;
+        }
+
+        float scatter = generationProfile.ValidPathScatter;
+        float minimumScatter = intent switch
+        {
+            BounceIntentDirective.Brake => Mathf.Lerp(0.45f, lateralLimit * 0.22f, difficulty01),
+            BounceIntentDirective.Boost => Mathf.Lerp(1.35f, lateralLimit * 0.5f, difficulty01),
+            _ => Mathf.Lerp(0.9f, lateralLimit * 0.38f, difficulty01)
+        };
+
+        minimumScatter = Mathf.Clamp(minimumScatter, 0f, lateralLimit);
+
+        float currentX = currentState.RootPosition.x;
+        float currentAbsX = Mathf.Abs(currentX);
+        float centerWindow = Mathf.Lerp(generationProfile.AreaHalfWidth * 0.22f, generationProfile.AreaHalfWidth * 0.08f, scatter);
+        float currentSign = currentAbsX > centerWindow ? Mathf.Sign(currentX) : 0f;
+
+        float centerChance = intent switch
+        {
+            BounceIntentDirective.Brake => Mathf.Lerp(0.42f, 0.26f, scatter),
+            BounceIntentDirective.Boost => Mathf.Lerp(0.12f, 0.06f, scatter),
+            _ => Mathf.Lerp(0.26f, 0.12f, scatter)
+        };
+
+        if (random.NextDouble() < centerChance)
+        {
+            float centerBand = Mathf.Lerp(
                 generationProfile.AreaHalfWidth * 0.24f,
                 generationProfile.AreaHalfWidth * 0.12f,
                 scatter);
-            int candidateZone = ResolveLateralZone(candidate.x, centerWindow);
-            int currentZone = ResolveLateralZone(currentState.RootPosition.x, centerWindow);
-
-            float minimumHop = Mathf.Lerp(0.45f, generationProfile.MinimumLateralOffset * 0.9f, scatter);
-            if (candidateZone == currentZone && Mathf.Abs(candidate.x - currentState.RootPosition.x) < minimumHop)
-            {
-                return false;
-            }
-
-            float recentReuseTolerance = Mathf.Lerp(0.55f, generationProfile.MinimumLateralOffset * 0.75f, scatter);
-            int recentChecks = Mathf.Min(routeNodes.Count, 3);
-            for (int index = routeNodes.Count - recentChecks; index < routeNodes.Count; index++)
-            {
-                if (index < 0)
-                {
-                    continue;
-                }
-
-                if (Mathf.Abs(routeNodes[index].RootPosition.x - candidate.x) < recentReuseTolerance)
-                {
-                    return false;
-                }
-            }
-
-            if (currentZone != 0 && candidateZone == currentZone && scatter > 0.45f)
-            {
-                int sameZoneStreak = 1;
-                for (int index = routeNodes.Count - 1; index >= 0 && sameZoneStreak < 3; index--)
-                {
-                    int previousZone = ResolveLateralZone(routeNodes[index].RootPosition.x, centerWindow);
-                    if (previousZone != currentZone)
-                    {
-                        break;
-                    }
-
-                    sameZoneStreak++;
-                }
-
-                if (sameZoneStreak >= 2)
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return RandomRange(-centerBand, centerBand);
         }
 
-        private static int ResolveLateralZone(float x, float centerWindow)
+        float sign;
+        float edgeThreshold = generationProfile.AreaHalfWidth * 0.72f;
+        if (currentAbsX >= edgeThreshold)
         {
-            if (Mathf.Abs(x) <= centerWindow)
+            sign = -Mathf.Sign(currentX);
+        }
+        else
+        {
+            float holdSameSideChance = intent switch
             {
-                return 0;
-            }
+                BounceIntentDirective.Brake => Mathf.Lerp(0.7f, 0.35f, scatter),
+                BounceIntentDirective.Boost => Mathf.Lerp(0.45f, 0.08f, scatter),
+                _ => Mathf.Lerp(0.55f, 0.15f, scatter)
+            };
 
-            return x < 0f ? -1 : 1;
-        }
-
-        private void ResolveForwardGapRange(RouteNodeState currentState, float difficulty01, out float minimumGap, out float maximumGap)
-        {
-            float speedGapBonus = ResolveOverspeedGapBonus(currentState);
-            float openingGapScale = ResolveOpeningGapScale(currentState);
-            minimumGap = (generationProfile.MinimumForwardGap + (speedGapBonus * 0.4f)) * openingGapScale;
-            maximumGap = (generationProfile.MaximumForwardGap
-                + (generationProfile.MaximumAdditionalForwardGapFromDifficulty * difficulty01)
-                + speedGapBonus) * openingGapScale;
-
-            if (maximumGap < minimumGap)
+            if (currentSign == 0f)
             {
-                maximumGap = minimumGap;
-            }
-        }
-
-        private float ResolveOpeningGapScale(RouteNodeState currentState)
-        {
-            float introDistance = generationProfile.AreaLength * Mathf.Max(1, generationProfile.IntroAreaCount);
-            if (introDistance <= 0f)
-            {
-                return 1f;
-            }
-
-            float routeProgress = Mathf.Max(0f, currentState.RootPosition.z - runStartZ);
-            float openingProgress01 = Mathf.Clamp01(routeProgress / introDistance);
-            return Mathf.Lerp(0.72f, 1f, openingProgress01);
-        }
-
-        private int ResolveOptionalAnchorIndex(int optionalIndex, int totalOptionalCount, int routeNodeCount)
-        {
-            if (routeNodeCount <= 1)
-            {
-                return 0;
-            }
-
-            if (totalOptionalCount <= 1)
-            {
-                return routeNodeCount / 2;
-            }
-
-            float anchorT = (optionalIndex + 0.5f) / totalOptionalCount;
-            float jitteredAnchorT = Mathf.Clamp01(anchorT + RandomRange(-0.16f, 0.16f));
-            return Mathf.Clamp(
-                Mathf.RoundToInt(jitteredAnchorT * (routeNodeCount - 1)),
-                0,
-                routeNodeCount - 1);
-        }
-
-        private Vector3 SampleOptionalPosition(RouteNodeState anchor, ActiveArea area, int areaScore, float preferredSideSign)
-        {
-            float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
-            float innerBand = Mathf.Lerp(
-                Mathf.Min(generationProfile.AreaHalfWidth * 0.42f, 3.2f),
-                generationProfile.AreaHalfWidth * 0.34f,
-                difficulty01);
-            float outerBand = generationProfile.AreaHalfWidth * Mathf.Lerp(0.78f, 0.92f, difficulty01);
-            float sign = preferredSideSign;
-
-            if (Mathf.Abs(anchor.RootPosition.x) >= generationProfile.AreaHalfWidth * 0.55f)
-            {
-                sign = -Mathf.Sign(anchor.RootPosition.x);
-            }
-
-            float bandPosition = Mathf.Lerp(innerBand, outerBand, SampleOuterBiased01(generationProfile.OptionalPathOuterBias));
-            float x = Mathf.Clamp(
-                (sign * bandPosition) + RandomRange(-0.45f, 0.45f),
-                -generationProfile.AreaHalfWidth,
-                generationProfile.AreaHalfWidth);
-            float y = Mathf.Clamp(
-                anchor.RootPosition.y + RandomRange(-0.85f, 1f),
-                generationProfile.MinimumHeight,
-                generationProfile.MaximumHeight);
-            float localDepthWindow = Mathf.Lerp(
-                Mathf.Max(0.75f, generationProfile.MinimumForwardGap * 0.16f),
-                Mathf.Max(1.5f, generationProfile.MinimumForwardGap * 0.28f),
-                difficulty01);
-            float z = Mathf.Clamp(
-                anchor.RootPosition.z + RandomRange(-localDepthWindow, localDepthWindow),
-                area.StartZ + 0.5f,
-                area.EndZ - generationProfile.MinimumExitBuffer);
-            return new Vector3(x, y, z);
-        }
-
-        private bool HasOptionalLateralScatter(Vector3 candidate, List<RouteNodeState> routeNodes)
-        {
-            float minimumAbsoluteX = Mathf.Min(generationProfile.AreaHalfWidth * 0.28f, 2.4f);
-            if (Mathf.Abs(candidate.x) < minimumAbsoluteX)
-            {
-                return false;
-            }
-
-            float minimumLateralSeparation = Mathf.Min(generationProfile.AreaHalfWidth * 0.3f, generationProfile.OptionalMushroomClearanceRadius * 1.4f);
-            float localDepthWindow = Mathf.Max(generationProfile.MinimumForwardGap, generationProfile.OptionalMushroomClearanceRadius * 1.5f);
-
-            for (int index = 0; index < routeNodes.Count; index++)
-            {
-                Vector3 routePosition = routeNodes[index].RootPosition;
-                if (Mathf.Abs(routePosition.z - candidate.z) > localDepthWindow)
-                {
-                    continue;
-                }
-
-                if (Mathf.Abs(routePosition.x - candidate.x) < minimumLateralSeparation)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool IsRoutePositionClear(
-            Vector3 candidate,
-            Vector3 currentRootPosition,
-            List<RouteNodeState> routeNodes,
-            float clearanceRadius)
-        {
-            if (!IsPositionClear(candidate, routeNodes, clearanceRadius))
-            {
-                return false;
-            }
-
-            Vector3 planarDelta = Vector3.ProjectOnPlane(candidate - currentRootPosition, Up);
-            float minimumPlanarSeparation = Mathf.Max(clearanceRadius * 0.85f, generationProfile.PlayerCollisionRadius * 6f);
-            if (planarDelta.magnitude < minimumPlanarSeparation)
-            {
-                return false;
-            }
-
-            float forwardSeparation = Mathf.Abs(candidate.z - currentRootPosition.z);
-            float minimumForwardSeparation = Mathf.Max(clearanceRadius * 0.8f, generationProfile.MinimumForwardGap * 0.5f);
-            return forwardSeparation >= minimumForwardSeparation;
-        }
-
-        private bool IsPositionClear(Vector3 candidate, List<RouteNodeState> routeNodes, float clearanceRadius)
-        {
-            for (int index = 0; index < routeNodes.Count; index++)
-            {
-                if ((routeNodes[index].RootPosition - candidate).sqrMagnitude < clearanceRadius * clearanceRadius)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool IsPositionClear(Vector3 candidate, List<Vector3> positions, float clearanceRadius)
-        {
-            float minDistanceSqr = clearanceRadius * clearanceRadius;
-            for (int index = 0; index < positions.Count; index++)
-            {
-                if ((positions[index] - candidate).sqrMagnitude < minDistanceSqr)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private int ResolveMainPathNodeCount(int areaScore, bool isIntroArea)
-        {
-            float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
-            if (isIntroArea)
-            {
-                difficulty01 *= 0.4f;
-            }
-
-            return Mathf.RoundToInt(Mathf.Lerp(
-                generationProfile.MinimumMainPathNodes,
-                generationProfile.MaximumMainPathNodes,
-                difficulty01));
-        }
-
-        private float ResolveRouteTargetEndZ(ActiveArea area, RouteNodeState currentState)
-        {
-            return ResolveRouteSearchLimitZ(area, currentState);
-        }
-
-        private float ResolveRouteSearchLimitZ(ActiveArea area, RouteNodeState currentState)
-        {
-            float lookahead = ResolveOverspeedLookahead(currentState);
-            return area.EndZ + lookahead - generationProfile.MinimumExitBuffer;
-        }
-
-        private float ResolveOverspeedLookahead(RouteNodeState currentState)
-        {
-            float launchSpeed = EstimateLaunchPlanarSpeed(currentState);
-            float referenceSpeed = tuningProfile != null
-                ? Mathf.Max(1f, tuningProfile.MaxControllableSpeed)
-                : Mathf.Max(1f, generationProfile.MaximumForwardGap);
-            float overspeed = Mathf.Max(0f, launchSpeed - referenceSpeed);
-            float lookahead = overspeed * OverspeedLookaheadMultiplier;
-            float maxLookahead = generationProfile.AreaLength * MaximumAreaLookaheadMultiplier;
-            return Mathf.Clamp(lookahead, 0f, maxLookahead);
-        }
-
-        private float ResolveOverspeedGapBonus(RouteNodeState currentState)
-        {
-            float launchSpeed = EstimateLaunchPlanarSpeed(currentState);
-            float referenceSpeed = tuningProfile != null
-                ? Mathf.Max(1f, tuningProfile.MaxControllableSpeed)
-                : Mathf.Max(1f, generationProfile.MaximumForwardGap);
-            float overspeed = Mathf.Max(0f, launchSpeed - referenceSpeed);
-            return overspeed * OverspeedGapMultiplier;
-        }
-
-        private float EstimateLaunchPlanarSpeed(RouteNodeState currentState)
-        {
-            Vector3 launchVelocity = EstimateLaunchVelocity(currentState);
-            return Vector3.ProjectOnPlane(launchVelocity, Up).magnitude;
-        }
-
-        private Vector3 EstimateLaunchVelocity(RouteNodeState currentState)
-        {
-            if (tuningProfile == null || currentState.BounceProfile == null)
-            {
-                return currentState.IncomingVelocity;
-            }
-
-            BounceContext context = new(
-                currentState.IncomingVelocity,
-                currentState.RootPosition,
-                Up,
-                Up,
-                tuningProfile.BaseJumpForce,
-                MovementInputFrame.Empty);
-
-            BounceSurfaceResponse response = currentState.BounceProfile.CreateResponse(null, context);
-            return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, tuningProfile, Up);
-        }
-
-        private Vector3 EstimateForcedLandingVelocity(RouteNodeState currentState)
-        {
-            Vector3 launchVelocity = EstimateLaunchVelocity(currentState);
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(launchVelocity, Up);
-            float minimumPlanarSpeed = Mathf.Max(1.5f, generationProfile.InitialLandingSpeed);
-            float cappedPlanarSpeed = tuningProfile != null
-                ? Mathf.Min(planarVelocity.magnitude, tuningProfile.MaxControllableSpeed * 0.9f)
-                : planarVelocity.magnitude;
-
-            if (planarVelocity.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude)
-            {
-                planarVelocity = planarVelocity.normalized * Mathf.Max(minimumPlanarSpeed, cappedPlanarSpeed);
+                sign = random.NextDouble() < 0.5d ? -1f : 1f;
             }
             else
             {
-                planarVelocity = Vector3.forward * minimumPlanarSpeed;
+                sign = random.NextDouble() < holdSameSideChance ? currentSign : -currentSign;
             }
-
-            Vector3 downwardVelocity = -Up * Mathf.Max(generationProfile.InitialLandingSpeed, 2f);
-            return planarVelocity + downwardVelocity;
         }
 
-        private BounceIntentDirective ResolveIntentForCurrentNode(RouteNodeState routeNode, bool isIntroArea)
+        float minAbsX = Mathf.Lerp(generationProfile.MinimumLateralOffset * 0.2f, generationProfile.MinimumLateralOffset, scatter);
+        float outerBias = Mathf.Clamp01(Mathf.Lerp(generationProfile.MainPathOuterBias, 1f, scatter * 0.45f));
+        float targetAbsX = Mathf.Lerp(Mathf.Max(minAbsX, minimumScatter), lateralLimit, SampleOuterBiased01(outerBias));
+        float targetX = sign * targetAbsX;
+
+        if (scatter > 0.55f && currentSign != 0f && sign != currentSign)
         {
-            if (routeNode.SpawnDefinition == null)
-            {
-                return BounceIntentDirective.Maintain;
-            }
-
-            if (isIntroArea && routeNode.SpawnDefinition.GameplayTag == BounceSpawnTag.Boost)
-            {
-                return BounceIntentDirective.Maintain;
-            }
-
-            return routeNode.SpawnDefinition.GameplayTag switch
-            {
-                BounceSpawnTag.Slow => BounceIntentDirective.Brake,
-                BounceSpawnTag.Boost => BounceIntentDirective.Boost,
-                _ => BounceIntentDirective.Maintain
-            };
+            float crossCenterAbs = Mathf.Max(minAbsX, currentAbsX * Mathf.Lerp(0.45f, 0.85f, scatter));
+            targetX = sign * Mathf.Max(Mathf.Abs(targetX), crossCenterAbs);
         }
 
-        private BounceSpawnDefinition ResolveStartDefinition()
+        float minimumHop = Mathf.Lerp(0.6f, generationProfile.MinimumLateralOffset, scatter);
+        if (Mathf.Abs(targetX - currentX) < minimumHop)
         {
-            if (startSpawnDefinition != null)
-            {
-                return startSpawnDefinition;
-            }
-
-            return PickDefinitionByTag(BounceSpawnTag.Normal, BounceDifficultyTier.Easy, true)
-                   ?? PickDefinitionByTag(BounceSpawnTag.Slow, BounceDifficultyTier.Easy, true)
-                   ?? PickAnyDefinition();
+            float adjustedAbs = Mathf.Min(generationProfile.AreaHalfWidth, currentAbsX + minimumHop);
+            targetX = sign * Mathf.Max(Mathf.Abs(targetX), adjustedAbs);
         }
 
-        private BounceSpawnDefinition PickNextRouteDefinition(int areaScore, bool isIntroArea)
+        return Mathf.Clamp(targetX, -generationProfile.AreaHalfWidth, generationProfile.AreaHalfWidth);
+    }
+
+    bool HasDesiredValidPathScatter(
+        Vector3 candidate,
+        RouteNodeState currentState,
+        List<RouteNodeState> routeNodes)
+    {
+        float scatter = generationProfile.ValidPathScatter;
+        if (scatter <= 0.05f)
         {
-            BounceDifficultyTier difficultyTier = generationProfile.EvaluateDifficultyTier(areaScore);
-            float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
-
-            float boostWeight = Mathf.Lerp(0.08f, 0.4f, difficulty01);
-            float slowWeight = Mathf.Lerp(0.24f, 0.18f, difficulty01);
-            float normalWeight = Mathf.Max(0.1f, 1f - boostWeight - slowWeight);
-
-            if (isIntroArea)
-            {
-                boostWeight *= 0.15f;
-                normalWeight += 0.15f;
-            }
-
-            float total = normalWeight + boostWeight + slowWeight;
-            float roll = (float)random.NextDouble() * total;
-
-            BounceSpawnTag tag = roll <= normalWeight
-                ? BounceSpawnTag.Normal
-                : roll <= normalWeight + boostWeight
-                    ? BounceSpawnTag.Boost
-                    : BounceSpawnTag.Slow;
-
-            return PickDefinitionByTag(tag, difficultyTier, true)
-                   ?? PickDefinitionByTag(BounceSpawnTag.Normal, difficultyTier, true)
-                   ?? PickAnyDefinition();
+            return true;
         }
 
-        private BounceSpawnDefinition PickDefinitionByTag(BounceSpawnTag tag, BounceDifficultyTier difficultyTier, bool allowFallback)
+        float centerWindow = Mathf.Lerp(
+            generationProfile.AreaHalfWidth * 0.24f,
+            generationProfile.AreaHalfWidth * 0.12f,
+            scatter);
+        int candidateZone = ResolveLateralZone(candidate.x, centerWindow);
+        int currentZone = ResolveLateralZone(currentState.RootPosition.x, centerWindow);
+
+        float minimumHop = Mathf.Lerp(0.45f, generationProfile.MinimumLateralOffset * 0.9f, scatter);
+        if (candidateZone == currentZone && Mathf.Abs(candidate.x - currentState.RootPosition.x) < minimumHop)
         {
-            IReadOnlyList<BounceSpawnDefinition> definitions = generationProfile.MushroomDefinitions;
-            if (definitions == null || definitions.Count == 0)
+            return false;
+        }
+
+        float recentReuseTolerance = Mathf.Lerp(0.55f, generationProfile.MinimumLateralOffset * 0.75f, scatter);
+        int recentChecks = Mathf.Min(routeNodes.Count, 3);
+        for (int index = routeNodes.Count - recentChecks; index < routeNodes.Count; index++)
+        {
+            if (index < 0)
+            {
+                continue;
+            }
+
+            if (Mathf.Abs(routeNodes[index].RootPosition.x - candidate.x) < recentReuseTolerance)
+            {
+                return false;
+            }
+        }
+
+        if (currentZone != 0 && candidateZone == currentZone && scatter > 0.45f)
+        {
+            int sameZoneStreak = 1;
+            for (int index = routeNodes.Count - 1; index >= 0 && sameZoneStreak < 3; index--)
+            {
+                int previousZone = ResolveLateralZone(routeNodes[index].RootPosition.x, centerWindow);
+                if (previousZone != currentZone)
+                {
+                    break;
+                }
+
+                sameZoneStreak++;
+            }
+
+            if (sameZoneStreak >= 2)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static int ResolveLateralZone(float x, float centerWindow)
+    {
+        if (Mathf.Abs(x) <= centerWindow)
+        {
+            return 0;
+        }
+
+        return x < 0f ? -1 : 1;
+    }
+
+    void ResolveForwardGapRange(RouteNodeState currentState, float difficulty01, out float minimumGap, out float maximumGap)
+    {
+        float speedGapBonus = ResolveOverspeedGapBonus(currentState);
+        float openingGapScale = ResolveOpeningGapScale(currentState);
+        minimumGap = (generationProfile.MinimumForwardGap + (speedGapBonus * 0.4f)) * openingGapScale;
+        maximumGap = (generationProfile.MaximumForwardGap
+            + (generationProfile.MaximumAdditionalForwardGapFromDifficulty * difficulty01)
+            + speedGapBonus) * openingGapScale;
+
+        if (maximumGap < minimumGap)
+        {
+            maximumGap = minimumGap;
+        }
+    }
+
+    float ResolveOpeningGapScale(RouteNodeState currentState)
+    {
+        float introDistance = generationProfile.AreaLength * Mathf.Max(1, generationProfile.IntroAreaCount);
+        if (introDistance <= 0f)
+        {
+            return 1f;
+        }
+
+        float routeProgress = Mathf.Max(0f, currentState.RootPosition.z - runStartZ);
+        float openingProgress01 = Mathf.Clamp01(routeProgress / introDistance);
+        return Mathf.Lerp(0.72f, 1f, openingProgress01);
+    }
+
+    int ResolveOptionalAnchorIndex(int optionalIndex, int totalOptionalCount, int routeNodeCount)
+    {
+        if (routeNodeCount <= 1)
+        {
+            return 0;
+        }
+
+        if (totalOptionalCount <= 1)
+        {
+            return routeNodeCount / 2;
+        }
+
+        float anchorT = (optionalIndex + 0.5f) / totalOptionalCount;
+        float jitteredAnchorT = Mathf.Clamp01(anchorT + RandomRange(-0.16f, 0.16f));
+        return Mathf.Clamp(
+            Mathf.RoundToInt(jitteredAnchorT * (routeNodeCount - 1)),
+            0,
+            routeNodeCount - 1);
+    }
+
+    Vector3 SampleOptionalPosition(RouteNodeState anchor, ActiveArea area, int areaScore, float preferredSideSign)
+    {
+        float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
+        float innerBand = Mathf.Lerp(
+            Mathf.Min(generationProfile.AreaHalfWidth * 0.42f, 3.2f),
+            generationProfile.AreaHalfWidth * 0.34f,
+            difficulty01);
+        float outerBand = generationProfile.AreaHalfWidth * Mathf.Lerp(0.78f, 0.92f, difficulty01);
+        float sign = preferredSideSign;
+
+        if (Mathf.Abs(anchor.RootPosition.x) >= generationProfile.AreaHalfWidth * 0.55f)
+        {
+            sign = -Mathf.Sign(anchor.RootPosition.x);
+        }
+
+        float bandPosition = Mathf.Lerp(innerBand, outerBand, SampleOuterBiased01(generationProfile.OptionalPathOuterBias));
+        float x = Mathf.Clamp(
+            (sign * bandPosition) + RandomRange(-0.45f, 0.45f),
+            -generationProfile.AreaHalfWidth,
+            generationProfile.AreaHalfWidth);
+        float y = Mathf.Clamp(
+            anchor.RootPosition.y + RandomRange(-0.85f, 1f),
+            generationProfile.MinimumHeight,
+            generationProfile.MaximumHeight);
+        float localDepthWindow = Mathf.Lerp(
+            Mathf.Max(0.75f, generationProfile.MinimumForwardGap * 0.16f),
+            Mathf.Max(1.5f, generationProfile.MinimumForwardGap * 0.28f),
+            difficulty01);
+        float z = Mathf.Clamp(
+            anchor.RootPosition.z + RandomRange(-localDepthWindow, localDepthWindow),
+            area.StartZ + 0.5f,
+            area.EndZ - generationProfile.MinimumExitBuffer);
+        return new Vector3(x, y, z);
+    }
+
+    bool HasOptionalLateralScatter(Vector3 candidate, List<RouteNodeState> routeNodes)
+    {
+        float minimumAbsoluteX = Mathf.Min(generationProfile.AreaHalfWidth * 0.28f, 2.4f);
+        if (Mathf.Abs(candidate.x) < minimumAbsoluteX)
+        {
+            return false;
+        }
+
+        float minimumLateralSeparation = Mathf.Min(generationProfile.AreaHalfWidth * 0.3f, generationProfile.OptionalMushroomClearanceRadius * 1.4f);
+        float localDepthWindow = Mathf.Max(generationProfile.MinimumForwardGap, generationProfile.OptionalMushroomClearanceRadius * 1.5f);
+
+        for (int index = 0; index < routeNodes.Count; index++)
+        {
+            Vector3 routePosition = routeNodes[index].RootPosition;
+            if (Mathf.Abs(routePosition.z - candidate.z) > localDepthWindow)
+            {
+                continue;
+            }
+
+            if (Mathf.Abs(routePosition.x - candidate.x) < minimumLateralSeparation)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool IsRoutePositionClear(
+        Vector3 candidate,
+        Vector3 currentRootPosition,
+        List<RouteNodeState> routeNodes,
+        float clearanceRadius)
+    {
+        if (!IsPositionClear(candidate, routeNodes, clearanceRadius))
+        {
+            return false;
+        }
+
+        Vector3 planarDelta = Vector3.ProjectOnPlane(candidate - currentRootPosition, Up);
+        float minimumPlanarSeparation = Mathf.Max(clearanceRadius * 0.85f, generationProfile.PlayerCollisionRadius * 6f);
+        if (planarDelta.magnitude < minimumPlanarSeparation)
+        {
+            return false;
+        }
+
+        float forwardSeparation = Mathf.Abs(candidate.z - currentRootPosition.z);
+        float minimumForwardSeparation = Mathf.Max(clearanceRadius * 0.8f, generationProfile.MinimumForwardGap * 0.5f);
+        return forwardSeparation >= minimumForwardSeparation;
+    }
+
+    bool IsPositionClear(Vector3 candidate, List<RouteNodeState> routeNodes, float clearanceRadius)
+    {
+        for (int index = 0; index < routeNodes.Count; index++)
+        {
+            if ((routeNodes[index].RootPosition - candidate).sqrMagnitude < clearanceRadius * clearanceRadius)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool IsPositionClear(Vector3 candidate, List<Vector3> positions, float clearanceRadius)
+    {
+        float minDistanceSqr = clearanceRadius * clearanceRadius;
+        for (int index = 0; index < positions.Count; index++)
+        {
+            if ((positions[index] - candidate).sqrMagnitude < minDistanceSqr)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    int ResolveMainPathNodeCount(int areaScore, bool isIntroArea)
+    {
+        float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
+        if (isIntroArea)
+        {
+            difficulty01 *= 0.4f;
+        }
+
+        return Mathf.RoundToInt(Mathf.Lerp(
+            generationProfile.MinimumMainPathNodes,
+            generationProfile.MaximumMainPathNodes,
+            difficulty01));
+    }
+
+    float ResolveRouteTargetEndZ(ActiveArea area, RouteNodeState currentState)
+    {
+        return ResolveRouteSearchLimitZ(area, currentState);
+    }
+
+    float ResolveRouteSearchLimitZ(ActiveArea area, RouteNodeState currentState)
+    {
+        float lookahead = ResolveOverspeedLookahead(currentState);
+        return area.EndZ + lookahead - generationProfile.MinimumExitBuffer;
+    }
+
+    float ResolveOverspeedLookahead(RouteNodeState currentState)
+    {
+        float launchSpeed = EstimateLaunchPlanarSpeed(currentState);
+        float referenceSpeed = tuningProfile != null
+            ? Mathf.Max(1f, tuningProfile.MaxControllableSpeed)
+            : Mathf.Max(1f, generationProfile.MaximumForwardGap);
+        float overspeed = Mathf.Max(0f, launchSpeed - referenceSpeed);
+        float lookahead = overspeed * OverspeedLookaheadMultiplier;
+        float maxLookahead = generationProfile.AreaLength * MaximumAreaLookaheadMultiplier;
+        return Mathf.Clamp(lookahead, 0f, maxLookahead);
+    }
+
+    float ResolveOverspeedGapBonus(RouteNodeState currentState)
+    {
+        float launchSpeed = EstimateLaunchPlanarSpeed(currentState);
+        float referenceSpeed = tuningProfile != null
+            ? Mathf.Max(1f, tuningProfile.MaxControllableSpeed)
+            : Mathf.Max(1f, generationProfile.MaximumForwardGap);
+        float overspeed = Mathf.Max(0f, launchSpeed - referenceSpeed);
+        return overspeed * OverspeedGapMultiplier;
+    }
+
+    float EstimateLaunchPlanarSpeed(RouteNodeState currentState)
+    {
+        Vector3 launchVelocity = EstimateLaunchVelocity(currentState);
+        return Vector3.ProjectOnPlane(launchVelocity, Up).magnitude;
+    }
+
+    Vector3 EstimateLaunchVelocity(RouteNodeState currentState)
+    {
+        if (tuningProfile == null || currentState.BounceProfile == null)
+        {
+            return currentState.IncomingVelocity;
+        }
+
+        BounceContext context = new(
+            currentState.IncomingVelocity,
+            currentState.RootPosition,
+            Up,
+            Up,
+            tuningProfile.BaseJumpForce,
+            MovementInputFrame.Empty);
+
+        BounceSurfaceResponse response = currentState.BounceProfile.CreateResponse(null, context);
+        return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, tuningProfile, Up);
+    }
+
+    Vector3 EstimateForcedLandingVelocity(RouteNodeState currentState)
+    {
+        Vector3 launchVelocity = EstimateLaunchVelocity(currentState);
+        Vector3 planarVelocity = Vector3.ProjectOnPlane(launchVelocity, Up);
+        float minimumPlanarSpeed = Mathf.Max(1.5f, generationProfile.InitialLandingSpeed);
+        float cappedPlanarSpeed = tuningProfile != null
+            ? Mathf.Min(planarVelocity.magnitude, tuningProfile.MaxControllableSpeed * 0.9f)
+            : planarVelocity.magnitude;
+
+        if (planarVelocity.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude)
+        {
+            planarVelocity = planarVelocity.normalized * Mathf.Max(minimumPlanarSpeed, cappedPlanarSpeed);
+        }
+        else
+        {
+            planarVelocity = Vector3.forward * minimumPlanarSpeed;
+        }
+
+        Vector3 downwardVelocity = -Up * Mathf.Max(generationProfile.InitialLandingSpeed, 2f);
+        return planarVelocity + downwardVelocity;
+    }
+
+    BounceIntentDirective ResolveIntentForCurrentNode(RouteNodeState routeNode, bool isIntroArea)
+    {
+        if (routeNode.SpawnDefinition == null)
+        {
+            return BounceIntentDirective.Maintain;
+        }
+
+        if (isIntroArea && routeNode.SpawnDefinition.GameplayTag == BounceSpawnTag.Boost)
+        {
+            return BounceIntentDirective.Maintain;
+        }
+
+        return routeNode.SpawnDefinition.GameplayTag switch
+        {
+            BounceSpawnTag.Slow => BounceIntentDirective.Brake,
+            BounceSpawnTag.Boost => BounceIntentDirective.Boost,
+            _ => BounceIntentDirective.Maintain
+        };
+    }
+
+    BounceSpawnDefinition ResolveStartDefinition()
+    {
+        if (startSpawnDefinition != null)
+        {
+            return startSpawnDefinition;
+        }
+
+        return PickDefinitionByTag(BounceSpawnTag.Normal, BounceDifficultyTier.Easy, true)
+               ?? PickDefinitionByTag(BounceSpawnTag.Slow, BounceDifficultyTier.Easy, true)
+               ?? PickAnyDefinition();
+    }
+
+    BounceSpawnDefinition PickNextRouteDefinition(int areaScore, bool isIntroArea)
+    {
+        BounceDifficultyTier difficultyTier = generationProfile.EvaluateDifficultyTier(areaScore);
+        float difficulty01 = generationProfile.EvaluateDifficulty01(areaScore);
+
+        float boostWeight = Mathf.Lerp(0.08f, 0.4f, difficulty01);
+        float slowWeight = Mathf.Lerp(0.24f, 0.18f, difficulty01);
+        float normalWeight = Mathf.Max(0.1f, 1f - boostWeight - slowWeight);
+
+        if (isIntroArea)
+        {
+            boostWeight *= 0.15f;
+            normalWeight += 0.15f;
+        }
+
+        float total = normalWeight + boostWeight + slowWeight;
+        float roll = (float)random.NextDouble() * total;
+
+        BounceSpawnTag tag = roll <= normalWeight
+            ? BounceSpawnTag.Normal
+            : roll <= normalWeight + boostWeight
+                ? BounceSpawnTag.Boost
+                : BounceSpawnTag.Slow;
+
+        return PickDefinitionByTag(tag, difficultyTier, true)
+               ?? PickDefinitionByTag(BounceSpawnTag.Normal, difficultyTier, true)
+               ?? PickAnyDefinition();
+    }
+
+    BounceSpawnDefinition PickDefinitionByTag(BounceSpawnTag tag, BounceDifficultyTier difficultyTier, bool allowFallback)
+    {
+        IReadOnlyList<BounceSpawnDefinition> definitions = generationProfile.MushroomDefinitions;
+        if (definitions == null || definitions.Count == 0)
+        {
+            return null;
+        }
+
+        float totalWeight = 0f;
+        bool foundEligibleDefinition = false;
+
+        for (int index = 0; index < definitions.Count; index++)
+        {
+            BounceSpawnDefinition definition = definitions[index];
+            if (definition == null || definition.GameplayTag != tag || !definition.AllowsDifficulty(difficultyTier))
+            {
+                continue;
+            }
+
+            totalWeight += definition.SpawnWeight;
+            foundEligibleDefinition = true;
+        }
+
+        if (!foundEligibleDefinition)
+        {
+            if (!allowFallback)
             {
                 return null;
             }
-
-            float totalWeight = 0f;
-            bool foundEligibleDefinition = false;
-
-            for (int index = 0; index < definitions.Count; index++)
-            {
-                BounceSpawnDefinition definition = definitions[index];
-                if (definition == null || definition.GameplayTag != tag || !definition.AllowsDifficulty(difficultyTier))
-                {
-                    continue;
-                }
-
-                totalWeight += definition.SpawnWeight;
-                foundEligibleDefinition = true;
-            }
-
-            if (!foundEligibleDefinition)
-            {
-                if (!allowFallback)
-                {
-                    return null;
-                }
-
-                for (int index = 0; index < definitions.Count; index++)
-                {
-                    BounceSpawnDefinition definition = definitions[index];
-                    if (definition == null || definition.GameplayTag != tag)
-                    {
-                        continue;
-                    }
-
-                    totalWeight += definition.SpawnWeight;
-                }
-            }
-
-            if (totalWeight <= 0f)
-            {
-                return null;
-            }
-
-            float roll = (float)random.NextDouble() * totalWeight;
-            float cursor = 0f;
 
             for (int index = 0; index < definitions.Count; index++)
             {
@@ -1221,288 +1199,305 @@ namespace Funguy.MushroomRunner
                     continue;
                 }
 
-                if (foundEligibleDefinition && !definition.AllowsDifficulty(difficultyTier))
-                {
-                    continue;
-                }
-
-                cursor += definition.SpawnWeight;
-                if (roll <= cursor)
-                {
-                    return definition;
-                }
+                totalWeight += definition.SpawnWeight;
             }
+        }
 
+        if (totalWeight <= 0f)
+        {
             return null;
         }
 
-        private BounceSpawnDefinition PickAnyDefinition()
+        float roll = (float)random.NextDouble() * totalWeight;
+        float cursor = 0f;
+
+        for (int index = 0; index < definitions.Count; index++)
         {
-            IReadOnlyList<BounceSpawnDefinition> definitions = generationProfile.MushroomDefinitions;
-            if (definitions == null || definitions.Count == 0)
+            BounceSpawnDefinition definition = definitions[index];
+            if (definition == null || definition.GameplayTag != tag)
             {
-                return null;
+                continue;
             }
 
-            for (int index = 0; index < definitions.Count; index++)
+            if (foundEligibleDefinition && !definition.AllowsDifficulty(difficultyTier))
             {
-                if (definitions[index] != null)
-                {
-                    return definitions[index];
-                }
+                continue;
             }
 
+            cursor += definition.SpawnWeight;
+            if (roll <= cursor)
+            {
+                return definition;
+            }
+        }
+
+        return null;
+    }
+
+    BounceSpawnDefinition PickAnyDefinition()
+    {
+        IReadOnlyList<BounceSpawnDefinition> definitions = generationProfile.MushroomDefinitions;
+        if (definitions == null || definitions.Count == 0)
+        {
             return null;
         }
 
-        private EnvironmentDecorationDefinition PickDecorationDefinition(EnvironmentThemeTierDefinition theme)
+        for (int index = 0; index < definitions.Count; index++)
         {
-            IReadOnlyList<EnvironmentDecorationDefinition> definitions = theme.Blocks;
-            if (definitions == null || definitions.Count == 0)
+            if (definitions[index] != null)
             {
-                return null;
+                return definitions[index];
             }
+        }
 
-            float totalWeight = 0f;
-            for (int index = 0; index < definitions.Count; index++)
-            {
-                if (definitions[index] != null)
-                {
-                    totalWeight += definitions[index].SpawnWeight;
-                }
-            }
+        return null;
+    }
 
-            if (totalWeight <= 0f)
-            {
-                return null;
-            }
-
-            float roll = (float)random.NextDouble() * totalWeight;
-            float cursor = 0f;
-
-            for (int index = 0; index < definitions.Count; index++)
-            {
-                EnvironmentDecorationDefinition definition = definitions[index];
-                if (definition == null)
-                {
-                    continue;
-                }
-
-                cursor += definition.SpawnWeight;
-                if (roll <= cursor)
-                {
-                    return definition;
-                }
-            }
-
+    EnvironmentDecorationDefinition PickDecorationDefinition(EnvironmentThemeTierDefinition theme)
+    {
+        IReadOnlyList<EnvironmentDecorationDefinition> definitions = theme.Blocks;
+        if (definitions == null || definitions.Count == 0)
+        {
             return null;
         }
-        private void SpawnMushroom(Vector3 rootPosition, BounceSpawnDefinition definition, ActiveArea area)
+
+        float totalWeight = 0f;
+        for (int index = 0; index < definitions.Count; index++)
         {
-            if (definition == null || definition.Prefab == null)
+            if (definitions[index] != null)
             {
-                return;
+                totalWeight += definitions[index].SpawnWeight;
             }
-
-            GameObject instance = GetInstance(definition, definition.Prefab, definition.UsePooling);
-            if (instance == null)
-            {
-                return;
-            }
-
-            instance.transform.SetParent(mushroomRoot, false);
-            instance.transform.position = rootPosition + definition.LocalOffset;
-            instance.transform.rotation = Quaternion.identity;
-            instance.transform.localScale = definition.LocalScale;
-
-            Mushroom mushroom = instance.GetComponent<Mushroom>();
-            if (mushroom == null)
-            {
-                mushroom = instance.GetComponentInChildren<Mushroom>();
-            }
-
-            if (mushroom != null && definition.BounceProfileOverride != null)
-            {
-                mushroom.SetBounceProfile(definition.BounceProfileOverride);
-            }
-
-            area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
         }
 
-        private void SpawnEnvironmentBlockInstance(ActiveEnvironmentBlock block, EnvironmentDecorationDefinition definition)
+        if (totalWeight <= 0f)
         {
-            if (definition == null || definition.Prefab == null)
+            return null;
+        }
+
+        float roll = (float)random.NextDouble() * totalWeight;
+        float cursor = 0f;
+
+        for (int index = 0; index < definitions.Count; index++)
+        {
+            EnvironmentDecorationDefinition definition = definitions[index];
+            if (definition == null)
             {
-                return;
+                continue;
             }
 
-            GameObject instance = GetInstance(definition, definition.Prefab, definition.UsePooling);
-            if (instance == null)
+            cursor += definition.SpawnWeight;
+            if (roll <= cursor)
             {
-                return;
+                return definition;
+            }
+        }
+
+        return null;
+    }
+    void SpawnMushroom(Vector3 rootPosition, BounceSpawnDefinition definition, ActiveArea area)
+    {
+        if (definition == null || definition.Prefab == null)
+        {
+            return;
+        }
+
+        GameObject instance = GetInstance(definition, definition.Prefab, definition.UsePooling);
+        if (instance == null)
+        {
+            return;
+        }
+
+        instance.transform.SetParent(mushroomRoot, false);
+        instance.transform.position = rootPosition + definition.LocalOffset;
+        instance.transform.rotation = Quaternion.identity;
+        instance.transform.localScale = definition.LocalScale;
+
+        Mushroom mushroom = instance.GetComponent<Mushroom>();
+        if (mushroom == null)
+        {
+            mushroom = instance.GetComponentInChildren<Mushroom>();
+        }
+
+        if (mushroom != null && definition.BounceProfileOverride != null)
+        {
+            mushroom.SetBounceProfile(definition.BounceProfileOverride);
+        }
+
+        area.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
+    }
+
+    void SpawnEnvironmentBlockInstance(ActiveEnvironmentBlock block, EnvironmentDecorationDefinition definition)
+    {
+        if (definition == null || definition.Prefab == null)
+        {
+            return;
+        }
+
+        GameObject instance = GetInstance(definition, definition.Prefab, definition.UsePooling);
+        if (instance == null)
+        {
+            return;
+        }
+
+        instance.transform.SetParent(decorationRoot, false);
+        instance.transform.localRotation = definition.AuthoredLocalRotation;
+        instance.transform.localScale = definition.AuthoredLocalScale;
+        instance.transform.localPosition = definition.LocalOffset;
+
+        if (TryGetEnvironmentWorldBounds(instance, out Bounds bounds))
+        {
+            float worldZOffset = block.StartZ - bounds.min.z;
+            instance.transform.position += Vector3.forward * worldZOffset;
+            block.EndZ = block.StartZ + Mathf.Max(1f, bounds.size.z);
+        }
+        else
+        {
+            instance.transform.localPosition = new Vector3(0f, 0f, block.StartZ) + definition.LocalOffset;
+            block.EndZ = block.StartZ + definition.BlockLength;
+        }
+
+        block.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
+    }
+
+    static bool TryGetEnvironmentWorldBounds(GameObject instance, out Bounds bounds)
+    {
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
+        for (int index = 0; index < renderers.Length; index++)
+        {
+            if (renderers[index] == null)
+            {
+                continue;
             }
 
-            instance.transform.SetParent(decorationRoot, false);
-            instance.transform.localRotation = definition.AuthoredLocalRotation;
-            instance.transform.localScale = definition.AuthoredLocalScale;
-            instance.transform.localPosition = definition.LocalOffset;
-
-            if (TryGetEnvironmentWorldBounds(instance, out Bounds bounds))
+            bounds = renderers[index].bounds;
+            for (int rendererIndex = index + 1; rendererIndex < renderers.Length; rendererIndex++)
             {
-                float worldZOffset = block.StartZ - bounds.min.z;
-                instance.transform.position += Vector3.forward * worldZOffset;
-                block.EndZ = block.StartZ + Mathf.Max(1f, bounds.size.z);
+                if (renderers[rendererIndex] != null)
+                {
+                    bounds.Encapsulate(renderers[rendererIndex].bounds);
+                }
+            }
+
+            return true;
+        }
+
+        bounds = default;
+        return false;
+    }
+
+    GameObject GetInstance(Object poolKey, GameObject prefab, bool usePooling)
+    {
+        if (usePooling && poolKey != null && pools.TryGetValue(poolKey, out Stack<GameObject> pool) && pool.Count > 0)
+        {
+            GameObject pooled = pool.Pop();
+            pooled.SetActive(true);
+            return pooled;
+        }
+
+        GameObject created = Instantiate(prefab);
+        created.SetActive(true);
+        return created;
+    }
+
+    void RecycleAreasBehindPlayer(int playerArea)
+    {
+        while (activeAreas.Count > 0 && playerArea - activeAreas.Peek().Index > generationProfile.RecycleBehindAreas)
+        {
+            RecycleArea(activeAreas.Dequeue());
+        }
+    }
+
+    void RecycleArea(ActiveArea area)
+    {
+        RecycleSpawnedObjects(area.SpawnedObjects);
+    }
+
+    void RecycleEnvironmentBlocksBehindPlayer()
+    {
+        if (!generateEnvironmentDecorations || player == null || generationProfile == null)
+        {
+            return;
+        }
+
+        float recycleBeforeZ = player.position.z - (generationProfile.AreaLength * Mathf.Max(1, generationProfile.RecycleBehindAreas + 1));
+        while (activeEnvironmentBlocks.Count > 0 && activeEnvironmentBlocks.Peek().EndZ < recycleBeforeZ)
+        {
+            RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
+        }
+    }
+
+    void RecycleSpawnedObjects(List<SpawnedRuntime> spawnedObjects)
+    {
+        for (int index = 0; index < spawnedObjects.Count; index++)
+        {
+            SpawnedRuntime spawned = spawnedObjects[index];
+            if (spawned.Instance == null)
+            {
+                continue;
+            }
+
+            if (spawned.UsePooling && spawned.PoolKey != null)
+            {
+                spawned.Instance.SetActive(false);
+
+                if (!pools.TryGetValue(spawned.PoolKey, out Stack<GameObject> pool))
+                {
+                    pool = new Stack<GameObject>();
+                    pools.Add(spawned.PoolKey, pool);
+                }
+
+                pool.Push(spawned.Instance);
             }
             else
             {
-                instance.transform.localPosition = new Vector3(0f, 0f, block.StartZ) + definition.LocalOffset;
-                block.EndZ = block.StartZ + definition.BlockLength;
+                Destroy(spawned.Instance);
             }
-
-            block.SpawnedObjects.Add(new SpawnedRuntime(definition, instance, definition.UsePooling));
-        }
-
-        private static bool TryGetEnvironmentWorldBounds(GameObject instance, out Bounds bounds)
-        {
-            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
-            for (int index = 0; index < renderers.Length; index++)
-            {
-                if (renderers[index] == null)
-                {
-                    continue;
-                }
-
-                bounds = renderers[index].bounds;
-                for (int rendererIndex = index + 1; rendererIndex < renderers.Length; rendererIndex++)
-                {
-                    if (renderers[rendererIndex] != null)
-                    {
-                        bounds.Encapsulate(renderers[rendererIndex].bounds);
-                    }
-                }
-
-                return true;
-            }
-
-            bounds = default;
-            return false;
-        }
-
-        private GameObject GetInstance(Object poolKey, GameObject prefab, bool usePooling)
-        {
-            if (usePooling && poolKey != null && pools.TryGetValue(poolKey, out Stack<GameObject> pool) && pool.Count > 0)
-            {
-                GameObject pooled = pool.Pop();
-                pooled.SetActive(true);
-                return pooled;
-            }
-
-            GameObject created = Instantiate(prefab);
-            created.SetActive(true);
-            return created;
-        }
-
-        private void RecycleAreasBehindPlayer(int playerArea)
-        {
-            while (activeAreas.Count > 0 && playerArea - activeAreas.Peek().Index > generationProfile.RecycleBehindAreas)
-            {
-                RecycleArea(activeAreas.Dequeue());
-            }
-        }
-
-        private void RecycleArea(ActiveArea area)
-        {
-            RecycleSpawnedObjects(area.SpawnedObjects);
-        }
-
-        private void RecycleEnvironmentBlocksBehindPlayer()
-        {
-            if (!generateEnvironmentDecorations || player == null || generationProfile == null)
-            {
-                return;
-            }
-
-            float recycleBeforeZ = player.position.z - (generationProfile.AreaLength * Mathf.Max(1, generationProfile.RecycleBehindAreas + 1));
-            while (activeEnvironmentBlocks.Count > 0 && activeEnvironmentBlocks.Peek().EndZ < recycleBeforeZ)
-            {
-                RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
-            }
-        }
-
-        private void RecycleSpawnedObjects(List<SpawnedRuntime> spawnedObjects)
-        {
-            for (int index = 0; index < spawnedObjects.Count; index++)
-            {
-                SpawnedRuntime spawned = spawnedObjects[index];
-                if (spawned.Instance == null)
-                {
-                    continue;
-                }
-
-                if (spawned.UsePooling && spawned.PoolKey != null)
-                {
-                    spawned.Instance.SetActive(false);
-
-                    if (!pools.TryGetValue(spawned.PoolKey, out Stack<GameObject> pool))
-                    {
-                        pool = new Stack<GameObject>();
-                        pools.Add(spawned.PoolKey, pool);
-                    }
-
-                    pool.Push(spawned.Instance);
-                }
-                else
-                {
-                    Destroy(spawned.Instance);
-                }
-            }
-        }
-
-        private void ClearSpawnedWorld()
-        {
-            while (activeAreas.Count > 0)
-            {
-                RecycleArea(activeAreas.Dequeue());
-            }
-
-            while (activeEnvironmentBlocks.Count > 0)
-            {
-                RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
-            }
-        }
-
-        private float GetAreaStartZ(int areaIndex)
-        {
-            return startMushroomPosition.z + (areaIndex * generationProfile.AreaLength);
-        }
-
-        private float RandomRange(float minimum, float maximum)
-        {
-            if (maximum <= minimum)
-            {
-                return minimum;
-            }
-
-            return minimum + ((float)random.NextDouble() * (maximum - minimum));
-        }
-
-        private float SampleOuterBiased01(float outerBias)
-        {
-            float sample = (float)random.NextDouble();
-            float exponent = Mathf.Lerp(1f, 0.35f, Mathf.Clamp01(outerBias));
-            return Mathf.Pow(sample, exponent);
-        }
-
-        private int RandomRangeInclusive(int minimum, int maximum)
-        {
-            if (maximum <= minimum)
-            {
-                return minimum;
-            }
-
-            return random.Next(minimum, maximum + 1);
         }
     }
+
+    void ClearSpawnedWorld()
+    {
+        while (activeAreas.Count > 0)
+        {
+            RecycleArea(activeAreas.Dequeue());
+        }
+
+        while (activeEnvironmentBlocks.Count > 0)
+        {
+            RecycleSpawnedObjects(activeEnvironmentBlocks.Dequeue().SpawnedObjects);
+        }
+    }
+
+    float GetAreaStartZ(int areaIndex)
+    {
+        return startMushroomPosition.z + (areaIndex * generationProfile.AreaLength);
+    }
+
+    float RandomRange(float minimum, float maximum)
+    {
+        if (maximum <= minimum)
+        {
+            return minimum;
+        }
+
+        return minimum + ((float)random.NextDouble() * (maximum - minimum));
+    }
+
+    float SampleOuterBiased01(float outerBias)
+    {
+        float sample = (float)random.NextDouble();
+        float exponent = Mathf.Lerp(1f, 0.35f, Mathf.Clamp01(outerBias));
+        return Mathf.Pow(sample, exponent);
+    }
+
+    int RandomRangeInclusive(int minimum, int maximum)
+    {
+        if (maximum <= minimum)
+        {
+            return minimum;
+        }
+
+        return random.Next(minimum, maximum + 1);
+    }
 }
-
-

@@ -1,7 +1,5 @@
 ﻿using UnityEngine;
 
-namespace Funguy.MushroomRunner
-{
     public readonly struct BounceReachRequest
     {
         public BounceReachRequest(
@@ -164,7 +162,7 @@ namespace Funguy.MushroomRunner
             return false;
         }
 
-        private static bool SegmentHitsLandingWindow(
+        static bool SegmentHitsLandingWindow(
             Vector3 segmentStart,
             Vector3 segmentEnd,
             Vector3 targetPoint,
@@ -185,7 +183,7 @@ namespace Funguy.MushroomRunner
             return IsPointInsideLandingWindow(closestPoint, targetPoint, up, landingRadius, landingHeightTolerance);
         }
 
-        private static bool IsPointInsideLandingWindow(
+        static bool IsPointInsideLandingWindow(
             Vector3 point,
             Vector3 targetPoint,
             Vector3 up,
@@ -203,7 +201,7 @@ namespace Funguy.MushroomRunner
             return planarDelta.magnitude <= landingRadius;
         }
 
-        private static MovementInputFrame ResolveIntentInput(
+        static MovementInputFrame ResolveIntentInput(
             BounceIntentDirective intent,
             Vector3 position,
             Vector3 velocity,
@@ -229,5 +227,3 @@ namespace Funguy.MushroomRunner
             return new MovementInputFrame(new Vector2(0f, magnitude), wishDirection, wishDirection, magnitude, false);
         }
     }
-}
-

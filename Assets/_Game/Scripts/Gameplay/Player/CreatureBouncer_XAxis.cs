@@ -58,6 +58,9 @@ public class CreatureBouncer_XAxis : MonoBehaviour
     [Tooltip("Ignore tiny joystick movement around the center.")]
     [Range(0f, 0.5f)] [SerializeField] float horizontalDeadZone = 0.1f;
 
+    [Tooltip("Ignore tiny joystick movement around the center.")]
+    [Range(0f, 0.5f)] [SerializeField] float verticalDeadZone = 0.1f;
+
     [Tooltip("Clamp the player between the X bounds below.")]
     [SerializeField] bool clampXPosition = true;
 
@@ -192,6 +195,17 @@ public class CreatureBouncer_XAxis : MonoBehaviour
 
         float inputX = Mathf.Clamp(movementJoystick.Horizontal, -1f, 1f);
         return Mathf.Abs(inputX) < horizontalDeadZone ? 0f : inputX;
+    }
+
+    float ReadVerticalInput()
+    {
+        if (movementJoystick == null)
+        {
+            return 0f;
+        }
+
+        float inputY = Mathf.Clamp(movementJoystick.Vertical, -1f, 1f);
+        return Mathf.Abs(inputY) < verticalDeadZone ? 0f : inputY;
     }
 
     void ApplyCustomGravity()

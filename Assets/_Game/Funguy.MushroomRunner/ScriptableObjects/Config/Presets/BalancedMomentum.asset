@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BalancedMomentum
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   moveAcceleration: 19
-  airControlStrength: 0.75
+  airControlStrength: 1.5
   forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
   maxControllableSpeed: 15
@@ -21,10 +21,10 @@ MonoBehaviour:
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
-  jumpGravityMultiplier: 1.12
+  jumpGravityMultiplier: 2
   fallGravityMultiplier: 2
-  baseJumpForce: 8.35
-  baseBounceSpeedGain: 2
+  baseJumpForce: 10
+  baseBounceSpeedGain: 3
   dashForce: 7.5
   dashCooldown: 0.16
   dashChargesPerBounce: 1

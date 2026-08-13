@@ -1,28 +1,24 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace Funguy.MushroomRunner
+public class TouchDashButton : MonoBehaviour, IPointerDownHandler
 {
-    public sealed class TouchDashButton : MonoBehaviour, IPointerDownHandler
+    bool pressedThisFrame;
+
+    public void OnPointerDown(PointerEventData eventData)
     {
-        private bool pressedThisFrame;
+        pressedThisFrame = true;
+    }
 
-        public void OnPointerDown(PointerEventData eventData)
-        {
-            pressedThisFrame = true;
-        }
+    public bool ConsumePress()
+    {
+        bool wasPressed = pressedThisFrame;
+        pressedThisFrame = false;
+        return wasPressed;
+    }
 
-        public bool ConsumePress()
-        {
-            bool wasPressed = pressedThisFrame;
-            pressedThisFrame = false;
-            return wasPressed;
-        }
-
-        private void OnDisable()
-        {
-            pressedThisFrame = false;
-        }
+    void OnDisable()
+    {
+        pressedThisFrame = false;
     }
 }
-

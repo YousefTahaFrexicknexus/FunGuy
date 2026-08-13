@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class Mushroom : MonoBehaviour
+public class MushroomBehavior : MonoBehaviour
 {
     [Header("— Bounce —")]
     [Range(0.5f, 3f)] public float bounceMultiplier = 1f;

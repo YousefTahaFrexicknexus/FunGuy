@@ -1,6 +1,6 @@
 using UnityEngine;
+using System.Collections;
 using Unity.Cinemachine;
-using Funguy.MushroomRunner;
 
 public class CinemachineSpeedEffect : MonoBehaviour
 {
@@ -112,9 +112,17 @@ public class CinemachineSpeedEffect : MonoBehaviour
 
     public void ResetCinemachine()
     {
-        var brain = Camera.main.GetComponent<CinemachineBrain>();
+        cinemachineCamera.enabled = false;
+        cinemachineCamera.enabled = true;
 
-        brain.enabled = false;
-        brain.enabled = true;
+        StartCoroutine(ResetCoroutine());
+
+        IEnumerator ResetCoroutine()
+        {
+            ResetImmediately();
+            cinemachineCamera.enabled = false;
+            yield return new WaitForEndOfFrame();
+            cinemachineCamera.enabled = true;
+        }
     }
 }
