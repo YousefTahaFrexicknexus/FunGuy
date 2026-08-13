@@ -57,6 +57,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d95d81f8ed4998a4ca9f8bc906341843, type: 2}
   - {fileID: 11400000, guid: a90aa9f9f9c4dac4695d527f34d41a7d, type: 2}
   - {fileID: 11400000, guid: ef937aa9655b782459364fbce68bdd9a, type: 2}
+  - {fileID: 11400000, guid: 75ca3280b53bccc428f3ab82069b33fc, type: 2}
+  - {fileID: 11400000, guid: 7d92920fcca1d8e4999817637918a1fd, type: 2}
+  - {fileID: 11400000, guid: d4a7fc7c38df44242b89930a67971135, type: 2}
   player: {fileID: 0}
   spawnAheadDistance: 200
   initialSpawnZ: 0
