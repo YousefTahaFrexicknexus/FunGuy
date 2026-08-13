@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using System;
 using System.Collections;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
 
 public class GlobalManager : Singleton<GlobalManager>
 {
@@ -16,17 +17,28 @@ public class GlobalManager : Singleton<GlobalManager>
 	[SerializeField] float currentStep;
 	[SerializeField] float totalSteps;
 
-	[Header("Player Prefab")] public GameObject PlayerPrefab;
+	[Header("Player Prefab")]
+	public GameObject PlayerPrefab;
+
 	[Header("Extra Properties")]
 	public bool isLoadingScene;
 	public bool isFirstLaunch = true;
 	[SerializeField] SceneNames currentScene;
+
+	[Header("Global Settings")]
+	Coroutine gameLaunchSequenceCoroutine;
 
 	public enum SceneNames
 	{	
         Loader = 0,
 		SplashScreen = 1,
 		Main = 2,
+	}
+
+	void Awake()
+	{
+		GlobalEvents.OnAppUpdateStarted += OnAppUpdateStarted;
+		GlobalEvents.OnAppUpdateDeclined += OnAppUpdateDeclined;
 	}
 
 	IEnumerator Start()
@@ -41,7 +53,7 @@ public class GlobalManager : Singleton<GlobalManager>
 			yield return StartCoroutine(WaitForAsync(() => LoadScene(SceneNames.Loader)));
 		}
 
-		StartCoroutine(FirstLaunch_LoadingSequence());
+		gameLaunchSequenceCoroutine = StartCoroutine(FirstLaunch_LoadingSequence());
 	}
 
 	void InitApplicationSettings()
@@ -56,25 +68,49 @@ public class GlobalManager : Singleton<GlobalManager>
 		yield return StartLoadingScreen();
 
 		// --- Put all the steps here ---		
-		// Step | Fetch Firebase Remote Config
-        yield return FetchRemoteConfig();
+		// Step | Try login to PlayFab
+        yield return StartCoroutine(WaitForAsync(() => PlayFabManager.Instance.TryLogin()));
+		UpdateLoadingProgress();
+		yield return new WaitForSeconds(0.5f);
+
+		// Step | Fetch Title Data / Remote Config
+        yield return StartCoroutine(WaitForAsync(() => PlayFabManager.Instance.TryFetchTitleData()));
+		UpdateLoadingProgress();
+		yield return new WaitForSeconds(0.5f);
 
 		// Step | FCM
-        yield return FetchFCMToken();
+        // yield return FetchFCMToken();
+
+		// Step | Check for updates
+        yield return StartCoroutine(WaitForAsync(() => AppUpdateManager.Instance.CheckUpdate()));
+		UpdateLoadingProgress();
+
+		if(isAppUpdating == true)
+		{
+			yield break;
+		}
+
+		// Step | Check if update need to show update popup
+		yield return CheckIfUpdateRequired();
+
+		// Step | Fetch Leaderboard Data
+		yield return StartCoroutine(WaitForAsync(() => PlayFabManager.Instance.TryFetchLeaderboardData()));
+		UpdateLoadingProgress();
 
 		// Step | Fetch game settings
-        yield return FetchGameSettings();
+        // yield return StartCoroutine(WaitForAsync(() => Write async function to fetch game settings));
 
 		// Step | Initialize IAP products after game settings fetching
-        yield return InitializeInAppPurchases();
+        // yield return StartCoroutine(WaitForAsync(() => Write async function to fetch IAP data));
 
 		// Step | Fetch player data
-        yield return CheckForUpdate();
+        // yield return StartCoroutine(WaitForAsync(() => Write async function to fetch Player data));
+
+		yield return new WaitForSeconds(0.5f);
 
 		// Step | Load homescreen
-		yield return StartCoroutine(WaitForAsync(() => LoadScene(SceneNames.Main)));
-
-		UpdateLoadingProgress();
+		// yield return StartCoroutine(WaitForAsync(() => LoadScene(SceneNames.Main)));
+		// UpdateLoadingProgress();
 
 		isFirstLaunch = false;
     }
@@ -296,16 +332,14 @@ public class GlobalManager : Singleton<GlobalManager>
         yield return new WaitForSeconds(0.25f);
     }
 
-    IEnumerator CheckForUpdate()
+    IEnumerator CheckIfUpdateRequired()
     {
-        // TODO:
-        // if(AppUpdateManager.isShowPopupOnLoginScreen)
-		// {
-		// 	AppUpdateManager.Instance.CheckUpdate();
-		// 	AppUpdateManager.isShowPopupOnLoginScreen = false;
-		// }
+        if(AppUpdateManager.Instance.IsVersionUpToDate() == false)
+		{
+			AppUpdateManager.Instance.ShowUpdatePopup();
+		}
 
-		UpdateLoadingProgress();
+		yield return new WaitUntil(() => UIManager.Instance.IsPopupOpen(UIType.appUpdate_Popup) == false);
 
         yield return new WaitForSeconds(0.25f);
     }
@@ -314,6 +348,7 @@ public class GlobalManager : Singleton<GlobalManager>
     {
         // Call the async function and wait for it to complete
         Task task = asyncFunction();
+
         while (!task.IsCompleted)
         {
             yield return null;
@@ -336,4 +371,25 @@ public class GlobalManager : Singleton<GlobalManager>
 	[Header("Place static token")]
 	public bool isForTesting;
 	public string playerToken = "";
+
+	#region App Update
+	bool isAppUpdating = false;
+	bool isAppUpdateDeclined = false;
+
+	void OnAppUpdateStarted()
+	{
+		if(gameLaunchSequenceCoroutine != null)
+		{
+			StopCoroutine(gameLaunchSequenceCoroutine);
+			gameLaunchSequenceCoroutine = null;
+		}
+
+		isAppUpdating = true;
+	}
+
+	void OnAppUpdateDeclined()
+	{
+		isAppUpdateDeclined = true;
+	}
+	#endregion --- App Update ---
 }	

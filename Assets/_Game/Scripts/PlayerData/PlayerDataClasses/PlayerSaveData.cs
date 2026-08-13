@@ -14,7 +14,7 @@ public class PlayerSaveData
     public void LogData()
     {
         Debug.Log($"SaveVersion: {SaveVersion}");
-        Debug.Log($"Profile: {Profile}: {Profile.PlayerId}, Username: {Profile.Username}");
+        Debug.Log($"Profile: {Profile}: {Profile.PlayerId}, Username: {Profile.Username}, AvatarIndex: {Profile.AvatarIndex}");
         Debug.Log($"Progression: {Progression}: SelectedCharacterId: {Progression.SelectedCharacterId}, Coins: {Progression.Coins} UnlockedCharacters: {string.Join(", ", Progression.UnlockedCharacters)}");
         Debug.Log($"Statistics: {Statistics} BestScore: {Statistics.BestScore}, BestDistance: {Statistics.BestDistance}, TotalRuns: {Statistics.TotalRuns}, TotalCoinsCollected: {Statistics.TotalCoinsCollected}, HighestMultiplier: {Statistics.HighestMultiplier}, TotalDistanceTravelled: {Statistics.TotalDistanceTravelled}, TotalPlayTime: {Statistics.TotalPlayTime}");
         Debug.Log($"Settings: {Settings} MusicVolume: {Settings.MusicVolume}, SFXVolume: {Settings.SFXVolume}, IsVibrationEnabled: {Settings.VibrationEnabled}");

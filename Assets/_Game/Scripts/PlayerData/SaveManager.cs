@@ -17,7 +17,7 @@ public class SaveManager : MonoBehaviour
     [SerializeField] bool usePlayFab = true;
     [SerializeField] bool alsoSaveLocalBackup = true;
 
-    [SerializeField] PlayerSaveData DebuggingData;
+    public PlayerSaveData DebuggingData;
 
     void Awake()
     {
@@ -73,8 +73,15 @@ public class SaveManager : MonoBehaviour
         Data.LogData();
     }
 
-    public void Save()
+    public void Save(PlayerSaveData _data = null)
     {
+        if (_data != null)
+        {
+            Data = _data;
+        }
+
+        Data.LogData();
+
         if (usePlayFab && PlayFabClientAPI.IsClientLoggedIn())
         {
             playFabProvider.Save( Data, () =>
@@ -101,11 +108,14 @@ public class SaveManager : MonoBehaviour
 
     void SaveLocalBackup()
     {
-        jsonProvider.Save(
-            Data,
-            () => Debug.Log("Saved to local JSON."),
-            error => Debug.LogError($"Local save failed: {error}")
-        );
+        jsonProvider.Save(Data, () =>
+        {
+            Debug.Log("Saved to local JSON.");
+        },
+        error =>
+        {
+            Debug.LogError($"Local save failed: {error}");
+        });
     }
 
     #if UNITY_EDITOR
@@ -122,7 +132,7 @@ public class SaveManager : MonoBehaviour
 
             if (GUILayout.Button("Save Data"))
             {
-                saveManager.Save();
+                saveManager.Save(saveManager.DebuggingData);
             }
 
             if (GUILayout.Button("Load Data"))

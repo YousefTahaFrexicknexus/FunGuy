@@ -1,14 +1,13 @@
+using UnityEngine;
+
 using System;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
 using DG.Tweening;
-
-using UnityEngine;
-using UnityEditor;
-
 using Sirenix.OdinInspector;
+using UnityEngine.Audio;
 
 public class AudioManager : MonoBehaviour
 {
@@ -19,7 +18,7 @@ public class AudioManager : MonoBehaviour
 		get
 		{
 			if (!_instance)
-				_instance = GameObject.FindObjectOfType<AudioManager>();
+				_instance = FindAnyObjectByType<AudioManager>();
 
 			return _instance;
 		}
@@ -42,6 +41,12 @@ public class AudioManager : MonoBehaviour
 #region Consts
     public static string SOUND_SETTINGS_KEY = "soundsSettings";
     public static string MUSIC_SETTINGS_KEY = "musicSettings";
+
+    const string MusicVolumeKey = "MusicVolume";
+    const string SFXVolumeKey = "SFXVolume";
+
+    const string MusicMixerParameter = "MusicVolume";
+    const string SFXMixerParameter = "SFXVolume";
 #endregion --- Consts ---
 
 #region Vars
@@ -61,6 +66,12 @@ public class AudioManager : MonoBehaviour
     [TabGroup("BGM"), SerializeField] float transitionDuration = 1;
     [TabGroup("BGM"), SerializeField] float maxVolume = 1;
     [TabGroup("BGM"), SerializeField]  List<AudioElement> BGM_AudioElements;
+
+    [Header("Audio Mixer")]
+    [SerializeField] AudioMixer audioMixer;
+
+    public float MusicVolume { get; private set; } = 1f;
+    public float SFXVolume { get; private set; } = 1f;
 #endregion --- Vars ---
 
     void Awake()
@@ -71,6 +82,7 @@ public class AudioManager : MonoBehaviour
     void Start()
     {
         InitSavedSettings();
+        LoadVolumeSettings();
         // PlayMusic(BGM_AudioElements.FirstOrDefault().audioName);
     }
 
@@ -214,6 +226,46 @@ public class AudioManager : MonoBehaviour
     {
         return PlayerPrefs.GetInt(MUSIC_SETTINGS_KEY, 1) == 1 ? true : false;
     }
+
+    public void SaveVolumeSettings()
+    {
+        PlayerPrefs.Save();
+    }
+
+    #region Volume
+    public void SetMusicVolume(float _volume)
+    {
+        MusicVolume = Mathf.Clamp01(_volume);
+
+        SetMixerVolume(MusicMixerParameter, MusicVolume);
+        PlayerPrefs.SetFloat(MusicVolumeKey, MusicVolume);
+    }
+
+    public void SetSFXVolume(float _volume)
+    {
+        SFXVolume = Mathf.Clamp01(_volume);
+
+        SetMixerVolume(SFXMixerParameter, SFXVolume);
+        PlayerPrefs.SetFloat(SFXVolumeKey, SFXVolume);
+    }
+
+    void SetMixerVolume(string _parameterName, float _volume)
+    {
+        // Prevent Log10(0).
+        float decibels = _volume <= 0.0001f ? -80f : Mathf.Log10(_volume) * 20f;
+
+        audioMixer.SetFloat(_parameterName, decibels);
+    }
+
+    void LoadVolumeSettings()
+    {
+        MusicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
+        SFXVolume = PlayerPrefs.GetFloat(SFXVolumeKey, 1f);
+
+        SetMixerVolume(MusicMixerParameter, MusicVolume);
+        SetMixerVolume(SFXMixerParameter, SFXVolume);
+    }
+    #endregion --- Volume ---
 
     [Serializable]
     public class AudioElement

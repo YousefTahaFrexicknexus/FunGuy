@@ -12,6 +12,8 @@ public class PlayFabSaveProvider : ISaveProvider
     {
         string json = JsonUtility.ToJson(data);
 
+        Debug.Log($"Saving data to PlayFab: {json}");
+
         var request = new UpdateUserDataRequest
         {
             Data = new Dictionary<string, string>
@@ -40,6 +42,9 @@ public class PlayFabSaveProvider : ISaveProvider
                 }
 
                 string json = result.Data[SaveKey].Value;
+                
+                Debug.Log($"Loading data from PlayFab: {json}");
+
                 PlayerSaveData data = JsonUtility.FromJson<PlayerSaveData>(json);
 
                 onSuccess?.Invoke(data);

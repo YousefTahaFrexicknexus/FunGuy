@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d10a377b521a1274bbf4e8c553d54dfd, type: 3}
+  m_Name: New Profile Image Database
+  m_EditorClassIdentifier: Assembly-CSharp::ProfileImageDatabase
+  profiles:
+  - {fileID: 21300000, guid: e4c06232e01c042638f8702b5b5d0b1b, type: 3}
+  - {fileID: 21300000, guid: f36870236f49842c386e11ddf0dd5dc4, type: 3}
+  - {fileID: 21300000, guid: f88de41b54f784945a67f8e44fdda1bd, type: 3}
+  - {fileID: 21300000, guid: a1074b038523b46a384d4c42e2c7f8fd, type: 3}
+  - {fileID: 21300000, guid: ad91465546d8e4c0981eb95b460b5df7, type: 3}
+  - {fileID: 21300000, guid: ccc9f2bec4bb243d1983d33aaaa83285, type: 3}

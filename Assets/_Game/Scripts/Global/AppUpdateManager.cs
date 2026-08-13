@@ -1,146 +1,304 @@
 using UnityEngine;
 
+using System;
+using System.Threading.Tasks;
+
 public class AppUpdateManager : MonoBehaviour
 {
-    [Header("Main Properties")]
+    [Header("Store Links")]
     [SerializeField] string android_Link = "";
     [SerializeField] string iOS_Link = "";
 
-    [Header("Config keys"), Space]
-    private const string MINIMUM_REQUIRED_GAME_VERSION_CONFIG_KEY = "MinimumRequiredGameVersion";
-    private const string IS_SOFT_GAME_UPDATE_CONFIG_KEY = "IsSoftGameUpdate";
+    [Header("Config Keys")]
+    const string MINIMUM_REQUIRED_GAME_VERSION_CONFIG_KEY = "MinimumRequiredGameVersion";
+    const string IS_SOFT_GAME_UPDATE_CONFIG_KEY = "IsSoftGameUpdate";
+
+    [Header("Soft Update Settings")]
+    [Tooltip("Maximum number of times the optional update popup is shown per version.")]
+    [SerializeField] int softUpdateDisplayCount = 3;
 
     #region Singleton
-    private static AppUpdateManager _instance;
+
+    static AppUpdateManager _instance;
+
     public static AppUpdateManager Instance
     {
         get
         {
             if (_instance == null)
-                _instance = FindObjectOfType<AppUpdateManager>();
+            {
+                _instance = FindAnyObjectByType<AppUpdateManager>();
+            }
 
             return _instance;
         }
     }
+
     #endregion
 
-    public static bool isShowPopupOnLoginScreen = false;
+    public bool isShowPopupOnLoginScreen = false;
+    public AppUpdateCheckResult appUpdateCheckResult;
 
-    private const string OpenCounterKey = "ShowUpdateCounter";
-    private const string LastShownAppVersionKey = "LastShownAppVersion";
-    private const string LastShownServerVersionKey = "LastShownServerVersion";
+    const string OpenCounterKey = "ShowUpdateCounter";
+    const string LastShownAppVersionKey = "LastShownAppVersion";
+    const string LastShownServerVersionKey = "LastShownServerVersion";
 
-    private int openCounter = 0;
-    private int maxOpens = 0;
+    int openCounter;
 
-    public void CheckUpdate()
+    /// <summary>
+    /// Use this method from UnityEvents or buttons.
+    /// </summary>
+    public async Task CheckUpdate()
     {
-        // StartCoroutine(FirebaseRemoteConfigManager.Instance.GetConfigData_Json_WaitForResponse(IS_SOFT_GAME_UPDATE_CONFIG_KEY, (isSoftGameUpdate) =>
-        // {
-        //     bool isSoftUpdate = isSoftGameUpdate.ToLower() == "true";
-
-        //     string currentAppVersion = Application.version;
-
-        //     StartCoroutine(FirebaseRemoteConfigManager.Instance.GetConfigData_Json_WaitForResponse(MINIMUM_REQUIRED_GAME_VERSION_CONFIG_KEY, (minimumRequiredGameVersion) =>
-        //     {
-        //         bool isNewVersionAvailable = IsVersionNewer(currentAppVersion, minimumRequiredGameVersion);
-
-        //         // Hard Update
-        //         if (isNewVersionAvailable && !isSoftUpdate)
-        //         {
-        //             ShowUpdatePopup();
-        //             PlayerPrefs.SetInt(OpenCounterKey, 0);
-        //             PlayerPrefs.Save();
-        //             return;
-        //         }
-
-        //         if (isShowPopupOnLoginScreen)
-        //         {
-        //             return;
-        //         }
-
-        //         // Soft Update
-        //         maxOpens = DataManager.Instance.gameSettingsData_SO.app_update.display_number;
-
-        //         string lastServerVersion = PlayerPrefs.GetString(LastShownServerVersionKey, "");
-        //         string lastAppVersion = PlayerPrefs.GetString(LastShownAppVersionKey, "");
-        //         bool versionChanged = !minimumRequiredGameVersion.Equals(lastServerVersion) || !currentAppVersion.Equals(lastAppVersion);
-
-        //         if (versionChanged)
-        //         {
-        //             openCounter = 0;
-        //             PlayerPrefs.SetInt(OpenCounterKey, openCounter);
-        //             PlayerPrefs.SetString(LastShownServerVersionKey, minimumRequiredGameVersion);
-        //             PlayerPrefs.SetString(LastShownAppVersionKey, currentAppVersion);
-        //         }
-        //         else
-        //         {
-        //             openCounter = PlayerPrefs.GetInt(OpenCounterKey, 0);
-        //         }
-
-        //         if (isNewVersionAvailable && isSoftUpdate)
-        //         {
-        //             if (openCounter < maxOpens)
-        //             {
-        //                 ShowUpdatePopup();
-        //                 openCounter++;
-        //                 PlayerPrefs.SetInt(OpenCounterKey, openCounter);
-        //                 PlayerPrefs.Save();
-        //             }
-        //         }
-        //     }));
-        // }));
+        try
+        {
+            await CheckUpdateAsync();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception);
+        }
     }
 
-    private void ShowUpdatePopup()
+    public bool IsVersionUpToDate()
     {
-        // TODO: Integrate update popup
-        // UIManager.Instance.Open_PopupsAndPanels(UIType.appUpdate_Popup);
+        return appUpdateCheckResult == AppUpdateCheckResult.UpToDate;
+    }
+
+    /// <summary>
+    /// Checks PlayFab Title Data and returns the update result.
+    /// This method can be awaited by another initialization system.
+    /// </summary>
+    public async Task<AppUpdateCheckResult> CheckUpdateAsync()
+    {
+        if (PlayFab_TitleDataRemoteConfig.Instance == null)
+        {
+            Debug.LogError("PlayFab_TitleDataRemoteConfig instance was not found.");
+
+            return appUpdateCheckResult = AppUpdateCheckResult.Failed;
+        }
+
+        string softUpdateValue = PlayFab_TitleDataRemoteConfig.Instance.GetConfigData_Json(IS_SOFT_GAME_UPDATE_CONFIG_KEY);
+
+        string minimumRequiredVersion = PlayFab_TitleDataRemoteConfig.Instance.GetConfigData_Json(MINIMUM_REQUIRED_GAME_VERSION_CONFIG_KEY);
+
+        if (!TryParseBoolean(softUpdateValue, out bool isSoftUpdate))
+        {
+            Debug.LogError($"Invalid Title Data value for '{IS_SOFT_GAME_UPDATE_CONFIG_KEY}': '{softUpdateValue}'.");
+
+            return appUpdateCheckResult = AppUpdateCheckResult.Failed;
+        }
+
+        if (string.IsNullOrWhiteSpace(minimumRequiredVersion))
+        {
+            Debug.LogError($"PlayFab Title Data key " + $"'{MINIMUM_REQUIRED_GAME_VERSION_CONFIG_KEY}' is empty.");
+
+            return appUpdateCheckResult = AppUpdateCheckResult.Failed;
+        }
+
+        string currentAppVersion = Application.version.Trim();
+        minimumRequiredVersion = minimumRequiredVersion.Trim();
+
+        bool isNewVersionAvailable = IsVersionNewer(currentAppVersion, minimumRequiredVersion);
+
+        if (!isNewVersionAvailable)
+        {
+            Debug.Log($"App is up to date. Current: {currentAppVersion}, " + $"Required: {minimumRequiredVersion}");
+
+            ResetPopupTrackingIfVersionChanged(currentAppVersion, minimumRequiredVersion);
+
+            return appUpdateCheckResult = AppUpdateCheckResult.UpToDate;
+        }
+
+        // Hard update
+        if (!isSoftUpdate)
+        {
+            Debug.LogWarning($"Hard update required. Current: {currentAppVersion}, Required: {minimumRequiredVersion}");
+
+            ShowUpdatePopup();
+
+            PlayerPrefs.SetInt(OpenCounterKey, 0);
+            PlayerPrefs.SetString(LastShownAppVersionKey, currentAppVersion);
+            PlayerPrefs.SetString(LastShownServerVersionKey, minimumRequiredVersion);
+            PlayerPrefs.Save();
+
+            return appUpdateCheckResult = AppUpdateCheckResult.HardUpdateRequired;
+        }
+
+        // Do not show another optional popup when one is already being
+        // handled on the login screen.
+        if (isShowPopupOnLoginScreen)
+        {
+            return appUpdateCheckResult = AppUpdateCheckResult.SoftUpdateAvailable;
+        }
+
+        HandleSoftUpdate(currentAppVersion, minimumRequiredVersion);
+
+        return appUpdateCheckResult = AppUpdateCheckResult.SoftUpdateAvailable;
+    }
+
+    void HandleSoftUpdate(string currentAppVersion, string minimumRequiredVersion)
+    {
+        bool versionChanged = ResetPopupTrackingIfVersionChanged(currentAppVersion, minimumRequiredVersion);
+
+        if (!versionChanged)
+        {
+            openCounter = PlayerPrefs.GetInt(OpenCounterKey, 0);
+        }
+
+        if (openCounter >= softUpdateDisplayCount)
+        {
+            Debug.Log($"Soft update popup display limit reached: {openCounter}/{softUpdateDisplayCount}");
+
+            return;
+        }
+
+        ShowUpdatePopup();
+
+        openCounter++;
+
+        PlayerPrefs.SetInt(OpenCounterKey, openCounter);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// Resets the soft-update popup counter when either the installed
+    /// version or the server version changes.
+    /// </summary>
+    bool ResetPopupTrackingIfVersionChanged(string currentAppVersion, string serverVersion)
+    {
+        string lastAppVersion = PlayerPrefs.GetString(LastShownAppVersionKey, "");
+
+        string lastServerVersion = PlayerPrefs.GetString(LastShownServerVersionKey, "");
+
+        bool versionChanged = !string.Equals(currentAppVersion, lastAppVersion, StringComparison.Ordinal)
+                            || !string.Equals(serverVersion, lastServerVersion, StringComparison.Ordinal);
+
+        if (!versionChanged)
+        {
+            return false;
+        }
+
+        openCounter = 0;
+
+        PlayerPrefs.SetInt(OpenCounterKey, openCounter);
+        PlayerPrefs.SetString(LastShownAppVersionKey, currentAppVersion);
+        PlayerPrefs.SetString(LastShownServerVersionKey, serverVersion);
+        PlayerPrefs.Save();
+
+        return true;
+    }
+
+    public void ShowUpdatePopup()
+    {
+        FindAnyObjectByType<AppUpdate_Popup>(FindObjectsInactive.Include)?.Init();
+        UIManager.Instance.Open_PopupsAndPanels(UIType.appUpdate_Popup);
     }
 
     public void PerformUpdate()
     {
-        #if UNITY_ANDROID
-            Application.OpenURL(android_Link);
-        #elif UNITY_IOS
-            Application.OpenURL(iOS_Link);
-        #endif
+#if UNITY_ANDROID
+        if (string.IsNullOrWhiteSpace(android_Link))
+        {
+            Debug.LogError("Android store link is empty.");
+            return;
+        }
+
+        Application.OpenURL(android_Link);
+
+#elif UNITY_IOS
+        if (string.IsNullOrWhiteSpace(iOS_Link))
+        {
+            Debug.LogError("iOS store link is empty.");
+            return;
+        }
+
+        Application.OpenURL(iOS_Link);
+
+#else
+        Debug.LogWarning("App update links are only configured for Android and iOS.");
+#endif
     }
 
-    private bool IsVersionNewer(string current, string required)
+    bool TryParseBoolean(string value, out bool result)
     {
-        if (string.IsNullOrEmpty(current) || string.IsNullOrEmpty(required))
+        result = false;
+
+        if (string.IsNullOrWhiteSpace(value))
         {
-            Debug.LogError("Version strings cannot be null or empty.");
             return false;
         }
 
-        var currentParts = current.Split('.');
-        var requiredParts = required.Split('.');
+        value = value.Trim();
 
-        for (int i = 0; i < Mathf.Max(currentParts.Length, requiredParts.Length); i++)
+        if (bool.TryParse(value, out result))
         {
-            int cur = 0;
-            int req = 0;
+            return true;
+        }
 
-            // Validate and parse current version part
-            if (i < currentParts.Length && !int.TryParse(currentParts[i], out cur))
-            {
-                Debug.LogError($"Invalid version format in 'current': {current}");
-                return false;
-            }
+        if (value == "1")
+        {
+            result = true;
+            return true;
+        }
 
-            // Validate and parse required version part
-            if (i < requiredParts.Length && !int.TryParse(requiredParts[i], out req))
-            {
-                Debug.LogError($"Invalid version format in 'required': {required}");
-                return false;
-            }
-
-            if (cur < req) return true;
-            if (cur > req) return false;
+        if (value == "0")
+        {
+            result = false;
+            return true;
         }
 
         return false;
     }
+
+    /// <summary>
+    /// Returns true when the required version is newer than the
+    /// installed application version.
+    /// </summary>
+    bool IsVersionNewer(string current, string required)
+    {
+        if (!TryParseVersion(current, out Version currentVersion))
+        {
+            Debug.LogError($"Invalid current application version: '{current}'.");
+
+            return false;
+        }
+
+        if (!TryParseVersion(required, out Version requiredVersion))
+        {
+            Debug.LogError($"Invalid required application version: '{required}'.");
+
+            return false;
+        }
+
+        return requiredVersion > currentVersion;
+    }
+
+    bool TryParseVersion(string versionString, out Version version)
+    {
+        version = null;
+
+        if (string.IsNullOrWhiteSpace(versionString))
+        {
+            return false;
+        }
+
+        string normalizedVersion = versionString.Trim();
+
+        // Supports Title Data values such as "v1.2.3".
+        if (normalizedVersion.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedVersion = normalizedVersion.Substring(1);
+        }
+
+        return Version.TryParse(normalizedVersion, out version);
+    }
+}
+
+public enum AppUpdateCheckResult
+{
+    Failed,
+    UpToDate,
+    SoftUpdateAvailable,
+    HardUpdateRequired
 }

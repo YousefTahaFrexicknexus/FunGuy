@@ -1,9 +1,12 @@
-using System.Collections;
 using UnityEngine;
-using DG.Tweening;
+using UnityEngine.UI;
 using UnityEngine.Events;
-using UnityEngine.UI; // Make sure to include this namespace
-using Sirenix.OdinInspector; // Include Odin Inspector namespace
+
+using System;
+using System.Collections;
+
+using DG.Tweening;
+using Sirenix.OdinInspector;
 
 [RequireComponent(typeof(Button))]
 public class UIButtonAnimator : MonoBehaviour
@@ -26,6 +29,7 @@ public class UIButtonAnimator : MonoBehaviour
     [TabGroup("Event Callback")]
     [Header("Event callback"), Space]
     public UnityEvent callBackFn;
+    public Action OnClickAction;
 
     private Button button; // Reference to the Button component
 
@@ -35,6 +39,7 @@ public class UIButtonAnimator : MonoBehaviour
         this.transform.localScale = finalVal;
 
         button = GetComponent<Button>();
+
         if (button != null)
         {
             // Remove any existing listeners to avoid duplication
@@ -47,8 +52,10 @@ public class UIButtonAnimator : MonoBehaviour
     public virtual void OnClick()
     {
         if (isAnimating)
+        {
             return;
-
+        }
+            
         isAnimating = true;
 
         PlayOnClickSFX();
@@ -65,13 +72,16 @@ public class UIButtonAnimator : MonoBehaviour
     {
         yield return new WaitForSeconds(timer);
         callBackFn?.Invoke();
+        OnClickAction?.Invoke();
         isAnimating = false;
     }
 
     public void PlayOnClickSFX()
     {
         if (AudioManager.Instance && buttonSFXType != ButtonSFXType.none)
+        {
             AudioManager.Instance.PlaySFX(buttonSFXType.ToString());
+        }
     }
 
     private void OnDisable()
