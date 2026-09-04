@@ -1,9 +1,14 @@
 using UnityEngine;
 
+using System.Collections.Generic;
+
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Collider))]
 public sealed class SimpleBounceMushroom : MonoBehaviour
 {
+    [Header("Main components")]
+    [SerializeField] List<MushroomLandingHitbox> landingHitbox = new List<MushroomLandingHitbox>();
+
     [SerializeField] MushroomBounceProfile bounceProfile;
     [SerializeField, Tooltip("Optional transform whose local Z/forward axis points in the launch direction. If empty, world forward is used.")]
     Transform launchDirection;
@@ -71,18 +76,14 @@ public sealed class SimpleBounceMushroom : MonoBehaviour
 
         Collider sourceCollider = ResolveTriggerCollider();
         Vector3 contactPoint = ResolveContactPoint(sourceCollider, playerCollider, movementMotor.transform.position);
-        bool didBounce = movementMotor.ApplyForce(
-            launchDirection,
-            bounceProfile,
-            sourceCollider,
-            contactPoint,
-            Vector3.up);
+        bool didBounce = movementMotor.ApplyForce(launchDirection, bounceProfile, sourceCollider, contactPoint, Vector3.up);
 
         if (!didBounce)
         {
             return false;
         }
 
+        HandleLandingQuality();
         ResolvePresentation()?.PlayBounce();
         NotifyModifiers(movementMotor, sourceCollider, playerCollider);
         return true;
@@ -93,6 +94,29 @@ public sealed class SimpleBounceMushroom : MonoBehaviour
         ResolveTriggerCollider();
         ResolveLaunchDirection();
         ResolvePresentation();
+    }
+
+    void HandleLandingQuality()
+    {
+        if (landingHitbox == null || landingHitbox.Count == 0)
+        {
+            return;
+        }
+
+        foreach (MushroomLandingHitbox hitbox in landingHitbox)
+        {
+            if (hitbox == null || !hitbox.IsActive)
+            {
+                continue;
+            }
+
+            MomentumSystem.Instance.OnMushroomLanded(hitbox.landingQuality);
+            Debug.Log($"Mushroom landed with quality: {hitbox.landingQuality}");
+            return;
+        }
+
+        Debug.Log($"Mushroom landed with quality: {LandingQuality.Bad}");
+        MomentumSystem.Instance.OnMushroomLanded(LandingQuality.Bad);
     }
 
     Collider ResolveTriggerCollider()

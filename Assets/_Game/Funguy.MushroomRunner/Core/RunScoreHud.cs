@@ -1,17 +1,19 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+using TMPro;
+
 [DisallowMultipleComponent]
 public sealed class RunScoreHud : MonoBehaviour
 {
     [SerializeField, Tooltip("Score service this HUD listens to.")]
     RunScoreService scoreTracker;
     [SerializeField, Tooltip("Main label used to display the numeric score.")]
-    Text scoreText;
+    TextMeshProUGUI scoreTMP;
     [SerializeField, Tooltip("Secondary label used for combo and airtime callouts.")]
-    Text statusText;
+    TextMeshProUGUI statusText;
     [SerializeField, Tooltip("String format used for the score text. {0} is the current score.")]
-    string scoreFormat = "SCORE {0:0000}";
+    string scoreFormat = "N0";
 
     Color defaultScoreColor;
     float statusVisibility;
@@ -20,8 +22,6 @@ public sealed class RunScoreHud : MonoBehaviour
 
     void Reset()
     {
-        scoreText = GetComponent<Text>();
-        statusText = FindExistingStatusText();
         CacheDefaultVisuals();
     }
 
@@ -83,9 +83,9 @@ public sealed class RunScoreHud : MonoBehaviour
         currentSnapshot = snapshot;
         hasSnapshot = true;
 
-        if (scoreText != null)
+        if (scoreTMP != null)
         {
-            scoreText.text = string.Format(scoreFormat, Mathf.Max(0, snapshot.Score));
+            scoreTMP.text = snapshot.Score.ToString(scoreFormat);
         }
 
         RefreshMomentumVisuals(true, snapshot);
@@ -93,30 +93,15 @@ public sealed class RunScoreHud : MonoBehaviour
 
     void CacheDefaultVisuals()
     {
-        if (scoreText != null)
+        if (scoreTMP != null)
         {
-            defaultScoreColor = scoreText.color;
+            defaultScoreColor = scoreTMP.color;
         }
-    }
-
-    Text FindExistingStatusText()
-    {
-        Text[] texts = GetComponentsInChildren<Text>(true);
-        for (int index = 0; index < texts.Length; index++)
-        {
-            Text candidate = texts[index];
-            if (candidate != null && candidate != scoreText)
-            {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 
     void RefreshMomentumVisuals(bool instant, RunScoreSnapshot snapshot)
     {
-        if (scoreText == null)
+        if (scoreTMP == null)
         {
             return;
         }
@@ -171,7 +156,7 @@ public sealed class RunScoreHud : MonoBehaviour
 
     void FadeMomentumVisuals(string statusLabel, Color accentColor, float emphasis, bool instant)
     {
-        if (scoreText == null)
+        if (scoreTMP == null)
         {
             return;
         }
@@ -181,7 +166,7 @@ public sealed class RunScoreHud : MonoBehaviour
 
         statusVisibility = Mathf.MoveTowards(statusVisibility, targetVisibility, deltaTime);
 
-        scoreText.color = Color.Lerp(defaultScoreColor, accentColor, Mathf.Clamp01((0.14f + (emphasis * 0.4f)) * statusVisibility));
+        scoreTMP.color = Color.Lerp(defaultScoreColor, accentColor, Mathf.Clamp01((0.14f + (emphasis * 0.4f)) * statusVisibility));
 
         if (statusText == null)
         {

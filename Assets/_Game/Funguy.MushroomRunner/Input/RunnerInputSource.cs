@@ -7,6 +7,8 @@ public class RunnerInputSource : MonoBehaviour
     FloatingJoystick movementJoystick;
     [SerializeField, Tooltip("Touch button that triggers a dash press for one frame when consumed.")]
     TouchDashButton dashButton;
+    [SerializeField, Tooltip("Touch button that triggers a dash press for one frame when consumed.")]
+    FloatingJoystick joystick;
     [SerializeField, Tooltip("Camera used to convert 2D input into camera-relative world movement.")]
     Camera movementCamera;
     [SerializeField, Tooltip("If enabled, WASD / arrows and Space / Shift also drive the runner in editor and desktop builds.")]
@@ -59,7 +61,8 @@ public class RunnerInputSource : MonoBehaviour
         Vector3 referenceForward = ResolveReferenceForward();
         Vector3 referenceRight = ResolveReferenceRight(referenceForward);
         Vector3 wishDirection = ResolveWishDirection(move, referenceForward, referenceRight);
-        bool dashPressed = (dashButton != null && dashButton.ConsumePress()) || ResolveKeyboardDash();
+        // bool dashPressed = (dashButton != null && dashButton.ConsumePress()) || ResolveKeyboardDash();
+        bool dashPressed = (joystick != null && joystick.ConsumePress()) || ResolveKeyboardDash();
 
         CurrentFrame = new MovementInputFrame(move, wishDirection, referenceForward, magnitude, dashPressed);
     }

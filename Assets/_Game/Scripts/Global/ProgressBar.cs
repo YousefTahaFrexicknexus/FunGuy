@@ -5,53 +5,54 @@ using UnityEngine.UI;
 
 using DG.Tweening;
 using Sirenix.OdinInspector;
-using TMPro;
 
 [ExecuteInEditMode]
 public class ProgressBar : MonoBehaviour
 {
     [Header("Main Components")]
     [SerializeField] Image mask;
-    [SerializeField] TMP_Text loadingStatusRTL;
-    [SerializeField] CounterAnimator loadingProgress_CounterAnimator;
 
     [Header("Properties")]
-    [SerializeField, Range(0, 100f)]
+    [SerializeField] float rangeMin = 0f;
+    [SerializeField] float rangeMax = 1f;
+    
+    [SerializeField, Range(0, 1)]
     [OnValueChanged(nameof(OnProgressChanged))] // Only called if changed via Inspector
     float currentProgress;
 
     void OnEnable()
     {
-        SetLoadingProgress(0);
+        SetProgressValue(0);
     }
 
-    public void SetLoadingProgress(float _progress)
+    public void ChangeProgressValue(float _progress)
     {
-        currentProgress = _progress;
-        loadingProgress_CounterAnimator.Set_CounterText($"{(int)currentProgress * 100}%");
+        currentProgress = Mathf.InverseLerp(rangeMin, rangeMax, _progress);
         mask.fillAmount = currentProgress;
     }
 
-    public void AnimateLoadingProgress(float _progress)
+    public void SetProgressValue(float _progress)
     {
         currentProgress = _progress;
-        loadingProgress_CounterAnimator.AnimateProgress((int)(currentProgress * 100) , 0.25f);
+        mask.fillAmount = currentProgress;
+    }
+
+    public void AnimateProgress(float _progress)
+    {
+        currentProgress = _progress;
         mask.DOFillAmount(currentProgress, 0.25f);
     }
     
     public void BarReset()
     {
-        currentProgress = 0;
+        currentProgress = rangeMin;
         mask.fillAmount = 0;
     }
 
     #region For debugging
-        // This method will be called whenever currentProgress is changed in the Inspector
-        private void OnProgressChanged()
-        {
-            // Call your custom function here
-            loadingProgress_CounterAnimator.Set_CounterText($"{(int)currentProgress}%");
-            mask.fillAmount = currentProgress * 0.01f;
-        }
+    void OnProgressChanged()
+    {
+        mask.fillAmount = currentProgress;
+    }
     #endregion ---  For debugging ---
 }

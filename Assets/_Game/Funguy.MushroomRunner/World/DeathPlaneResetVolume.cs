@@ -32,7 +32,7 @@ public sealed class DeathPlaneResetVolume : MonoBehaviour
         RemoveLegacyRigidbody();
         CacheCollider();
         RefreshDeathHeight();
-        ResetCamera();
+        GameplayReset();
     }
 
     void Awake()
@@ -129,7 +129,7 @@ public sealed class DeathPlaneResetVolume : MonoBehaviour
         lastResetTime = Time.time;
         hasLoggedBelowDeathHeight = false;
         resetCoordinator.ReportFailure(RunFailureReason.FellBelowDeathPlane);
-        ResetCamera();
+        GameplayReset();
     }
 
     void ResolveReferences()
@@ -155,7 +155,7 @@ public sealed class DeathPlaneResetVolume : MonoBehaviour
         deathHeightY = transform.position.y + (transform.lossyScale.y * 0.5f);
     }
     
-    void ResetCamera()
+    void GameplayReset()
     {
         GameplayEvents.GameplayReset?.Invoke();
     }

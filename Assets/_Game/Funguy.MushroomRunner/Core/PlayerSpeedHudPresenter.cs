@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,9 +10,9 @@ public sealed class PlayerSpeedHudPresenter : MonoBehaviour
     [SerializeField, Tooltip("Filled image used as the speed meter bar.")]
     Image fillImage;
     [SerializeField, Tooltip("Static label text, usually SPEED.")]
-    Text labelText;
+    TextMeshProUGUI labelText;
     [SerializeField, Tooltip("Numeric text showing the current speed.")]
-    Text valueText;
+    TextMeshProUGUI valueText;
     [SerializeField, Tooltip("If enabled, vertical velocity is ignored and only planar speed is displayed.")]
     bool usePlanarSpeed = true;
     [SerializeField, Tooltip("Extra multiplier applied before showing speed in the HUD.")]
@@ -23,7 +24,7 @@ public sealed class PlayerSpeedHudPresenter : MonoBehaviour
     [SerializeField, Tooltip("Label shown next to the speed value.")]
     string speedLabel = "SPEED";
     [SerializeField, Tooltip("Suffix appended to the numeric speed value.")]
-    string unitsSuffix = " u/s";
+    string unitsSuffix = " KM/H";
     [SerializeField, Tooltip("Meter color at low speed.")]
     Color lowSpeedColor = new(0.33f, 0.81f, 0.65f, 0.95f);
     [SerializeField, Tooltip("Meter color at high speed.")]
@@ -71,7 +72,7 @@ public sealed class PlayerSpeedHudPresenter : MonoBehaviour
         RefreshUi();
     }
 
-    public void Configure(RunnerMovementMotor motor, Image fill, Text label, Text value)
+    public void Configure(RunnerMovementMotor motor, Image fill, TextMeshProUGUI label, TextMeshProUGUI value)
     {
         movementMotor = motor;
         fillImage = fill;

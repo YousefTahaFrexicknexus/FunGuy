@@ -12,7 +12,7 @@ public class LoadingScreen : MonoBehaviour
 	[Header("Main Components")]
     [SerializeField] CanvasGroup this_CanvasGroup;
     [SerializeField] TMP_Text loadingText;
-    [SerializeField] ProgressBar loading_ProgressBar;
+    [SerializeField] LoadingBar loading_ProgressBar;
 
 	[Header("Properties")]
     [SerializeField] float fadeDuration = 1;

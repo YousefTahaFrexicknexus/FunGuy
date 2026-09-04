@@ -25,11 +25,13 @@ public class CollectableSpawner : MonoBehaviour
     void OnEnable()
     {
         MushroomSpawnEvent.OnMushroomSpawned += SpawnBetweenMushrooms;
+        GameplayEvents.GameplayReset += Clear;
     }
 
     void OnDisable()
     {
         MushroomSpawnEvent.OnMushroomSpawned -= SpawnBetweenMushrooms;
+        GameplayEvents.GameplayReset -= Clear;
     }
 
     void SpawnBetweenMushrooms(Transform currentMushroom)

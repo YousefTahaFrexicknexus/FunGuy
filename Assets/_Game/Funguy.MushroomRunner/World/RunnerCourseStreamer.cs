@@ -1313,6 +1313,9 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
         instance.transform.rotation = Quaternion.identity;
         instance.transform.localScale = definition.LocalScale;
 
+        // Notify systems
+        MushroomSpawnEvent.Invoke(instance.transform);
+
         Mushroom mushroom = instance.GetComponent<Mushroom>();
         if (mushroom == null)
         {

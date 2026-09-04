@@ -10,12 +10,12 @@ public class RunnerMovementMotor : MonoBehaviour
     const float MinDirectionSqrMagnitude = 0.0001f;
     const float PlanarSpeedFloorMinAlignment = 0.45f;
 
-    [SerializeField] Rigidbody body;
+    public Rigidbody rigidBody;
     [SerializeField] MovementTuningProfile tuningProfile;
     [SerializeField] bool motorEnabled = true;
     [SerializeField] Vector3 worldUp = Vector3.up;
 
-    Collider[] bodyColliders = Array.Empty<Collider>();
+    Collider[] rigidBodyColliders = Array.Empty<Collider>();
     MovementInputFrame currentInput = MovementInputFrame.Empty;
     BounceCandidate lastBounceCandidate;
     bool hasBounceCandidate;
@@ -35,7 +35,7 @@ public class RunnerMovementMotor : MonoBehaviour
     public event Action<BounceEventData> Bounced;
     public event Action Dashed;
 
-    public Vector3 Velocity => body != null ? body.linearVelocity : Vector3.zero;
+    public Vector3 Velocity => rigidBody != null ? rigidBody.linearVelocity : Vector3.zero;
 
     public MovementTuningProfile TuningProfile => tuningProfile;
 
@@ -47,33 +47,33 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void Reset()
     {
-        body = GetComponent<Rigidbody>();
+        rigidBody = GetComponent<Rigidbody>();
         CacheBodyColliders();
     }
 
     void Awake()
     {
-        if (body == null)
+        if (rigidBody == null)
         {
-            body = GetComponent<Rigidbody>();
+            rigidBody = GetComponent<Rigidbody>();
         }
 
         CacheBodyColliders();
-        ConfigureRigidbody();
+        ConfigureRigidrigidBody();
     }
 
     void OnValidate()
     {
-        if (body == null)
+        if (rigidBody == null)
         {
-            body = GetComponent<Rigidbody>();
+            rigidBody = GetComponent<Rigidbody>();
         }
 
         worldUp = worldUp.sqrMagnitude > MinDirectionSqrMagnitude ? worldUp.normalized : Vector3.up;
 
-        if (body != null)
+        if (rigidBody != null)
         {
-            ConfigureRigidbody();
+            ConfigureRigidrigidBody();
         }
 
         CacheBodyColliders();
@@ -93,7 +93,7 @@ public class RunnerMovementMotor : MonoBehaviour
             activeBounceFlightShape = default;
         }
 
-        if (body == null || tuningProfile == null)
+        if (rigidBody == null || tuningProfile == null)
         {
             return;
         }
@@ -105,7 +105,7 @@ public class RunnerMovementMotor : MonoBehaviour
         }
 
         float deltaTime = Time.fixedDeltaTime;
-        Vector3 velocity = body.linearVelocity;
+        Vector3 velocity = rigidBody.linearVelocity;
 
         ApplyShapedGravity(ref velocity, deltaTime);
 
@@ -144,8 +144,10 @@ public class RunnerMovementMotor : MonoBehaviour
         ApplyPlanarSpeedFloor(ref velocity);
         TryConsumeBufferedDash(ref velocity, bouncedThisStep);
 
-        body.linearVelocity = velocity;
+        rigidBody.linearVelocity = velocity;
         isGrounded = !bouncedThisStep && ComputeGroundedState();
+
+        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, tuningProfile.MaxSpeed);
     }
 
     public void SetInput(MovementInputFrame inputFrame)
@@ -161,6 +163,8 @@ public class RunnerMovementMotor : MonoBehaviour
         }
 
         bufferedDashUntil = Mathf.Max(bufferedDashUntil, Time.time + tuningProfile.DashBufferTime);
+
+        GameplayEvents.OnAirJump?.Invoke(0);
     }
 
     public void SetTuningProfile(MovementTuningProfile profile)
@@ -194,12 +198,12 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
-        if (body == null)
+        if (rigidBody == null)
         {
-            body = GetComponent<Rigidbody>();
+            rigidBody = GetComponent<Rigidbody>();
         }
 
-        if (body == null)
+        if (rigidBody == null)
         {
             return;
         }
@@ -217,13 +221,13 @@ public class RunnerMovementMotor : MonoBehaviour
         currentInput = MovementInputFrame.Empty;
         activeBounceFlightShape = default;
 
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
+        rigidBody.linearVelocity = Vector3.zero;
+        rigidBody.angularVelocity = Vector3.zero;
         transform.SetPositionAndRotation(worldPosition, worldRotation);
-        body.position = worldPosition;
-        body.rotation = worldRotation;
+        rigidBody.position = worldPosition;
+        rigidBody.rotation = worldRotation;
         Physics.SyncTransforms();
-        body.WakeUp();
+        rigidBody.WakeUp();
         RestoreIgnoredBounceSurface();
     }
 
@@ -239,20 +243,22 @@ public class RunnerMovementMotor : MonoBehaviour
         Vector3 contactPoint,
         Vector3 contactNormal)
     {
-        if (body == null)
+        if (rigidBody == null)
         {
-            body = GetComponent<Rigidbody>();
+            rigidBody = GetComponent<Rigidbody>();
         }
 
-        if (body == null || tuningProfile == null || bounceProfile == null || !motorEnabled)
+        if (rigidBody == null || tuningProfile == null || bounceProfile == null || !motorEnabled)
         {
             return false;
         }
 
+        GameplayEvents.OnMushroomJump?.Invoke();
+
         Vector3 safeContactNormal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude
             ? contactNormal.normalized
             : Up;
-        Vector3 incomingVelocity = body.linearVelocity;
+        Vector3 incomingVelocity = rigidBody.linearVelocity;
         BounceContext context = new(
             incomingVelocity,
             contactPoint,
@@ -264,7 +270,7 @@ public class RunnerMovementMotor : MonoBehaviour
         BounceSurfaceResponse response = bounceProfile.CreateDirectedResponse(forceDirection, context);
         Vector3 outgoingVelocity = ApplyBounceResponse(incomingVelocity, response);
         Vector3 forceDelta = outgoingVelocity - incomingVelocity;
-        body.AddForce(forceDelta, ForceMode.VelocityChange);
+        rigidBody.AddForce(forceDelta, ForceMode.VelocityChange);
 
         activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
         UpdatePlanarSpeedFloor(outgoingVelocity, response);
@@ -310,12 +316,12 @@ public class RunnerMovementMotor : MonoBehaviour
         }
     }
 
-    void ConfigureRigidbody()
+    void ConfigureRigidrigidBody()
     {
-        body.useGravity = false;
-        body.constraints |= RigidbodyConstraints.FreezeRotation;
-        body.interpolation = RigidbodyInterpolation.Interpolate;
-        body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rigidBody.useGravity = false;
+        rigidBody.constraints |= RigidbodyConstraints.FreezeRotation;
+        rigidBody.interpolation = RigidbodyInterpolation.Interpolate;
+        rigidBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
     }
 
     void ApplyShapedGravity(ref Vector3 velocity, float deltaTime)
@@ -541,7 +547,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void CacheBounceCandidate(Collision collision)
     {
-        if (body == null || tuningProfile == null || collision == null)
+        if (rigidBody == null || tuningProfile == null || collision == null)
         {
             return;
         }
@@ -557,7 +563,7 @@ public class RunnerMovementMotor : MonoBehaviour
             return;
         }
 
-        if (Vector3.Dot(body.linearVelocity, Up) > LandingVerticalTolerance && !AllowsBounceWhileMovingUpward(surface))
+        if (Vector3.Dot(rigidBody.linearVelocity, Up) > LandingVerticalTolerance && !AllowsBounceWhileMovingUpward(surface))
         {
             return;
         }
@@ -647,7 +653,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplyPostBounceCollisionIgnore(IBounceSurface surface, Collider surfaceCollider)
     {
-        if (surfaceCollider == null || bodyColliders == null || bodyColliders.Length == 0)
+        if (surfaceCollider == null || rigidBodyColliders == null || rigidBodyColliders.Length == 0)
         {
             return;
         }
@@ -669,15 +675,15 @@ public class RunnerMovementMotor : MonoBehaviour
         ignoredBounceSurface = surfaceCollider;
         ignoredBounceSurfaceUntil = Mathf.Max(ignoredBounceSurfaceUntil, Time.time + ignoreDuration);
 
-        for (int index = 0; index < bodyColliders.Length; index++)
+        for (int index = 0; index < rigidBodyColliders.Length; index++)
         {
-            Collider bodyCollider = bodyColliders[index];
-            if (bodyCollider == null)
+            Collider rigidBodyCollider = rigidBodyColliders[index];
+            if (rigidBodyCollider == null)
             {
                 continue;
             }
 
-            Physics.IgnoreCollision(bodyCollider, surfaceCollider, true);
+            Physics.IgnoreCollision(rigidBodyCollider, surfaceCollider, true);
         }
     }
 
@@ -693,22 +699,22 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void RestoreIgnoredBounceSurface()
     {
-        if (ignoredBounceSurface == null || bodyColliders == null)
+        if (ignoredBounceSurface == null || rigidBodyColliders == null)
         {
             ignoredBounceSurface = null;
             ignoredBounceSurfaceUntil = float.NegativeInfinity;
             return;
         }
 
-        for (int index = 0; index < bodyColliders.Length; index++)
+        for (int index = 0; index < rigidBodyColliders.Length; index++)
         {
-            Collider bodyCollider = bodyColliders[index];
-            if (bodyCollider == null)
+            Collider rigidBodyCollider = rigidBodyColliders[index];
+            if (rigidBodyCollider == null)
             {
                 continue;
             }
 
-            Physics.IgnoreCollision(bodyCollider, ignoredBounceSurface, false);
+            Physics.IgnoreCollision(rigidBodyCollider, ignoredBounceSurface, false);
         }
 
         ignoredBounceSurface = null;
@@ -717,7 +723,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void CacheBodyColliders()
     {
-        bodyColliders = GetComponentsInChildren<Collider>(true);
+        rigidBodyColliders = GetComponentsInChildren<Collider>(true);
     }
 
     bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)

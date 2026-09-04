@@ -16,8 +16,8 @@ MonoBehaviour:
   airControlStrength: 0.5
   forwardAirControlMultiplier: 0.72
   airBrakeAcceleration: 24
-  maxControllableSpeed: 13.5
-  maxSpeed: 48
+  maxControllableSpeed: 450
+  maxSpeed: 999
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
