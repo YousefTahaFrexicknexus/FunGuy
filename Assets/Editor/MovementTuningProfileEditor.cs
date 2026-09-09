@@ -33,8 +33,12 @@ public sealed class MovementTuningProfileEditor : Editor
         EditorGUILayout.HelpBox("Entries select x1, x2, x3… Higher multipliers use the last entry. Gears change the ceiling; bounces and steering build speed.", MessageType.Info);
         Section("Steering");
         Property("airAcceleration", "Air Acceleration (units/s²)");
-        Property("forwardAirControlMultiplier", "Forward Steering");
-        Property("airBrakeAcceleration", "Braking (units/s²)");
+        Property("forwardAirControlMultiplier", "Forward Propulsion");
+        Property("strafeSpeed", "Sideways Speed (units/s)");
+        Property("steeringResponse", "Steering Response (seconds)");
+        Property("airDrag", "Air Resistance (units/s squared)");
+        Property("brakeResponse", "Brake Response (seconds)");
+        Property("divePull", "Dive Pull (units/s squared)");
         Section("Bounce");
         Property("baseJumpForce", "Launch Speed (units/s)");
         Property("baseBounceSpeedGain", "Speed Gain (units/s)");
@@ -46,10 +50,8 @@ public sealed class MovementTuningProfileEditor : Editor
         if (showAdvanced)
         {
             EditorGUI.indentLevel++;
-            Property("turnBraking", "Turn Braking (units/s²)");
-            Property("maxControllableSpeed", "Steering Speed Limit (units/s)");
+            Property("maxControllableSpeed", "Propulsion Speed Limit (units/s)");
             Property("overSpeedDrag", "Overspeed Slowdown (1/s)");
-            Property("airDrag", "Coasting Drag (units/s²)");
             foreach (string name in new[] {
                 "gravityScale", "jumpGravityMultiplier", "fallGravityMultiplier", "useBounceFlightShaper",
                 "referencePlanarSpeed", "maximumPlanarSpeed", "slowRiseGravityMultiplier", "fastRiseGravityMultiplier",

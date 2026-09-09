@@ -13,9 +13,11 @@ MonoBehaviour:
   m_Name: HollowBounce
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   airAcceleration: 6.3
-  turnBraking: 41
+  strafeSpeed: 8.8
+  steeringResponse: 0.1
   forwardAirControlMultiplier: 0.5
-  airBrakeAcceleration: 26
+  brakeResponse: 0.25
+  divePull: 40
   maxControllableSpeed: 11
   speedGears:
   - 15.5

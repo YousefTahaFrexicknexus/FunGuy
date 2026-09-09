@@ -13,9 +13,11 @@ MonoBehaviour:
   m_Name: RiskOfRainCruiser
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   airAcceleration: 6.48
-  turnBraking: 31.5
+  strafeSpeed: 10
+  steeringResponse: 0.1
   forwardAirControlMultiplier: 0.65
-  airBrakeAcceleration: 18
+  brakeResponse: 0.25
+  divePull: 40
   maxControllableSpeed: 12.5
   speedGears:
   - 16.5

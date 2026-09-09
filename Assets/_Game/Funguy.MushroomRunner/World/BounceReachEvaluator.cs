@@ -16,7 +16,8 @@ using UnityEngine;
             float landingHeightTolerance,
             float simulationTimeStep,
             float maxSimulationTime,
-            float maxSpeed)
+            float maxSpeed,
+            float incomingDiveAddedDownSpeed = 0f)
         {
             SurfaceRootPosition = surfaceRootPosition;
             IncomingVelocity = incomingVelocity;
@@ -32,6 +33,7 @@ using UnityEngine;
             SimulationTimeStep = simulationTimeStep;
             MaxSimulationTime = maxSimulationTime;
             MaxSpeed = maxSpeed;
+            IncomingDiveAddedDownSpeed = incomingDiveAddedDownSpeed;
         }
 
         public Vector3 SurfaceRootPosition { get; }
@@ -61,16 +63,19 @@ using UnityEngine;
         public float MaxSimulationTime { get; }
 
         public float MaxSpeed { get; }
+
+        public float IncomingDiveAddedDownSpeed { get; }
     }
 
     public readonly struct BounceReachResult
     {
-        public BounceReachResult(Vector3 launchVelocity, Vector3 landingVelocity, Vector3 landingPosition, float flightTime)
+        public BounceReachResult(Vector3 launchVelocity, Vector3 landingVelocity, Vector3 landingPosition, float flightTime, float diveAddedDownSpeed = 0f)
         {
             LaunchVelocity = launchVelocity;
             LandingVelocity = landingVelocity;
             LandingPosition = landingPosition;
             FlightTime = flightTime;
+            DiveAddedDownSpeed = diveAddedDownSpeed;
         }
 
         public Vector3 LaunchVelocity { get; }
@@ -80,6 +85,8 @@ using UnityEngine;
         public Vector3 LandingPosition { get; }
 
         public float FlightTime { get; }
+
+        public float DiveAddedDownSpeed { get; }
     }
 
     public static class BounceReachEvaluator
@@ -109,10 +116,11 @@ using UnityEngine;
                 MovementInputFrame.Empty);
 
             BounceSurfaceResponse bounceResponse = request.LaunchProfile.CreateResponse(null, context);
-            Vector3 launchVelocity = BounceMovementMath.ApplyBounceResponse(request.IncomingVelocity, bounceResponse, request.TuningProfile, up);
+            Vector3 launchVelocity = BounceMovementMath.ApplyBounceResponse(request.IncomingVelocity, bounceResponse, request.TuningProfile, up, request.IncomingDiveAddedDownSpeed);
             Vector3 velocity = launchVelocity;
             Vector3 position = bouncePoint;
             float elapsedTime = 0f;
+            float diveAddedDownSpeed = 0f;
             float deltaTime = Mathf.Max(0.005f, request.SimulationTimeStep);
             float maxTime = Mathf.Max(deltaTime, request.MaxSimulationTime);
             float drag = bounceResponse.HasPlanarDragOverride
@@ -130,8 +138,9 @@ using UnityEngine;
 
                 if (elapsedTime > 0f)
                 {
-                    MovementInputFrame inputFrame = ResolveIntentInput(request.Intent, position, velocity, targetPoint, up);
-                    BounceMovementMath.ApplyAirAcceleration(
+                    MovementInputFrame inputFrame = ResolveIntentInput(request.Intent, position, targetPoint, up, request.TuningProfile);
+                    diveAddedDownSpeed += BounceMovementMath.ApplyDive(ref velocity, request.TuningProfile, inputFrame.BrakeAmount, up, deltaTime);
+                    BounceMovementMath.ApplyAirMovement(
                         ref velocity,
                         request.TuningProfile,
                         inputFrame,
@@ -158,7 +167,7 @@ using UnityEngine;
 
                 if (SegmentHitsLandingWindow(previousPosition, position, targetPoint, up, request.LandingRadius, request.LandingHeightTolerance))
                 {
-                    result = new BounceReachResult(launchVelocity, velocity, position, elapsedTime);
+                    result = new BounceReachResult(launchVelocity, velocity, position, elapsedTime, diveAddedDownSpeed);
                     return true;
                 }
             }
@@ -208,26 +217,26 @@ using UnityEngine;
         static MovementInputFrame ResolveIntentInput(
             BounceIntentDirective intent,
             Vector3 position,
-            Vector3 velocity,
             Vector3 targetPoint,
-            Vector3 up)
+            Vector3 up,
+            MovementTuningProfile profile)
         {
-            Vector3 toTarget = Vector3.ProjectOnPlane(targetPoint - position, up);
-            Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
-
-            Vector3 wishDirection = toTarget.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude
-                ? toTarget.normalized
-                : planarVelocity.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude
-                    ? planarVelocity.normalized
-                    : Vector3.forward;
-
-            float magnitude = intent switch
+            // Course progression uses world-forward. Predict the same bounded sideways correction as the motor,
+            // rather than rotating a virtual camera toward the target and granting unlimited lateral reach.
+            Vector3 forward = BounceMovementMath.ResolvePlanarForward(Vector3.forward, up);
+            Vector3 right = Vector3.Cross(up, forward);
+            float lateralError = Vector3.Dot(targetPoint - position, right);
+            float approachTime = Mathf.Max(.25f, profile.SteeringResponse * 3f);
+            float sidewaysInput = profile.StrafeSpeed > 0f
+                ? Mathf.Clamp(lateralError / (approachTime * profile.StrafeSpeed), -1f, 1f) : 0f;
+            float forwardInput = intent switch
             {
-                BounceIntentDirective.Brake => 0.55f,
+                BounceIntentDirective.Brake => -.55f,
                 BounceIntentDirective.Boost => 1f,
-                _ => 0.78f
+                _ => .78f
             };
-
-            return new MovementInputFrame(new Vector2(0f, magnitude), wishDirection, wishDirection, magnitude, false);
+            Vector2 move = Vector2.ClampMagnitude(new Vector2(sidewaysInput, forwardInput), 1f);
+            Vector3 wish = (forward * move.y + right * move.x).normalized;
+            return new MovementInputFrame(move, wish, forward, move.magnitude, false);
         }
     }

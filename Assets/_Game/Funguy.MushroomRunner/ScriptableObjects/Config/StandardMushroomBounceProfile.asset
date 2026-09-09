@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e49aca6482674bb1a1f8fc7c08d631ff, type: 3}
   m_Name: StandardMushroomBounceProfile
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MushroomBounceProfile
-  velocityScale: 2
+  velocityScale: 1
   directionalInfluence: 0.62
   planarBoost: 1.35
   useAbsoluteUpwardImpulse: 0

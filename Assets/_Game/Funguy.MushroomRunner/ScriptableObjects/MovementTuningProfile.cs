@@ -56,19 +56,23 @@ public sealed class MovementTuningProfile : ScriptableObject
     [SerializeField, Tooltip("Soft horizontal speed ceilings in world units/second. Entries correspond to x1, x2, x3, and so on.")]
     float[] speedGears = { 15f, 25f, 40f, 60f };
 
-    [SerializeField, Tooltip("Air steering acceleration in world units/second squared, before directional and temporary control modifiers.")]
+    [SerializeField, Tooltip("Air propulsion acceleration in world units/second squared, before directional and temporary control modifiers.")]
     float airAcceleration = 24f;
-    [SerializeField, Tooltip("Acceleration removing sideways velocity during a turn, in world units/second squared. Requires Braking above zero.")]
-    float turnBraking = 42f;
-    [SerializeField, Tooltip("Multiplier applied to forward steering so forward control can be looser or tighter than strafe control.")]
+    [SerializeField, Tooltip("Maximum sideways aiming speed in world units/second. Forward momentum is carried separately.")]
+    float strafeSpeed = 12f;
+    [SerializeField, Tooltip("Seconds to close 63% of the gap to requested sideways speed. Also controls how quickly sideways drift stops on release.")]
+    float steeringResponse = 0.1f;
+    [SerializeField, Tooltip("Propulsion multiplier when already aligned with the requested heading.")]
     float forwardAirControlMultiplier = 0.6f;
-    [SerializeField, Tooltip("How quickly brake input removes planar speed while airborne.")]
-    float airBrakeAcceleration = 18f;
-    [SerializeField, Tooltip("Directional steering speed limit in world units/second. Bounces can carry you faster; this is independent of speed gears.")]
+    [SerializeField, Tooltip("Seconds for full backward input to remove about 63% of horizontal speed.")]
+    float brakeResponse = 0.25f;
+    [SerializeField, Tooltip("Extra downward acceleration from backward input while airborne, in world units/second squared.")]
+    float divePull = 40f;
+    [SerializeField, Tooltip("Forward propulsion limit in world units/second. Sideways control remains available above this speed, independently of gears.")]
     float maxControllableSpeed = 12f;
     [SerializeField, Tooltip("Proportional slowdown above the current gear ceiling, in inverse seconds.")]
     float overSpeedDrag = 8f;
-    [SerializeField, Tooltip("Horizontal coasting deceleration in world units/second squared.")]
+    [SerializeField, Tooltip("Horizontal air resistance in world units/second squared. Speed lost here stays lost until input or a bounce adds it back.")]
     float airDrag = 0.5f;
 
     [SerializeField, Tooltip("Base gravity multiplier applied to the player.")]
@@ -109,13 +113,13 @@ public sealed class MovementTuningProfile : ScriptableObject
     float dashCooldown = 0.2f;
     [SerializeField, Tooltip("Air jump charges restored on each bounce.")]
     int dashChargesPerBounce = 1;
-    [SerializeField, Tooltip("Short low-control window immediately after a bounce.")]
+    [SerializeField, Tooltip("Short low-propulsion window immediately after a bounce.")]
     float postBounceLowControlTime = 0.1f;
-    [SerializeField, Tooltip("Air-control multiplier used during the post-bounce low-control window.")]
+    [SerializeField, Tooltip("Propulsion multiplier used during the post-bounce low-control window.")]
     float postBounceAirControlMultiplier = 0.35f;
     [SerializeField, Tooltip("Short bonus-control window immediately after a dash.")]
     float postDashBonusControlTime = 0.18f;
-    [SerializeField, Tooltip("Air-control multiplier used during the post-dash bonus-control window.")]
+    [SerializeField, Tooltip("Propulsion multiplier used during the post-dash bonus-control window.")]
     float postDashAirControlMultiplier = 1.35f;
 
     [SerializeField, Tooltip("Grace window that still accepts a bounce shortly after leaving a surface.")]
@@ -127,11 +131,15 @@ public sealed class MovementTuningProfile : ScriptableObject
 
     public float AirAcceleration => airAcceleration;
 
-    public float TurnBraking => turnBraking;
+    public float StrafeSpeed => NonNegativeFinite(strafeSpeed);
+
+    public float SteeringResponse => Mathf.Max(0.01f, NonNegativeFinite(steeringResponse));
 
     public float ForwardAirControlMultiplier => forwardAirControlMultiplier;
 
-    public float AirBrakeAcceleration => airBrakeAcceleration;
+    public float BrakeResponse => Mathf.Max(0.01f, NonNegativeFinite(brakeResponse));
+
+    public float DivePull => NonNegativeFinite(divePull);
 
     public float MaxControllableSpeed => maxControllableSpeed;
 
@@ -207,9 +215,11 @@ public sealed class MovementTuningProfile : ScriptableObject
     void OnValidate()
     {
         airAcceleration = NonNegativeFinite(airAcceleration);
-        turnBraking = NonNegativeFinite(turnBraking);
+        strafeSpeed = NonNegativeFinite(strafeSpeed);
+        steeringResponse = Mathf.Max(0.01f, NonNegativeFinite(steeringResponse));
         forwardAirControlMultiplier = Mathf.Max(0f, forwardAirControlMultiplier);
-        airBrakeAcceleration = Mathf.Max(0f, airBrakeAcceleration);
+        brakeResponse = Mathf.Max(0.01f, NonNegativeFinite(brakeResponse));
+        divePull = NonNegativeFinite(divePull);
         maxControllableSpeed = Mathf.Max(0f, maxControllableSpeed);
         if (speedGears == null || speedGears.Length == 0)
         {

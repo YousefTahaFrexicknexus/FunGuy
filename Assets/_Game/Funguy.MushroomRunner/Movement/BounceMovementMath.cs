@@ -76,7 +76,6 @@ public struct BounceFlightShapeState
 public static class BounceMovementMath
 {
     public const float MinimumDirectionSqrMagnitude = 0.0001f;
-    const float BackwardBrakeMultiplier = 0.75f;
 
     public static void ApplyShapedGravity(
         ref Vector3 velocity,
@@ -172,7 +171,8 @@ public static class BounceMovementMath
         return true;
     }
 
-    public static void ApplyAirAcceleration(
+    // Forward carry and lateral aiming are separate. Only deliberate forward input adds forward speed.
+    public static void ApplyAirMovement(
         ref Vector3 velocity,
         MovementTuningProfile tuningProfile,
         in MovementInputFrame inputFrame,
@@ -181,82 +181,65 @@ public static class BounceMovementMath
         bool inPostDashBoost,
         float deltaTime)
     {
-        if (tuningProfile == null || !inputFrame.HasMoveInput)
-        {
-            return;
-        }
+        if (tuningProfile == null || deltaTime <= 0f) return;
+        ApplyLateralControl(ref velocity, tuningProfile, inputFrame, worldUp, deltaTime);
+        ApplyAirBraking(ref velocity, tuningProfile, inputFrame.BrakeAmount, worldUp, deltaTime);
+        float forwardInput = Mathf.Clamp01(inputFrame.Move.y);
+        if (forwardInput <= 0f || !inputFrame.HasMoveInput) return;
 
+        Vector3 forward = ResolvePlanarForward(inputFrame.ReferenceForward, worldUp);
+        float forwardSpeed = Vector3.Dot(velocity, forward);
+        float speedToAdd = tuningProfile.MaxControllableSpeed * forwardInput - forwardSpeed;
+        if (speedToAdd <= 0f) return;
+        float acceleration = tuningProfile.AirAcceleration * forwardInput
+            * ResolveContextualAirControlMultiplier(tuningProfile, 1f, inPostBounceLowControl, inPostDashBoost);
+        velocity += forward * Mathf.Min(speedToAdd, acceleration * deltaTime);
+    }
+
+    public static void ApplyLateralControl(ref Vector3 velocity, MovementTuningProfile profile,
+        in MovementInputFrame input, Vector3 worldUp, float deltaTime)
+    {
+        if (profile == null || deltaTime <= 0f) return;
         Vector3 up = GetSafeUp(worldUp);
-        Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
-        Vector3 verticalVelocity = up * Vector3.Dot(velocity, up);
-        Vector3 wishDirection = inputFrame.WishDirection.normalized;
+        Vector3 forward = ResolvePlanarForward(input.ReferenceForward, up);
+        Vector3 right = Vector3.Cross(up, forward);
+        float sidewaysSpeed = Vector3.Dot(velocity, right);
+        float targetSpeed = profile.StrafeSpeed * (input.HasMoveInput ? Mathf.Clamp(input.Move.x, -1f, 1f) : 0f);
+        float response = 1f - Mathf.Exp(-deltaTime / profile.SteeringResponse);
+        float nextSpeed = Mathf.Lerp(sidewaysSpeed, targetSpeed, response);
+        // On release the target is zero: grip removes drift instead of redirecting it into free forward speed.
+        velocity += right * (nextSpeed - sidewaysSpeed);
+    }
 
-        if (planarVelocity.sqrMagnitude <= MinimumDirectionSqrMagnitude)
-        {
-            float initialAccelerationDelta = tuningProfile.AirAcceleration
-                * ResolveContextualAirControlMultiplier(tuningProfile, 0f, inPostBounceLowControl, inPostDashBoost)
-                * inputFrame.Magnitude
-                * deltaTime;
+    public static Vector3 ResolvePlanarForward(Vector3 referenceForward, Vector3 worldUp)
+    {
+        Vector3 up = GetSafeUp(worldUp);
+        Vector3 forward = Vector3.ProjectOnPlane(referenceForward, up);
+        if (forward.sqrMagnitude <= MinimumDirectionSqrMagnitude)
+            forward = Vector3.ProjectOnPlane(Vector3.forward, up);
+        if (forward.sqrMagnitude <= MinimumDirectionSqrMagnitude)
+            forward = Vector3.ProjectOnPlane(Vector3.right, up);
+        return forward.normalized;
+    }
 
-            planarVelocity += wishDirection * initialAccelerationDelta;
-            velocity = planarVelocity + verticalVelocity;
-            return;
-        }
+    public static void ApplyAirBraking(ref Vector3 velocity, MovementTuningProfile profile,
+        float brakeAmount, Vector3 worldUp, float deltaTime)
+    {
+        if (profile == null || brakeAmount <= 0f || deltaTime <= 0f) return;
+        Vector3 up = GetSafeUp(worldUp);
+        Vector3 planar = Vector3.ProjectOnPlane(velocity, up);
+        float retention = Mathf.Exp(-Mathf.Clamp01(brakeAmount) * deltaTime / profile.BrakeResponse);
+        velocity = planar * retention + up * Vector3.Dot(velocity, up);
+    }
 
-        Vector3 planarDirection = planarVelocity.normalized;
-        float alignment = Vector3.Dot(planarDirection, wishDirection);
-        float contextualMultiplier = ResolveContextualAirControlMultiplier(
-            tuningProfile,
-            alignment,
-            inPostBounceLowControl,
-            inPostDashBoost);
-
-        float currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
-        Vector3 sideVelocity = planarVelocity - (wishDirection * currentAlongWish);
-
-        if (sideVelocity.sqrMagnitude > MinimumDirectionSqrMagnitude && tuningProfile.AirBrakeAcceleration > 0f)
-        {
-            // Bleed velocity that fights the new wish direction so diagonal swaps do not feel ignored in-air.
-            float turnSharpness = 1f - Mathf.Clamp01(alignment);
-            float turnBrakeDelta = tuningProfile.TurnBraking
-                * turnSharpness
-                * inputFrame.Magnitude
-                * deltaTime;
-            sideVelocity = Vector3.MoveTowards(sideVelocity, Vector3.zero, turnBrakeDelta);
-            planarVelocity = (wishDirection * currentAlongWish) + sideVelocity;
-        }
-
-        if (alignment < 0f && tuningProfile.AirBrakeAcceleration > 0f)
-        {
-            float brakeDelta = tuningProfile.AirBrakeAcceleration * (-alignment) * inputFrame.Magnitude * deltaTime;
-            planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, brakeDelta);
-        }
-
-        if (inputFrame.BrakeAmount > 0f && tuningProfile.AirBrakeAcceleration > 0f)
-        {
-            float backwardBrakeDelta = tuningProfile.AirBrakeAcceleration
-                * inputFrame.BrakeAmount
-                * BackwardBrakeMultiplier
-                * deltaTime;
-            planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, backwardBrakeDelta);
-        }
-
-        currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
-        float targetAlongWish = tuningProfile.MaxControllableSpeed * inputFrame.Magnitude;
-        float speedToAdd = targetAlongWish - currentAlongWish;
-        if (speedToAdd <= 0f)
-        {
-            velocity = planarVelocity + verticalVelocity;
-            return;
-        }
-
-        float accelerationDelta = tuningProfile.AirAcceleration
-            * contextualMultiplier
-            * inputFrame.Magnitude
-            * deltaTime;
-
-        planarVelocity += wishDirection * Mathf.Min(speedToAdd, accelerationDelta);
-        velocity = planarVelocity + verticalVelocity;
+    // Return the added downward speed so callers can exclude it from the next impact recovery.
+    public static float ApplyDive(ref Vector3 velocity, MovementTuningProfile profile,
+        float brakeAmount, Vector3 worldUp, float deltaTime)
+    {
+        if (profile == null || deltaTime <= 0f) return 0f;
+        float addedSpeed = profile.DivePull * Mathf.Clamp01(brakeAmount) * deltaTime;
+        velocity -= GetSafeUp(worldUp) * addedSpeed;
+        return addedSpeed;
     }
 
     public static void ApplyPlanarDrag(ref Vector3 velocity, Vector3 worldUp, float drag, float deltaTime)
@@ -304,7 +287,8 @@ public static class BounceMovementMath
         Vector3 incomingVelocity,
         in BounceSurfaceResponse response,
         MovementTuningProfile tuningProfile,
-        Vector3 worldUp)
+        Vector3 worldUp,
+        float diveAddedDownSpeed = 0f)
     {
         Vector3 up = GetSafeUp(worldUp);
         Vector3 planarVelocity = Vector3.ProjectOnPlane(incomingVelocity, up);
@@ -378,7 +362,7 @@ public static class BounceMovementMath
         }
 
         float verticalSpeed = Vector3.Dot(incomingVelocity, up);
-        float impactBonus = Mathf.Max(0f, -verticalSpeed) * response.ImpactRecoveryFactor;
+        float impactBonus = Mathf.Max(0f, -verticalSpeed - Mathf.Max(0f, diveAddedDownSpeed)) * response.ImpactRecoveryFactor;
         Vector3 verticalOut = up * (response.UpwardImpulse + impactBonus);
         return planarOut + verticalOut;
     }

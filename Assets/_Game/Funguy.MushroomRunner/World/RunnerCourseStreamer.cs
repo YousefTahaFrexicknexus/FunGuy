@@ -49,16 +49,19 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
 
     readonly struct RouteNodeState
     {
-        public RouteNodeState(Vector3 rootPosition, Vector3 incomingVelocity, BounceSpawnDefinition spawnDefinition)
+        public RouteNodeState(Vector3 rootPosition, Vector3 incomingVelocity, BounceSpawnDefinition spawnDefinition, float diveAddedDownSpeed = 0f)
         {
             RootPosition = rootPosition;
             IncomingVelocity = incomingVelocity;
             SpawnDefinition = spawnDefinition;
+            DiveAddedDownSpeed = diveAddedDownSpeed;
         }
 
         public Vector3 RootPosition { get; }
 
         public Vector3 IncomingVelocity { get; }
+
+        public float DiveAddedDownSpeed { get; }
 
         public BounceSpawnDefinition SpawnDefinition { get; }
 
@@ -330,7 +333,7 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
                 continue;
             }
 
-            nextState = new RouteNodeState(candidate, result.LandingVelocity, nextDefinition);
+            nextState = new RouteNodeState(candidate, result.LandingVelocity, nextDefinition, result.DiveAddedDownSpeed);
             return true;
         }
 
@@ -376,7 +379,7 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
                 continue;
             }
 
-            nextState = new RouteNodeState(candidate, result.LandingVelocity, fallbackDefinition);
+            nextState = new RouteNodeState(candidate, result.LandingVelocity, fallbackDefinition, result.DiveAddedDownSpeed);
             return true;
         }
 
@@ -434,7 +437,7 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
                     continue;
                 }
 
-                nextState = new RouteNodeState(candidate, result.LandingVelocity, recoveryDefinition);
+                nextState = new RouteNodeState(candidate, result.LandingVelocity, recoveryDefinition, result.DiveAddedDownSpeed);
                 return true;
             }
         }
@@ -614,7 +617,8 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
             generationProfile.LandingHeightTolerance,
             generationProfile.SimulationTimeStep,
             generationProfile.MaxSimulationTime,
-            movementMotor != null ? movementMotor.CurrentMaxSpeed : tuningProfile.GetMaxSpeed(1f));
+            movementMotor != null ? movementMotor.CurrentMaxSpeed : tuningProfile.GetMaxSpeed(1f),
+            currentState.DiveAddedDownSpeed);
 
         return BounceReachEvaluator.TryEvaluate(request, out result);
     }
@@ -1059,7 +1063,7 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
             MovementInputFrame.Empty);
 
         BounceSurfaceResponse response = currentState.BounceProfile.CreateResponse(null, context);
-        return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, tuningProfile, Up);
+        return BounceMovementMath.ApplyBounceResponse(currentState.IncomingVelocity, response, tuningProfile, Up, currentState.DiveAddedDownSpeed);
     }
 
     Vector3 EstimateForcedLandingVelocity(RouteNodeState currentState)

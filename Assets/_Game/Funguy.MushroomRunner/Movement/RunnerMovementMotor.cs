@@ -6,7 +6,6 @@ using UnityEngine;
 public class RunnerMovementMotor : MonoBehaviour
 {
     const float MinDirectionSqrMagnitude = 0.0001f;
-    const float PlanarSpeedFloorMinAlignment = 0.45f;
 
     public Rigidbody rigidBody;
     MovementTuningProfile tuningProfile;
@@ -17,8 +16,6 @@ public class RunnerMovementMotor : MonoBehaviour
     float bufferedDashUntil = float.NegativeInfinity;
     float lowControlUntil = float.NegativeInfinity;
     float dashControlBoostUntil = float.NegativeInfinity;
-    float planarSpeedFloor;
-    Vector3 planarSpeedFloorDirection;
     RunnerBounceContacts bounceContacts;
     RunnerBounceContacts Contacts => bounceContacts ??= new RunnerBounceContacts(this);
     Func<float> getSpeedLimit;
@@ -26,6 +23,7 @@ public class RunnerMovementMotor : MonoBehaviour
     Func<bool> tryConsumeDashHandler;
     bool isGrounded;
     BounceFlightShapeState activeBounceFlightShape;
+    float diveAddedDownSpeed;
 
     public event Action<BounceEventData> Bounced;
     public event Action Dashed;
@@ -53,13 +51,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void RefreshSpeedLimit()
     {
-        float nextMaxSpeed = ResolveMaxSpeed();
-        if (nextMaxSpeed < currentMaxSpeed)
-        {
-            // Forget the higher retained speed, even if the next tick shifts up again.
-            planarSpeedFloor = Mathf.Min(planarSpeedFloor, nextMaxSpeed);
-        }
-        currentMaxSpeed = nextMaxSpeed;
+        currentMaxSpeed = ResolveMaxSpeed();
     }
 
     public Vector3 UpDirection => Up;
@@ -103,6 +95,7 @@ public class RunnerMovementMotor : MonoBehaviour
     void OnDisable()
     {
         Contacts.RestoreIgnoredBounceSurface();
+        diveAddedDownSpeed = 0f;
     }
 
     void FixedUpdate()
@@ -130,6 +123,10 @@ public class RunnerMovementMotor : MonoBehaviour
         Vector3 velocity = rigidBody.linearVelocity;
 
         ApplyShapedGravity(ref velocity, deltaTime);
+        if (!isGrounded)
+        {
+            diveAddedDownSpeed += BounceMovementMath.ApplyDive(ref velocity, tuningProfile, currentInput.BrakeAmount, Up, deltaTime);
+        }
 
         float planarDrag = 0f;
         bool applyPlanarDrag = false;
@@ -145,9 +142,14 @@ public class RunnerMovementMotor : MonoBehaviour
             applyPlanarDrag = planarDrag > 0f;
         }
 
-        if (!bouncedThisStep && !isGrounded)
+        if (bouncedThisStep)
         {
-            ApplyAirAcceleration(ref velocity, currentInput, deltaTime);
+            BounceMovementMath.ApplyLateralControl(ref velocity, tuningProfile, currentInput, Up, deltaTime);
+            BounceMovementMath.ApplyAirBraking(ref velocity, tuningProfile, currentInput.BrakeAmount, Up, deltaTime);
+        }
+        else if (!isGrounded)
+        {
+            ApplyAirMovement(ref velocity, currentInput, deltaTime);
         }
 
         if (applyPlanarDrag)
@@ -157,13 +159,6 @@ public class RunnerMovementMotor : MonoBehaviour
 
         ApplySoftSpeedLimit(ref velocity, deltaTime);
 
-        if (bouncedThisStep)
-        {
-            UpdatePlanarSpeedFloor(velocity, bounceResponse);
-        }
-
-        UpdatePlanarSpeedFloorForBraking(velocity);
-        ApplyPlanarSpeedFloor(ref velocity);
         TryConsumeBufferedDash(ref velocity, bouncedThisStep);
 
         rigidBody.linearVelocity = velocity;
@@ -207,10 +202,11 @@ public class RunnerMovementMotor : MonoBehaviour
         if (!enabled)
         {
             bufferedDashUntil = float.NegativeInfinity;
-            planarSpeedFloor = 0f;
-            planarSpeedFloorDirection = Vector3.zero;
+
+
             currentInput = MovementInputFrame.Empty;
             activeBounceFlightShape = default;
+            diveAddedDownSpeed = 0f;
         }
     }
 
@@ -236,11 +232,12 @@ public class RunnerMovementMotor : MonoBehaviour
         bufferedDashUntil = float.NegativeInfinity;
         lowControlUntil = float.NegativeInfinity;
         dashControlBoostUntil = float.NegativeInfinity;
-        planarSpeedFloor = 0f;
-        planarSpeedFloorDirection = Vector3.zero;
+
+
         isGrounded = false;
         currentInput = MovementInputFrame.Empty;
         activeBounceFlightShape = default;
+        diveAddedDownSpeed = 0f;
 
         rigidBody.linearVelocity = Vector3.zero;
         rigidBody.angularVelocity = Vector3.zero;
@@ -293,7 +290,6 @@ public class RunnerMovementMotor : MonoBehaviour
         Vector3 forceDelta = outgoingVelocity - incomingVelocity;
         rigidBody.AddForce(forceDelta, ForceMode.VelocityChange);
 
-        UpdatePlanarSpeedFloor(outgoingVelocity, response);
         CompleteBounce(sourceCollider);
 
         Bounced?.Invoke(new BounceEventData(
@@ -337,9 +333,9 @@ public class RunnerMovementMotor : MonoBehaviour
         BounceMovementMath.ApplyShapedGravity(ref velocity, tuningProfile, Up, deltaTime);
     }
 
-    void ApplyAirAcceleration(ref Vector3 velocity, MovementInputFrame inputFrame, float deltaTime)
+    void ApplyAirMovement(ref Vector3 velocity, MovementInputFrame inputFrame, float deltaTime)
     {
-        BounceMovementMath.ApplyAirAcceleration(
+        BounceMovementMath.ApplyAirMovement(
             ref velocity,
             tuningProfile,
             inputFrame,
@@ -357,42 +353,6 @@ public class RunnerMovementMotor : MonoBehaviour
     void ApplySoftSpeedLimit(ref Vector3 velocity, float deltaTime)
     {
         BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, CurrentMaxSpeed, deltaTime);
-    }
-
-    void ApplyPlanarSpeedFloor(ref Vector3 velocity)
-    {
-        if (tuningProfile == null || currentInput.BrakeAmount > 0.01f || planarSpeedFloor <= 0f)
-        {
-            return;
-        }
-
-        Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-        float planarSpeed = planarVelocity.magnitude;
-        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
-
-        if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
-        {
-            planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
-
-            if (planarSpeed <= MinDirectionSqrMagnitude)
-            {
-                planarSpeedFloorDirection = Vector3.zero;
-            }
-
-            return;
-        }
-
-        Vector3 targetDirection = planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude
-            ? planarVelocity.normalized
-            : planarSpeedFloorDirection;
-
-        if (targetDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-        {
-            return;
-        }
-
-        Vector3 verticalVelocity = Up * Vector3.Dot(velocity, Up);
-        velocity = (targetDirection * targetPlanarSpeed) + verticalVelocity;
     }
 
     bool TryConsumeBounceCandidate(ref Vector3 velocity, out BounceSurfaceResponse response)
@@ -431,57 +391,17 @@ public class RunnerMovementMotor : MonoBehaviour
 
     Vector3 ApplyBounceResponse(Vector3 incomingVelocity, BounceSurfaceResponse response)
     {
-        Vector3 outgoingVelocity = BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, tuningProfile, Up);
+        Vector3 outgoingVelocity = BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, tuningProfile, Up, diveAddedDownSpeed);
         activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
         return outgoingVelocity;
     }
 
     void CompleteBounce(Collider surface)
     {
+        diveAddedDownSpeed = 0f;
         Contacts.MarkConsumed(surface);
         lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
         isGrounded = false;
-    }
-
-    void UpdatePlanarSpeedFloor(Vector3 velocity, BounceSurfaceResponse response)
-    {
-        Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-        float planarSpeed = planarVelocity.magnitude;
-        if (planarSpeed <= 0f)
-        {
-            planarSpeedFloorDirection = Vector3.zero;
-            return;
-        }
-
-        planarSpeedFloorDirection = planarVelocity / planarSpeed;
-        bool isSpeedReducingBounce = response.HasPlanarDragOverride || response.VelocityScale < 1f || response.PlanarBoost < 0f;
-        planarSpeedFloor = isSpeedReducingBounce
-            ? planarSpeed
-            : Mathf.Max(planarSpeedFloor, planarSpeed);
-    }
-
-    void UpdatePlanarSpeedFloorForBraking(Vector3 velocity)
-    {
-        if (currentInput.BrakeAmount <= 0.01f)
-        {
-            return;
-        }
-
-        Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
-        float planarSpeed = planarVelocity.magnitude;
-        if (planarSpeed <= 0f)
-        {
-            planarSpeedFloor = 0f;
-            planarSpeedFloorDirection = Vector3.zero;
-            return;
-        }
-
-        if (planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude)
-        {
-            planarSpeedFloorDirection = planarVelocity.normalized;
-        }
-
-        planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
     }
 
     bool TryConsumeBufferedDash(ref Vector3 velocity, bool bouncedThisStep)
@@ -509,6 +429,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         Vector3 normalizedDashDirection = Up;
         activeBounceFlightShape = default;
+        diveAddedDownSpeed = 0f;
         float speedAlongDash = Vector3.Dot(velocity, normalizedDashDirection);
         if (speedAlongDash < 0f)
         {
@@ -521,37 +442,6 @@ public class RunnerMovementMotor : MonoBehaviour
         dashControlBoostUntil = Time.time + tuningProfile.PostDashBonusControlTime;
         Dashed?.Invoke();
         return true;
-    }
-
-    bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)
-    {
-        if (planarSpeedFloorDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-        {
-            return planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude;
-        }
-
-        if (planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude)
-        {
-            float velocityAlignment = Vector3.Dot(planarVelocity.normalized, planarSpeedFloorDirection);
-            if (velocityAlignment < PlanarSpeedFloorMinAlignment)
-            {
-                return false;
-            }
-        }
-
-        if (!currentInput.HasMoveInput)
-        {
-            return true;
-        }
-
-        Vector3 desiredPlanarDirection = Vector3.ProjectOnPlane(currentInput.WishDirection, Up);
-        if (desiredPlanarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-        {
-            return true;
-        }
-
-        float inputAlignment = Vector3.Dot(desiredPlanarDirection.normalized, planarSpeedFloorDirection);
-        return inputAlignment >= PlanarSpeedFloorMinAlignment;
     }
 
 }

@@ -14,3 +14,7 @@ Source SHA-256 hashes:
 
 
 The fixture covers steering and flight math. Motor state, score binding, scoring, and scene wiring are checked separately; this fixture does not claim to capture a complete interactive physics run.
+
+The air-grip redesign keeps this fixture unchanged. Forward, coast, and twelve no-input flight references run with the original 0.18 drag to isolate launch/gravity regressions. Actual BalancedMomentum now uses 0.8 drag; motor checks require this resistance to remain effective after a bounce. The old diagonal/reversal/brake traces are historical only. New checks cover bounded sideways speed, release stopping distance, countersteering, analog input, dive recovery, and finite lateral reach.
+
+Playtest the same mushroom sequence with keyboard and touch: tap sideways, release over a target, reverse a late correction, pull back to land, and recover using an air jump. Automated physics checks include released-input drift at 40/60, but cannot establish subjective handling acceptance.
