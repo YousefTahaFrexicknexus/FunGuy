@@ -76,7 +76,7 @@ public sealed class SimpleBounceMushroom : MonoBehaviour
 
         Collider sourceCollider = ResolveTriggerCollider();
         Vector3 contactPoint = ResolveContactPoint(sourceCollider, playerCollider, movementMotor.transform.position);
-        bool didBounce = movementMotor.ApplyForce(launchDirection, bounceProfile, sourceCollider, contactPoint, Vector3.up);
+        bool didBounce = movementMotor.TryBounce(launchDirection, bounceProfile, sourceCollider, contactPoint, Vector3.up);
 
         if (!didBounce)
         {

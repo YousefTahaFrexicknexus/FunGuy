@@ -29,6 +29,10 @@ public class GameplayManager : MonoBehaviour
 
     void Start()
     {
+        if (runnerMovementMotor != null && runnerMovementMotor.TryGetComponent(out MushroomRunnerPlayer player))
+        {
+            player.BindScoreManager(distanceScoreManager);
+        }
         SetActiveTuningProfile(defaultMovementTuningProfile);
         momentumSystem.BeginRun();
         distanceScoreManager.BeginRun();
@@ -42,7 +46,10 @@ public class GameplayManager : MonoBehaviour
 
     public void SetActiveTuningProfile(MovementTuningProfile _movementTuningProfile)
     {
-        GameplayEvents.OnSetActiveTuningProfile?.Invoke(_movementTuningProfile);
+        if (runnerMovementMotor != null && runnerMovementMotor.TryGetComponent(out MushroomRunnerPlayer player))
+        {
+            player.SetTuningProfile(_movementTuningProfile);
+        }
     }
     
     void FixedUpdate()

@@ -12,12 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: MarioArcade
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
-  moveAcceleration: 16
-  airControlStrength: 0.35
+  airAcceleration: 5.6
+  turnBraking: 44
   forwardAirControlMultiplier: 0.45
   airBrakeAcceleration: 28
   maxControllableSpeed: 10.5
-  maxSpeed: 14
+  speedGears:
+  - 14
   overSpeedDrag: 10
   airDrag: 0.28
   gravityScale: 1.1

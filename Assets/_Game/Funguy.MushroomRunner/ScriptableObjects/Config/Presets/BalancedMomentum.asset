@@ -12,12 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: BalancedMomentum
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
-  moveAcceleration: 19
-  airControlStrength: 1.5
+  airAcceleration: 28.5
+  turnBraking: 43
   forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
   maxControllableSpeed: 15
-  maxSpeed: 48
+  speedGears:
+  - 15
+  - 25
+  - 40
+  - 60
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1

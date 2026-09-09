@@ -12,12 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: HollowBounce
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
-  moveAcceleration: 15
-  airControlStrength: 0.42
+  airAcceleration: 6.3
+  turnBraking: 41
   forwardAirControlMultiplier: 0.5
   airBrakeAcceleration: 26
   maxControllableSpeed: 11
-  maxSpeed: 15.5
+  speedGears:
+  - 15.5
   overSpeedDrag: 9
   airDrag: 0.22
   gravityScale: 1.15

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
     public readonly struct BounceReachRequest
     {
@@ -15,7 +15,8 @@
             float landingRadius,
             float landingHeightTolerance,
             float simulationTimeStep,
-            float maxSimulationTime)
+            float maxSimulationTime,
+            float maxSpeed)
         {
             SurfaceRootPosition = surfaceRootPosition;
             IncomingVelocity = incomingVelocity;
@@ -30,6 +31,7 @@
             LandingHeightTolerance = landingHeightTolerance;
             SimulationTimeStep = simulationTimeStep;
             MaxSimulationTime = maxSimulationTime;
+            MaxSpeed = maxSpeed;
         }
 
         public Vector3 SurfaceRootPosition { get; }
@@ -57,6 +59,8 @@
         public float SimulationTimeStep { get; }
 
         public float MaxSimulationTime { get; }
+
+        public float MaxSpeed { get; }
     }
 
     public readonly struct BounceReachResult
@@ -141,7 +145,7 @@
                         BounceMovementMath.ApplyPlanarDrag(ref velocity, up, drag, deltaTime);
                     }
 
-                    BounceMovementMath.ApplySoftSpeedLimit(ref velocity, request.TuningProfile, up, deltaTime);
+                    BounceMovementMath.ApplySoftSpeedLimit(ref velocity, request.TuningProfile, up, request.MaxSpeed, deltaTime);
                 }
 
                 position += velocity * deltaTime;

@@ -15,6 +15,8 @@ public sealed class MushroomRunnerPlayer : MonoBehaviour
     RunnerMovementMotor movementMotor;
     [SerializeField, Tooltip("Runtime movement profile pushed into the motor during Awake().")]
     MovementTuningProfile tuningProfile;
+    [SerializeField, Tooltip("Read-only source of the current score multiplier used to select a speed gear. Missing source uses x1.")]
+    DistanceScoreManager scoreManager;
     [SerializeField, Tooltip("Child transform the camera should follow instead of the raw player pivot.")]
     Transform cameraFollowTarget;
     [SerializeField, Tooltip("Player state applied on startup before the first run begins.")]
@@ -55,6 +57,7 @@ public sealed class MushroomRunnerPlayer : MonoBehaviour
         {
             movementMotor.SetTuningProfile(tuningProfile);
             movementMotor.SetDashResourceHandler(TryConsumeDashCharge);
+            movementMotor.SetSpeedLimitProvider(ResolveSpeedLimit);
         }
 
         RestoreDashCharges();
@@ -146,7 +149,18 @@ public sealed class MushroomRunnerPlayer : MonoBehaviour
         }
 
         RestoreDashCharges();
+        if (profile != null) GameplayEvents.OnSetActiveTuningProfile?.Invoke(profile);
     }
+
+    public void BindScoreManager(DistanceScoreManager source)
+    {
+        scoreManager = source;
+        if (movementMotor != null) movementMotor.SetSpeedLimitProvider(ResolveSpeedLimit);
+    }
+
+    float ResolveSpeedLimit() => tuningProfile != null
+        ? tuningProfile.GetMaxSpeed(scoreManager != null ? scoreManager.CurrentMultiplier : 1f)
+        : 15f;
 
     public void SetCameraFollowTarget(Transform followTarget)
     {

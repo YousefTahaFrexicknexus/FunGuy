@@ -12,12 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: DeadlockBurst
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
-  moveAcceleration: 17.5
-  airControlStrength: 0.38
+  airAcceleration: 6.65
+  turnBraking: 37.5
   forwardAirControlMultiplier: 0.42
   airBrakeAcceleration: 20
   maxControllableSpeed: 11.5
-  maxSpeed: 17
+  speedGears:
+  - 17
   overSpeedDrag: 6.5
   airDrag: 0.16
   gravityScale: 1.05

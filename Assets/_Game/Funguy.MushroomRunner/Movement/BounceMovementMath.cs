@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public struct BounceFlightShapeState
 {
@@ -193,7 +193,7 @@ public static class BounceMovementMath
 
         if (planarVelocity.sqrMagnitude <= MinimumDirectionSqrMagnitude)
         {
-            float initialAccelerationDelta = tuningProfile.MoveAcceleration
+            float initialAccelerationDelta = tuningProfile.AirAcceleration
                 * ResolveContextualAirControlMultiplier(tuningProfile, 0f, inPostBounceLowControl, inPostDashBoost)
                 * inputFrame.Magnitude
                 * deltaTime;
@@ -218,7 +218,7 @@ public static class BounceMovementMath
         {
             // Bleed velocity that fights the new wish direction so diagonal swaps do not feel ignored in-air.
             float turnSharpness = 1f - Mathf.Clamp01(alignment);
-            float turnBrakeDelta = (tuningProfile.AirBrakeAcceleration + tuningProfile.MoveAcceleration)
+            float turnBrakeDelta = tuningProfile.TurnBraking
                 * turnSharpness
                 * inputFrame.Magnitude
                 * deltaTime;
@@ -250,7 +250,7 @@ public static class BounceMovementMath
             return;
         }
 
-        float accelerationDelta = tuningProfile.MoveAcceleration
+        float accelerationDelta = tuningProfile.AirAcceleration
             * contextualMultiplier
             * inputFrame.Magnitude
             * deltaTime;
@@ -277,6 +277,7 @@ public static class BounceMovementMath
         ref Vector3 velocity,
         MovementTuningProfile tuningProfile,
         Vector3 worldUp,
+        float maxSpeed,
         float deltaTime)
     {
         if (tuningProfile == null)
@@ -287,7 +288,7 @@ public static class BounceMovementMath
         Vector3 up = GetSafeUp(worldUp);
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
         float planarSpeed = planarVelocity.magnitude;
-        float overflow = planarSpeed - tuningProfile.MaxSpeed;
+        float overflow = planarSpeed - maxSpeed;
 
         if (overflow <= 0f || planarSpeed <= MinimumDirectionSqrMagnitude)
         {
@@ -424,7 +425,7 @@ public static class BounceMovementMath
             return 0f;
         }
 
-        float multiplier = tuningProfile.AirControlStrength;
+        float multiplier = 1f;
         float clampedAlignment = Mathf.Clamp01(alignment);
 
         if (clampedAlignment > 0f)

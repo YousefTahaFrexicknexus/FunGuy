@@ -119,9 +119,9 @@ public sealed class PlayerSpeedHudPresenter : MonoBehaviour
             return referenceSpeed;
         }
 
-        float profileReferenceSpeed = usePlanarSpeed ? tuningProfile.MaxSpeed : tuningProfile.MaxSpeed + tuningProfile.DashForce;
+        float profileReferenceSpeed = usePlanarSpeed ? movementMotor.CurrentMaxSpeed : movementMotor.CurrentMaxSpeed + tuningProfile.DashForce;
 
-        return Mathf.Max(referenceSpeed, profileReferenceSpeed * speedDisplayMultiplier);
+        return Mathf.Max(0.1f, profileReferenceSpeed * speedDisplayMultiplier);
     }
 
     void RefreshUi()

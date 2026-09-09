@@ -1,33 +1,28 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
 public class RunnerMovementMotor : MonoBehaviour
 {
-    const float LandingVerticalTolerance = 0.25f;
-    const float GroundedContactRetention = 0.05f;
     const float MinDirectionSqrMagnitude = 0.0001f;
     const float PlanarSpeedFloorMinAlignment = 0.45f;
 
     public Rigidbody rigidBody;
-    [SerializeField] MovementTuningProfile tuningProfile;
+    MovementTuningProfile tuningProfile;
     [SerializeField] bool motorEnabled = true;
     [SerializeField] Vector3 worldUp = Vector3.up;
 
-    Collider[] rigidBodyColliders = Array.Empty<Collider>();
     MovementInputFrame currentInput = MovementInputFrame.Empty;
-    BounceCandidate lastBounceCandidate;
-    bool hasBounceCandidate;
-    float lastSurfaceTouchTime = float.NegativeInfinity;
     float bufferedDashUntil = float.NegativeInfinity;
     float lowControlUntil = float.NegativeInfinity;
     float dashControlBoostUntil = float.NegativeInfinity;
     float planarSpeedFloor;
     Vector3 planarSpeedFloorDirection;
-    Collider lastConsumedSurface;
-    Collider ignoredBounceSurface;
-    float ignoredBounceSurfaceUntil = float.NegativeInfinity;
+    RunnerBounceContacts bounceContacts;
+    RunnerBounceContacts Contacts => bounceContacts ??= new RunnerBounceContacts(this);
+    Func<float> getSpeedLimit;
+    float currentMaxSpeed;
     Func<bool> tryConsumeDashHandler;
     bool isGrounded;
     BounceFlightShapeState activeBounceFlightShape;
@@ -41,6 +36,32 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public bool IsGrounded => isGrounded;
 
+    public float CurrentMaxSpeed => currentMaxSpeed > 0f ? currentMaxSpeed : ResolveMaxSpeed();
+
+    public void SetSpeedLimitProvider(Func<float> provider)
+    {
+        getSpeedLimit = provider;
+        RefreshSpeedLimit();
+    }
+
+    float ResolveMaxSpeed()
+    {
+        float fallback = tuningProfile != null ? tuningProfile.GetMaxSpeed(1f) : 15f;
+        float speed = getSpeedLimit != null ? getSpeedLimit() : fallback;
+        return float.IsNaN(speed) || float.IsInfinity(speed) || speed <= 0f ? fallback : speed;
+    }
+
+    void RefreshSpeedLimit()
+    {
+        float nextMaxSpeed = ResolveMaxSpeed();
+        if (nextMaxSpeed < currentMaxSpeed)
+        {
+            // Forget the higher retained speed, even if the next tick shifts up again.
+            planarSpeedFloor = Mathf.Min(planarSpeedFloor, nextMaxSpeed);
+        }
+        currentMaxSpeed = nextMaxSpeed;
+    }
+
     public Vector3 UpDirection => Up;
 
     Vector3 Up => worldUp.sqrMagnitude > MinDirectionSqrMagnitude ? worldUp.normalized : Vector3.up;
@@ -48,7 +69,7 @@ public class RunnerMovementMotor : MonoBehaviour
     void Reset()
     {
         rigidBody = GetComponent<Rigidbody>();
-        CacheBodyColliders();
+        Contacts.CacheBodyColliders();
     }
 
     void Awake()
@@ -58,8 +79,8 @@ public class RunnerMovementMotor : MonoBehaviour
             rigidBody = GetComponent<Rigidbody>();
         }
 
-        CacheBodyColliders();
-        ConfigureRigidrigidBody();
+        Contacts.CacheBodyColliders();
+        ConfigureRigidbody();
     }
 
     void OnValidate()
@@ -73,21 +94,22 @@ public class RunnerMovementMotor : MonoBehaviour
 
         if (rigidBody != null)
         {
-            ConfigureRigidrigidBody();
+            ConfigureRigidbody();
         }
 
-        CacheBodyColliders();
+        Contacts.CacheBodyColliders();
     }
 
     void OnDisable()
     {
-        RestoreIgnoredBounceSurface();
+        Contacts.RestoreIgnoredBounceSurface();
     }
 
     void FixedUpdate()
     {
-        RestoreIgnoredBounceSurfaceIfExpired();
-        isGrounded = ComputeGroundedState();
+        RefreshSpeedLimit();
+        Contacts.RestoreIgnoredBounceSurfaceIfExpired();
+        isGrounded = Contacts.ComputeGroundedState();
         if (isGrounded)
         {
             activeBounceFlightShape = default;
@@ -145,9 +167,9 @@ public class RunnerMovementMotor : MonoBehaviour
         TryConsumeBufferedDash(ref velocity, bouncedThisStep);
 
         rigidBody.linearVelocity = velocity;
-        isGrounded = !bouncedThisStep && ComputeGroundedState();
+        isGrounded = !bouncedThisStep && Contacts.ComputeGroundedState();
 
-        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, tuningProfile.MaxSpeed);
+        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, CurrentMaxSpeed);
     }
 
     public void SetInput(MovementInputFrame inputFrame)
@@ -170,6 +192,7 @@ public class RunnerMovementMotor : MonoBehaviour
     public void SetTuningProfile(MovementTuningProfile profile)
     {
         tuningProfile = profile;
+        RefreshSpeedLimit();
 
         if (!BounceMovementMath.ShouldUseBounceFlightShaper(tuningProfile))
         {
@@ -208,15 +231,13 @@ public class RunnerMovementMotor : MonoBehaviour
             return;
         }
 
-        hasBounceCandidate = false;
-        lastBounceCandidate = default;
-        lastSurfaceTouchTime = float.NegativeInfinity;
+        Contacts.ResetMotion();
+        RefreshSpeedLimit();
         bufferedDashUntil = float.NegativeInfinity;
         lowControlUntil = float.NegativeInfinity;
         dashControlBoostUntil = float.NegativeInfinity;
         planarSpeedFloor = 0f;
         planarSpeedFloorDirection = Vector3.zero;
-        lastConsumedSurface = null;
         isGrounded = false;
         currentInput = MovementInputFrame.Empty;
         activeBounceFlightShape = default;
@@ -228,16 +249,16 @@ public class RunnerMovementMotor : MonoBehaviour
         rigidBody.rotation = worldRotation;
         Physics.SyncTransforms();
         rigidBody.WakeUp();
-        RestoreIgnoredBounceSurface();
+        Contacts.RestoreIgnoredBounceSurface();
     }
 
-    public bool ApplyForce(Transform forceDirection, MushroomBounceProfile bounceProfile)
+    public bool TryBounce(Transform launchDirection, MushroomBounceProfile bounceProfile)
     {
-        return ApplyForce(forceDirection, bounceProfile, null, transform.position, Up);
+        return TryBounce(launchDirection, bounceProfile, null, transform.position, Up);
     }
 
-    public bool ApplyForce(
-        Transform forceDirection,
+    public bool TryBounce(
+        Transform launchDirection,
         MushroomBounceProfile bounceProfile,
         Collider sourceCollider,
         Vector3 contactPoint,
@@ -267,18 +288,13 @@ public class RunnerMovementMotor : MonoBehaviour
             tuningProfile.BaseJumpForce,
             currentInput);
 
-        BounceSurfaceResponse response = bounceProfile.CreateDirectedResponse(forceDirection, context);
+        BounceSurfaceResponse response = bounceProfile.CreateDirectedResponse(launchDirection, context);
         Vector3 outgoingVelocity = ApplyBounceResponse(incomingVelocity, response);
         Vector3 forceDelta = outgoingVelocity - incomingVelocity;
         rigidBody.AddForce(forceDelta, ForceMode.VelocityChange);
 
-        activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
         UpdatePlanarSpeedFloor(outgoingVelocity, response);
-        lastConsumedSurface = sourceCollider;
-        hasBounceCandidate = false;
-        lastSurfaceTouchTime = float.NegativeInfinity;
-        lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
-        isGrounded = false;
+        CompleteBounce(sourceCollider);
 
         Bounced?.Invoke(new BounceEventData(
             sourceCollider,
@@ -293,30 +309,17 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        CacheBounceCandidate(collision);
+        Contacts.CacheBounceCandidate(collision);
     }
 
     void OnCollisionStay(Collision collision)
     {
-        CacheBounceCandidate(collision);
+        Contacts.CacheBounceCandidate(collision);
     }
 
-    void OnCollisionExit(Collision collision)
-    {
-        Collider otherCollider = collision.collider;
+    void OnCollisionExit(Collision collision) => Contacts.OnCollisionExit(collision);
 
-        if (otherCollider == lastConsumedSurface)
-        {
-            lastConsumedSurface = null;
-        }
-
-        if (hasBounceCandidate && lastBounceCandidate.Collider == otherCollider)
-        {
-            hasBounceCandidate = false;
-        }
-    }
-
-    void ConfigureRigidrigidBody()
+    void ConfigureRigidbody()
     {
         rigidBody.useGravity = false;
         rigidBody.constraints |= RigidbodyConstraints.FreezeRotation;
@@ -353,7 +356,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplySoftSpeedLimit(ref Vector3 velocity, float deltaTime)
     {
-        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime);
+        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, CurrentMaxSpeed, deltaTime);
     }
 
     void ApplyPlanarSpeedFloor(ref Vector3 velocity)
@@ -365,7 +368,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
         float planarSpeed = planarVelocity.magnitude;
-        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, tuningProfile.MaxSpeed);
+        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
 
         if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
         {
@@ -396,61 +399,48 @@ public class RunnerMovementMotor : MonoBehaviour
     {
         response = default;
 
-        if (!hasBounceCandidate || tuningProfile == null)
+        if (!Contacts.TryGetCandidate(out RunnerBounceContacts.BounceCandidate candidate))
         {
-            return false;
-        }
-
-        if (lastBounceCandidate.Collider == null || lastBounceCandidate.Surface == null)
-        {
-            hasBounceCandidate = false;
-            return false;
-        }
-
-        if (lastBounceCandidate.Collider == lastConsumedSurface)
-        {
-            return false;
-        }
-
-        if (Time.time - lastBounceCandidate.Timestamp > tuningProfile.BounceGraceTime)
-        {
-            hasBounceCandidate = false;
             return false;
         }
 
         Vector3 incomingVelocity = velocity;
         BounceContext context = new(
             incomingVelocity,
-            lastBounceCandidate.ContactPoint,
-            lastBounceCandidate.ContactNormal,
+            candidate.ContactPoint,
+            candidate.ContactNormal,
             Up,
             tuningProfile.BaseJumpForce,
             currentInput);
 
-        response = lastBounceCandidate.Surface.GetBounceResponse(in context);
+        response = candidate.Surface.GetBounceResponse(in context);
         velocity = ApplyBounceResponse(incomingVelocity, response);
-        activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(velocity, tuningProfile, Up);
 
         Bounced?.Invoke(new BounceEventData(
-            lastBounceCandidate.Collider,
-            lastBounceCandidate.ContactPoint,
-            lastBounceCandidate.ContactNormal,
+            candidate.Collider,
+            candidate.ContactPoint,
+            candidate.ContactNormal,
             incomingVelocity,
             velocity,
             response));
 
-        ApplyPostBounceCollisionIgnore(lastBounceCandidate.Surface, lastBounceCandidate.Collider);
-        lastConsumedSurface = lastBounceCandidate.Collider;
-        hasBounceCandidate = false;
-        lastSurfaceTouchTime = float.NegativeInfinity;
-        lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
-        isGrounded = false;
+        Contacts.ApplyPostBounceCollisionIgnore(candidate.Surface, candidate.Collider);
+        CompleteBounce(candidate.Collider);
         return true;
     }
 
     Vector3 ApplyBounceResponse(Vector3 incomingVelocity, BounceSurfaceResponse response)
     {
-        return BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, tuningProfile, Up);
+        Vector3 outgoingVelocity = BounceMovementMath.ApplyBounceResponse(incomingVelocity, response, tuningProfile, Up);
+        activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
+        return outgoingVelocity;
+    }
+
+    void CompleteBounce(Collider surface)
+    {
+        Contacts.MarkConsumed(surface);
+        lowControlUntil = Time.time + tuningProfile.PostBounceLowControlTime;
+        isGrounded = false;
     }
 
     void UpdatePlanarSpeedFloor(Vector3 velocity, BounceSurfaceResponse response)
@@ -517,14 +507,7 @@ public class RunnerMovementMotor : MonoBehaviour
             return false;
         }
 
-        Vector3 dashDirection = ResolveDashDirection();
-        if (dashDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
-        {
-            bufferedDashUntil = float.NegativeInfinity;
-            return false;
-        }
-
-        Vector3 normalizedDashDirection = dashDirection.normalized;
+        Vector3 normalizedDashDirection = Up;
         activeBounceFlightShape = default;
         float speedAlongDash = Vector3.Dot(velocity, normalizedDashDirection);
         if (speedAlongDash < 0f)
@@ -538,192 +521,6 @@ public class RunnerMovementMotor : MonoBehaviour
         dashControlBoostUntil = Time.time + tuningProfile.PostDashBonusControlTime;
         Dashed?.Invoke();
         return true;
-    }
-
-    Vector3 ResolveDashDirection()
-    {
-        return Up;
-    }
-
-    void CacheBounceCandidate(Collision collision)
-    {
-        if (rigidBody == null || tuningProfile == null || collision == null)
-        {
-            return;
-        }
-
-        Collider otherCollider = collision.collider;
-        if (otherCollider == null || otherCollider == lastConsumedSurface)
-        {
-            return;
-        }
-
-        if (!TryGetBounceSurface(otherCollider, out IBounceSurface surface))
-        {
-            return;
-        }
-
-        if (Vector3.Dot(rigidBody.linearVelocity, Up) > LandingVerticalTolerance && !AllowsBounceWhileMovingUpward(surface))
-        {
-            return;
-        }
-
-        Vector3 bestContactPoint;
-        Vector3 bestContactNormal;
-        float bestGroundDot;
-        bool hasValidContact = TryResolveBounceContact(collision, surface, out bestContactPoint, out bestContactNormal, out bestGroundDot);
-
-        if (!hasValidContact)
-        {
-            return;
-        }
-
-        float timestamp = Time.time;
-        lastSurfaceTouchTime = timestamp;
-
-        if (!hasBounceCandidate || bestGroundDot >= lastBounceCandidate.GroundDot || otherCollider != lastBounceCandidate.Collider)
-        {
-            lastBounceCandidate = new BounceCandidate(
-                surface,
-                otherCollider,
-                bestContactPoint,
-                bestContactNormal,
-                timestamp,
-                bestGroundDot);
-            hasBounceCandidate = true;
-        }
-    }
-
-    bool TryResolveBounceContact(
-        Collision collision,
-        IBounceSurface surface,
-        out Vector3 contactPoint,
-        out Vector3 contactNormal,
-        out float groundDot)
-    {
-        if (surface is IBounceContactResolver contactResolver &&
-            contactResolver.TryResolveBounceContact(collision, Up, tuningProfile.MinGroundDot, out contactPoint, out contactNormal, out groundDot))
-        {
-            return true;
-        }
-
-        contactPoint = default;
-        contactNormal = default;
-        groundDot = float.NegativeInfinity;
-
-        ContactPoint bestContact = default;
-        bool hasValidContact = false;
-        int contactCount = collision.contactCount;
-        for (int index = 0; index < contactCount; index++)
-        {
-            ContactPoint contact = collision.GetContact(index);
-            float currentGroundDot = Vector3.Dot(contact.normal, Up);
-            if (currentGroundDot < tuningProfile.MinGroundDot)
-            {
-                continue;
-            }
-
-            if (!hasValidContact || currentGroundDot > groundDot)
-            {
-                bestContact = contact;
-                groundDot = currentGroundDot;
-                hasValidContact = true;
-            }
-        }
-
-        if (!hasValidContact)
-        {
-            return false;
-        }
-
-        contactPoint = bestContact.point;
-        contactNormal = bestContact.normal;
-        return true;
-    }
-
-    bool ComputeGroundedState()
-    {
-        return Time.time - lastSurfaceTouchTime <= GroundedContactRetention;
-    }
-
-    bool AllowsBounceWhileMovingUpward(IBounceSurface surface)
-    {
-        return surface is IBounceSurfaceBehavior behavior && behavior.AllowsBounceWhileMovingUpward;
-    }
-
-    void ApplyPostBounceCollisionIgnore(IBounceSurface surface, Collider surfaceCollider)
-    {
-        if (surfaceCollider == null || rigidBodyColliders == null || rigidBodyColliders.Length == 0)
-        {
-            return;
-        }
-
-        float ignoreDuration = surface is IBounceSurfaceBehavior behavior
-            ? Mathf.Max(0f, behavior.PostBounceCollisionIgnoreDuration)
-            : 0f;
-
-        if (ignoreDuration <= 0f)
-        {
-            return;
-        }
-
-        if (ignoredBounceSurface != null && ignoredBounceSurface != surfaceCollider)
-        {
-            RestoreIgnoredBounceSurface();
-        }
-
-        ignoredBounceSurface = surfaceCollider;
-        ignoredBounceSurfaceUntil = Mathf.Max(ignoredBounceSurfaceUntil, Time.time + ignoreDuration);
-
-        for (int index = 0; index < rigidBodyColliders.Length; index++)
-        {
-            Collider rigidBodyCollider = rigidBodyColliders[index];
-            if (rigidBodyCollider == null)
-            {
-                continue;
-            }
-
-            Physics.IgnoreCollision(rigidBodyCollider, surfaceCollider, true);
-        }
-    }
-
-    void RestoreIgnoredBounceSurfaceIfExpired()
-    {
-        if (ignoredBounceSurface == null || Time.time < ignoredBounceSurfaceUntil)
-        {
-            return;
-        }
-
-        RestoreIgnoredBounceSurface();
-    }
-
-    void RestoreIgnoredBounceSurface()
-    {
-        if (ignoredBounceSurface == null || rigidBodyColliders == null)
-        {
-            ignoredBounceSurface = null;
-            ignoredBounceSurfaceUntil = float.NegativeInfinity;
-            return;
-        }
-
-        for (int index = 0; index < rigidBodyColliders.Length; index++)
-        {
-            Collider rigidBodyCollider = rigidBodyColliders[index];
-            if (rigidBodyCollider == null)
-            {
-                continue;
-            }
-
-            Physics.IgnoreCollision(rigidBodyCollider, ignoredBounceSurface, false);
-        }
-
-        ignoredBounceSurface = null;
-        ignoredBounceSurfaceUntil = float.NegativeInfinity;
-    }
-
-    void CacheBodyColliders()
-    {
-        rigidBodyColliders = GetComponentsInChildren<Collider>(true);
     }
 
     bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)
@@ -757,50 +554,4 @@ public class RunnerMovementMotor : MonoBehaviour
         return inputAlignment >= PlanarSpeedFloorMinAlignment;
     }
 
-    static bool TryGetBounceSurface(Collider otherCollider, out IBounceSurface surface)
-    {
-        MonoBehaviour[] behaviours = otherCollider.GetComponentsInParent<MonoBehaviour>(true);
-        for (int index = 0; index < behaviours.Length; index++)
-        {
-            if (behaviours[index] is IBounceSurface bounceSurface)
-            {
-                surface = bounceSurface;
-                return true;
-            }
-        }
-
-        surface = null;
-        return false;
-    }
-
-    readonly struct BounceCandidate
-    {
-        public BounceCandidate(
-            IBounceSurface surface,
-            Collider collider,
-            Vector3 contactPoint,
-            Vector3 contactNormal,
-            float timestamp,
-            float groundDot)
-        {
-            Surface = surface;
-            Collider = collider;
-            ContactPoint = contactPoint;
-            ContactNormal = contactNormal;
-            Timestamp = timestamp;
-            GroundDot = groundDot;
-        }
-
-        public IBounceSurface Surface { get; }
-
-        public Collider Collider { get; }
-
-        public Vector3 ContactPoint { get; }
-
-        public Vector3 ContactNormal { get; }
-
-        public float Timestamp { get; }
-
-        public float GroundDot { get; }
-    }
 }

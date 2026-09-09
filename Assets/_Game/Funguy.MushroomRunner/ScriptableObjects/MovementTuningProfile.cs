@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public readonly struct BounceFlightShaperSettings
 {
@@ -53,25 +53,24 @@ public readonly struct BounceFlightShaperSettings
 [CreateAssetMenu(fileName = "MovementTuningProfile", menuName = "Funguy/MushroomRunner/Movement Tuning Profile")]
 public sealed class MovementTuningProfile : ScriptableObject
 {
-    [Header("Air Control")]
-    [SerializeField, Tooltip("Air acceleration applied when steering in a desired direction.")]
-    float moveAcceleration = 24f;
-    [SerializeField, Tooltip("Overall strength of air steering relative to the desired input direction.")]
-    float airControlStrength = 1f;
+    [SerializeField, Tooltip("Soft horizontal speed ceilings in world units/second. Entries correspond to x1, x2, x3, and so on.")]
+    float[] speedGears = { 15f, 25f, 40f, 60f };
+
+    [SerializeField, Tooltip("Air steering acceleration in world units/second squared, before directional and temporary control modifiers.")]
+    float airAcceleration = 24f;
+    [SerializeField, Tooltip("Acceleration removing sideways velocity during a turn, in world units/second squared. Requires Braking above zero.")]
+    float turnBraking = 42f;
     [SerializeField, Tooltip("Multiplier applied to forward steering so forward control can be looser or tighter than strafe control.")]
     float forwardAirControlMultiplier = 0.6f;
     [SerializeField, Tooltip("How quickly brake input removes planar speed while airborne.")]
     float airBrakeAcceleration = 18f;
-    [SerializeField, Tooltip("Speed where normal air control starts to taper off.")]
+    [SerializeField, Tooltip("Directional steering speed limit in world units/second. Bounces can carry you faster; this is independent of speed gears.")]
     float maxControllableSpeed = 12f;
-    [SerializeField, Tooltip("Soft top speed target before overspeed drag pushes the player back down.")]
-    float maxSpeed = 18f;
-    [SerializeField, Tooltip("Extra drag applied while the player is above Max Speed.")]
+    [SerializeField, Tooltip("Proportional slowdown above the current gear ceiling, in inverse seconds.")]
     float overSpeedDrag = 8f;
-    [SerializeField, Tooltip("Constant air drag applied every physics step.")]
+    [SerializeField, Tooltip("Horizontal coasting deceleration in world units/second squared.")]
     float airDrag = 0.5f;
 
-    [Header("Gravity")]
     [SerializeField, Tooltip("Base gravity multiplier applied to the player.")]
     float gravityScale = 1f;
     [SerializeField, Tooltip("Gravity multiplier while the player is moving upward.")]
@@ -79,7 +78,6 @@ public sealed class MovementTuningProfile : ScriptableObject
     [SerializeField, Tooltip("Gravity multiplier while the player is moving downward.")]
     float fallGravityMultiplier = 1.35f;
 
-    [Header("Bounce Flight Shaper")]
     [SerializeField, Tooltip("Enables the motor-owned post-bounce gravity shaper for a more cartoony airborne read without replacing the mushroom launch.")]
     bool useBounceFlightShaper = true;
     [SerializeField, Tooltip("Planar speed where the bounce shaper starts treating a launch as a long-carry bounce.")]
@@ -101,16 +99,15 @@ public sealed class MovementTuningProfile : ScriptableObject
     [SerializeField, Tooltip("How long the extra apex-downward acceleration is applied.")]
     float apexExtraDownDuration = 0.06f;
 
-    [Header("Bounce And Dash")]
-    [SerializeField, Tooltip("Base upward force used by standard bounce calculations.")]
+    [SerializeField, Tooltip("Base bounce launch speed in world units/second; mushroom profiles can scale it.")]
     float baseJumpForce = 9f;
     [SerializeField, Tooltip("Default planar speed gain added by bounce responses.")]
     float baseBounceSpeedGain = 1f;
-    [SerializeField, Tooltip("Impulse strength applied when a dash is consumed.")]
+    [SerializeField, Tooltip("Upward speed added by an air jump in world units/second.")]
     float dashForce = 8f;
-    [SerializeField, Tooltip("Minimum time between successful dashes.")]
+    [SerializeField, Tooltip("Minimum seconds between successful air jumps.")]
     float dashCooldown = 0.2f;
-    [SerializeField, Tooltip("How many dashes are restored each time the player bounces.")]
+    [SerializeField, Tooltip("Air jump charges restored on each bounce.")]
     int dashChargesPerBounce = 1;
     [SerializeField, Tooltip("Short low-control window immediately after a bounce.")]
     float postBounceLowControlTime = 0.1f;
@@ -121,7 +118,6 @@ public sealed class MovementTuningProfile : ScriptableObject
     [SerializeField, Tooltip("Air-control multiplier used during the post-dash bonus-control window.")]
     float postDashAirControlMultiplier = 1.35f;
 
-    [Header("Forgiveness")]
     [SerializeField, Tooltip("Grace window that still accepts a bounce shortly after leaving a surface.")]
     float bounceGraceTime = 0.1f;
     [SerializeField, Tooltip("How long a dash press can be buffered before it is executed.")]
@@ -129,17 +125,15 @@ public sealed class MovementTuningProfile : ScriptableObject
     [SerializeField, Range(0f, 1f), Tooltip("Minimum contact normal dot with up that still counts as ground.")]
     float minGroundDot = 0.65f;
 
-    public float MoveAcceleration => moveAcceleration;
+    public float AirAcceleration => airAcceleration;
 
-    public float AirControlStrength => airControlStrength;
+    public float TurnBraking => turnBraking;
 
     public float ForwardAirControlMultiplier => forwardAirControlMultiplier;
 
     public float AirBrakeAcceleration => airBrakeAcceleration;
 
     public float MaxControllableSpeed => maxControllableSpeed;
-
-    public float MaxSpeed => Mathf.Max(maxControllableSpeed, maxSpeed);
 
     public float OverSpeedDrag => overSpeedDrag;
 
@@ -189,14 +183,44 @@ public sealed class MovementTuningProfile : ScriptableObject
 
     public float MinGroundDot => minGroundDot;
 
+    // A gear changes capacity, not velocity. Fractional multipliers use the completed gear.
+    public float GetMaxSpeed(float multiplier)
+    {
+        int count = speedGears != null && speedGears.Length > 0 ? speedGears.Length : 4;
+        if (float.IsNaN(multiplier)) multiplier = 1f;
+        int index = Mathf.FloorToInt(Mathf.Clamp(multiplier, 1f, count)) - 1;
+        if (speedGears == null || speedGears.Length == 0)
+        {
+            return index switch { 0 => 15f, 1 => 25f, 2 => 40f, _ => 60f };
+        }
+        float speed = 0.01f;
+        for (int i = 0; i <= index; i++)
+        {
+            speed = Mathf.Max(speed, NonNegativeFinite(speedGears[i]));
+        }
+        return speed;
+    }
+
+    static float NonNegativeFinite(float value) =>
+        float.IsNaN(value) || float.IsInfinity(value) ? 0f : Mathf.Max(0f, value);
+
     void OnValidate()
     {
-        moveAcceleration = Mathf.Max(0f, moveAcceleration);
-        airControlStrength = Mathf.Max(0f, airControlStrength);
+        airAcceleration = NonNegativeFinite(airAcceleration);
+        turnBraking = NonNegativeFinite(turnBraking);
         forwardAirControlMultiplier = Mathf.Max(0f, forwardAirControlMultiplier);
         airBrakeAcceleration = Mathf.Max(0f, airBrakeAcceleration);
         maxControllableSpeed = Mathf.Max(0f, maxControllableSpeed);
-        maxSpeed = Mathf.Max(maxControllableSpeed, maxSpeed);
+        if (speedGears == null || speedGears.Length == 0)
+        {
+            speedGears = new[] { 15f, 25f, 40f, 60f };
+        }
+        float previousSpeed = 0.01f;
+        for (int i = 0; i < speedGears.Length; i++)
+        {
+            speedGears[i] = Mathf.Max(previousSpeed, NonNegativeFinite(speedGears[i]));
+            previousSpeed = speedGears[i];
+        }
         overSpeedDrag = Mathf.Max(0f, overSpeedDrag);
         airDrag = Mathf.Max(0f, airDrag);
         gravityScale = Mathf.Max(0f, gravityScale);

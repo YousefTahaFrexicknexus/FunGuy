@@ -12,12 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: RiskOfRainCruiser
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
-  moveAcceleration: 13.5
-  airControlStrength: 0.48
+  airAcceleration: 6.48
+  turnBraking: 31.5
   forwardAirControlMultiplier: 0.65
   airBrakeAcceleration: 18
   maxControllableSpeed: 12.5
-  maxSpeed: 16.5
+  speedGears:
+  - 16.5
   overSpeedDrag: 7
   airDrag: 0.12
   gravityScale: 1
