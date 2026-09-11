@@ -64,9 +64,18 @@ public sealed class MovementTuningProfile : ScriptableObject
     float airBrakeAcceleration = 18f;
     [SerializeField, Tooltip("Speed where normal air control starts to taper off.")]
     float maxControllableSpeed = 12f;
-    [SerializeField, Tooltip("Soft top speed target before overspeed drag pushes the player back down.")]
-    float maxSpeed = 18f;
-    [SerializeField, Tooltip("Extra drag applied while the player is above Max Speed.")]
+    [Header("Maximum Movement Speed By Score Tier")]
+    [SerializeField, Min(0f), InspectorName("Max Speed x1"), Tooltip("Soft horizontal speed limit at x1, in world units per second.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("maxSpeed")]
+    float maxSpeedX1 = 18f;
+    [SerializeField, Min(0f), InspectorName("Max Speed x2"), Tooltip("Soft horizontal speed limit at x2, in world units per second.")]
+    float maxSpeedX2 = 18f;
+    [SerializeField, Min(0f), InspectorName("Max Speed x3"), Tooltip("Soft horizontal speed limit at x3, in world units per second.")]
+    float maxSpeedX3 = 18f;
+    [SerializeField, Min(0f), InspectorName("Max Speed x4"), Tooltip("Soft horizontal speed limit at x4, in world units per second.")]
+    float maxSpeedX4 = 18f;
+    [Header("Drag")]
+    [SerializeField, Tooltip("Extra drag applied while the player is above the current tier's maximum speed.")]
     float overSpeedDrag = 8f;
     [SerializeField, Tooltip("Constant air drag applied every physics step.")]
     float airDrag = 0.5f;
@@ -139,7 +148,19 @@ public sealed class MovementTuningProfile : ScriptableObject
 
     public float MaxControllableSpeed => maxControllableSpeed;
 
-    public float MaxSpeed => Mathf.Max(maxControllableSpeed, maxSpeed);
+    public float MaxSpeed => GetMaxSpeed(MomentumTier.Low);
+
+    public float GetMaxSpeed(MomentumTier tier)
+    {
+        float speed = tier switch
+        {
+            MomentumTier.Medium => maxSpeedX2,
+            MomentumTier.High => maxSpeedX3,
+            MomentumTier.Maximum => maxSpeedX4,
+            _ => maxSpeedX1
+        };
+        return Mathf.Max(0f, speed);
+    }
 
     public float OverSpeedDrag => overSpeedDrag;
 
@@ -196,7 +217,10 @@ public sealed class MovementTuningProfile : ScriptableObject
         forwardAirControlMultiplier = Mathf.Max(0f, forwardAirControlMultiplier);
         airBrakeAcceleration = Mathf.Max(0f, airBrakeAcceleration);
         maxControllableSpeed = Mathf.Max(0f, maxControllableSpeed);
-        maxSpeed = Mathf.Max(maxControllableSpeed, maxSpeed);
+        maxSpeedX1 = Mathf.Max(0f, maxSpeedX1);
+        maxSpeedX2 = Mathf.Max(0f, maxSpeedX2);
+        maxSpeedX3 = Mathf.Max(0f, maxSpeedX3);
+        maxSpeedX4 = Mathf.Max(0f, maxSpeedX4);
         overSpeedDrag = Mathf.Max(0f, overSpeedDrag);
         airDrag = Mathf.Max(0f, airDrag);
         gravityScale = Mathf.Max(0f, gravityScale);

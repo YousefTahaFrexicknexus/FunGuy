@@ -92,18 +92,6 @@ public readonly struct RunFailedEvent
     public Vector3 WorldPosition { get; }
 }
 
-public readonly struct RunScoreUpdatedEvent
-{
-    public RunScoreUpdatedEvent(MushroomRunnerPlayer player, RunScoreSnapshot snapshot)
-    {
-        Player = player;
-        Snapshot = snapshot;
-    }
-
-    public MushroomRunnerPlayer Player { get; }
-    public RunScoreSnapshot Snapshot { get; }
-}
-
 public static class MushroomRunnerEvents
 {
     public static event Action<PlayerRegisteredEvent> PlayerRegistered;
@@ -113,7 +101,6 @@ public static class MushroomRunnerEvents
     public static event Action<RunLifecycleEvent> RunStarted;
     public static event Action<RunLifecycleEvent> RunReset;
     public static event Action<RunFailedEvent> RunFailed;
-    public static event Action<RunScoreUpdatedEvent> RunScoreUpdated;
     public static void RaisePlayerRegistered(PlayerRegisteredEvent eventData) => PlayerRegistered?.Invoke(eventData);
     public static void RaisePlayerStateChanged(PlayerStateChangedEvent eventData) => PlayerStateChanged?.Invoke(eventData);
     public static void RaisePlayerBounced(PlayerBouncedEvent eventData) => PlayerBounced?.Invoke(eventData);
@@ -121,5 +108,4 @@ public static class MushroomRunnerEvents
     public static void RaiseRunStarted(RunLifecycleEvent eventData) => RunStarted?.Invoke(eventData);
     public static void RaiseRunReset(RunLifecycleEvent eventData) => RunReset?.Invoke(eventData);
     public static void RaiseRunFailed(RunFailedEvent eventData) => RunFailed?.Invoke(eventData);
-    public static void RaiseRunScoreUpdated(RunScoreUpdatedEvent eventData) => RunScoreUpdated?.Invoke(eventData);
 }

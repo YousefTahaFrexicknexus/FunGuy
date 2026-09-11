@@ -9,7 +9,7 @@ Use this document first when you want the fast mental model: who owns what, what
 - `MushroomRunnerPlayer` is the gameplay brain on the player.
 - `RunnerMovementMotor` is the body that actually moves.
 - `RunnerCameraRig` follows the player's `CameraFollowTarget` child, not the root transform.
-- `RunMultiplierService` and `RunScoreService` turn movement and airtime into score.
+- `MomentumSystem` selects score and movement tiers; `DistanceScoreManager` awards distance points.
 - `RunFlowCoordinator` owns run start, run reset, and failure recovery.
 
 The scene that wires this all together is [MushroomRunnerGameplay.unity](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Scenes/MushroomRunnerGameplay.unity), and the player root is [MushroomRunnerPlayer.prefab](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Prefabs/MushroomRunnerPlayer.prefab).
@@ -22,20 +22,21 @@ flowchart LR
     Player[MushroomRunnerPlayer]
     Motor[RunnerMovementMotor]
     Camera[RunnerCameraRig]
-    Multiplier[RunMultiplierService]
-    Score[RunScoreService]
+    Multiplier[MomentumSystem]
+    Score[DistanceScoreManager]
     World[RunnerCourseStreamer]
     Flow[RunFlowCoordinator]
     Death[DeathPlaneResetVolume]
-    HUD[RunScoreHud / PlayerSpeedHudPresenter]
+    HUD[HUD_UI / PlayerSpeedHudPresenter]
     Legacy[LegacyEnvironmentResetAdapter]
     Events[MushroomRunnerEvents]
 
     Input --> Player
     Player --> Motor
     Motor --> Player
-    Player --> Multiplier
-    Motor --> Multiplier
+    Motor --> GameplayManager
+    GameplayManager --> Multiplier
+    Multiplier --> Motor
     Multiplier --> Score
     Flow --> Player
     Flow --> World
@@ -53,7 +54,7 @@ If Mermaid does not render, read it like this:
 
 - input feeds the player
 - the player commands the motor
-- the motor reports movement results back to the player and multiplier service
+- the motor reports movement results to the player; GameplayManager feeds forward speed to the momentum system
 - multiplier feeds score
 - run flow resets player, world, and legacy environment
 - HUD reads score and motor state
@@ -69,8 +70,8 @@ flowchart TD
     D --> E[RunnerInputSource samples input]
     E --> F[MushroomRunnerPlayer forwards input]
     F --> G[RunnerMovementMotor moves body]
-    G --> H[RunMultiplierService updates combo and airtime]
-    H --> I[RunScoreService updates score]
+    G --> H[MomentumSystem updates the score and movement tier]
+    H --> I[DistanceScoreManager updates score]
     I --> J[HUD and camera update]
     J --> K{Player failed?}
     K -- No --> E
@@ -104,7 +105,6 @@ If Mermaid does not render, the loop is:
 
 - [MushroomRunnerPlayer.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Player/MushroomRunnerPlayer.cs)
 - [RunnerMovementMotor.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Movement/RunnerMovementMotor.cs)
-- [RunMultiplierService.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunMultiplierService.cs)
 - `Rigidbody`
 - `SphereCollider`
 - `CameraFollowTarget`
@@ -113,7 +113,7 @@ If Mermaid does not render, the loop is:
 
 - `RunnerInputSource`
 - `RunFlowCoordinator`
-- `RunScoreService`
+- `DistanceScoreManager`
 - `RunnerCameraRig`
 - `MushroomRunnerEvents`
 
@@ -160,47 +160,19 @@ The key mental model is: `MushroomRunnerPlayer` decides what the player is tryin
 
 The important idea is that the camera follows a dedicated composition target, so camera framing stays decoupled from the player's physics pivot.
 
-## Score And Multiplier
+## Score And Movement Tiers
 
-### What it owns
+`MomentumSystem` owns the four tiers: Low (x1), Medium (x2), High (x3), and Maximum (x4). Forward speed and landing quality update momentum using the existing thresholds and rewards.
 
-- combo hit count
-- multiplier state
-- airtime qualification
-- forward progress score
-- airtime score
-- current `RunScoreSnapshot`
+`DistanceScoreManager` awards forward distance points using the current tier's scoring multiplier. `HUD_UI` receives score and multiplier updates through `GameplayEvents`.
 
-### Scripts/components
+`GameplayManager` binds the movement motor to the score manager's momentum source. Each `MovementTuningProfile` exposes **Max Speed x1**, **x2**, **x3**, and **x4**, in world units per second. These are independent soft horizontal limits; they do not multiply velocity. All four values initially preserve each profile's previous maximum.
 
-- [RunMultiplierService.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunMultiplierService.cs)
-- [RunScoreService.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunScoreService.cs)
-- [RunScoreSnapshot.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Core/RunScoreSnapshot.cs)
+`RunnerMovementMotor.CurrentMaxSpeed` resolves the active profile and tier. Tier decreases use overspeed drag, while tier increases allow further acceleration without injecting velocity. Steering cannot target more than the tier maximum; bounce speed retention uses the same limit. Vertical bounce and dash velocity are unaffected.
 
-### Talks to
+`GameplayManager.SetActiveTuningProfile(...)` applies the profile through the player before notifying the HUD. Profile assets are never modified by runtime tier changes. Without a momentum source the motor uses x1. Re-enabling synchronizes the current tier and restores event subscriptions.
 
-- `MushroomRunnerPlayer`
-- `RunnerMovementMotor`
-- `RunnerCourseStreamer`
-- `RunScoreHud`
-- `MushroomRunnerEvents`
-
-### Where it is wired
-
-- `RunMultiplierService` lives on the player prefab
-- `RunScoreService` lives as a scene system in [MushroomRunnerGameplay.unity](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Scenes/MushroomRunnerGameplay.unity)
-- `RunScoreService` is assigned the player, the player transform, and the player's multiplier service
-
-### When it runs
-
-- `RunMultiplierService.Update()` watches live movement state
-- `RunScoreService.Update()` converts movement progress and airtime into score
-- `RunScoreService` publishes the latest snapshot whenever score state changes
-
-The clean split is:
-
-- `RunMultiplierService` decides how valuable the current run state is
-- `RunScoreService` turns that state into points
+`BounceReachRequest.MaximumSpeed` carries the resolved limit into course reach prediction. Standalone requests default to the profile's x1 speed.
 
 ## World
 
@@ -209,7 +181,6 @@ The clean split is:
 - start route creation
 - forward course generation
 - cleanup of old generated content
-- score target reset on world rebuild
 
 ### Scripts/components
 
@@ -220,7 +191,7 @@ The clean split is:
 ### Talks to
 
 - player transform
-- `RunScoreService`
+- `DistanceScoreManager`
 - `RunFlowCoordinator`
 
 ### Where it is wired
@@ -288,23 +259,23 @@ The reset order is always:
 
 ### Scripts/components
 
-- [RunScoreHud.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Core/RunScoreHud.cs)
+- [HUD_UI.cs](/d:/Work/FunGuy/Assets/_Game/Scripts/UI/HUD_UI.cs)
 - [PlayerSpeedHudPresenter.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Core/PlayerSpeedHudPresenter.cs)
 
 ### Talks to
 
-- `RunScoreService`
+- `DistanceScoreManager`
 - `RunnerMovementMotor`
 
 ### Where it is wired
 
-- `RunScoreHud` lives on `ScoreText`
+- `HUD_UI` binds the current score, multiplier, momentum bars, and dash indicators
 - `PlayerSpeedHudPresenter` lives on `SpeedMeter`
 - both are authored in the HUD hierarchy inside [MushroomRunnerGameplay.unity](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Scenes/MushroomRunnerGameplay.unity)
 
 ### When it runs
 
-- `RunScoreHud` updates when the score service publishes a new snapshot
+- `HUD_UI` updates through `GameplayEvents.OnScoreChanged` and `OnMultiplierChanged`
 - `PlayerSpeedHudPresenter.Update()` refreshes from motor speed
 
 The HUD is intentionally presentation-only. It does not own gameplay state.
@@ -318,7 +289,7 @@ The HUD is intentionally presentation-only. It does not own gameplay state.
 ### Scripts/components
 
 - [GameManager.cs](/d:/Work/FunGuy/Assets/_Game/Scripts/Gameplay/GameManager.cs)
-- older `Assets/_Game/Scripts/Gameplay` systems
+- older spawner and bouncer systems (the runner does use `GameplayManager` and `DistanceScoreManager` from this directory)
 
 ### Talks to
 
@@ -339,8 +310,9 @@ If you are debugging the current runner, start inside [Assets/_Game/Funguy.Mushr
 - Change player rules, state, dash logic, or reset behavior in [MushroomRunnerPlayer.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Player/MushroomRunnerPlayer.cs).
 - Change actual movement feel, gravity, bounce, or dash force in [RunnerMovementMotor.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Movement/RunnerMovementMotor.cs).
 - Change camera framing or FOV response in [RunnerCameraRig.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Core/RunnerCameraRig.cs).
-- Change combo or multiplier behavior in [RunMultiplierService.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunMultiplierService.cs).
-- Change score math or snapshot fields in [RunScoreService.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunScoreService.cs).
+- Change distance score math in [DistanceScoreManager.cs](/d:/Work/FunGuy/Assets/_Game/Scripts/Gameplay/DistanceScoreManager.cs).
 - Change route generation in [RunnerCourseStreamer.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/RunnerCourseStreamer.cs).
 - Change reset and failure flow in [RunFlowCoordinator.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/Core/RunFlowCoordinator.cs) and [DeathPlaneResetVolume.cs](/d:/Work/FunGuy/Assets/_Game/Funguy.MushroomRunner/World/DeathPlaneResetVolume.cs).
 - Change the exact serialized wiring reference in [MushroomRunner-System-Wiring.md](/d:/Work/FunGuy/Docs/MushroomRunner-System-Wiring.md).
+
+Tier thresholds and landing rewards are configured on `MomentumSystem`. Per-tier maximum movement speeds are configured on `MovementTuningProfile`.

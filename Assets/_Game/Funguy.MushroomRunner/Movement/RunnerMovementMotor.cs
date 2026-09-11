@@ -31,6 +31,9 @@ public class RunnerMovementMotor : MonoBehaviour
     Func<bool> tryConsumeDashHandler;
     bool isGrounded;
     BounceFlightShapeState activeBounceFlightShape;
+    MomentumSystem momentumSystem;
+    MomentumSystem subscribedMomentumSystem;
+    MomentumTier currentMomentumTier = MomentumTier.Low;
 
     public event Action<BounceEventData> Bounced;
     public event Action Dashed;
@@ -38,6 +41,10 @@ public class RunnerMovementMotor : MonoBehaviour
     public Vector3 Velocity => rigidBody != null ? rigidBody.linearVelocity : Vector3.zero;
 
     public MovementTuningProfile TuningProfile => tuningProfile;
+
+    public float CurrentMaxSpeed => tuningProfile != null
+        ? tuningProfile.GetMaxSpeed(momentumSystem != null ? currentMomentumTier : MomentumTier.Low)
+        : 0f;
 
     public bool IsGrounded => isGrounded;
 
@@ -79,9 +86,59 @@ public class RunnerMovementMotor : MonoBehaviour
         CacheBodyColliders();
     }
 
+    void OnEnable()
+    {
+        BindMomentumEvents();
+    }
+
+    void Start()
+    {
+        SyncMomentumTier();
+    }
+
     void OnDisable()
     {
+        UnbindMomentumEvents();
         RestoreIgnoredBounceSurface();
+    }
+
+    public void SetMomentumSystem(MomentumSystem source)
+    {
+        UnbindMomentumEvents();
+        momentumSystem = source;
+        BindMomentumEvents();
+    }
+
+    void BindMomentumEvents()
+    {
+        UnbindMomentumEvents();
+        if (isActiveAndEnabled && momentumSystem != null)
+        {
+            subscribedMomentumSystem = momentumSystem;
+            subscribedMomentumSystem.OnTierChanged.AddListener(HandleMomentumTierChanged);
+        }
+        SyncMomentumTier();
+    }
+
+    void UnbindMomentumEvents()
+    {
+        if (subscribedMomentumSystem != null)
+        {
+            subscribedMomentumSystem.OnTierChanged.RemoveListener(HandleMomentumTierChanged);
+        }
+        subscribedMomentumSystem = null;
+    }
+
+    void SyncMomentumTier()
+    {
+        HandleMomentumTierChanged(momentumSystem != null ? momentumSystem.CurrentTier : MomentumTier.Low);
+    }
+
+    void HandleMomentumTierChanged(MomentumTier tier)
+    {
+        currentMomentumTier = tier;
+        // Do not retain a faster tier's floor and restore it after a later tier increase.
+        planarSpeedFloor = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
     }
 
     void FixedUpdate()
@@ -147,7 +204,7 @@ public class RunnerMovementMotor : MonoBehaviour
         rigidBody.linearVelocity = velocity;
         isGrounded = !bouncedThisStep && ComputeGroundedState();
 
-        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, tuningProfile.MaxSpeed);
+        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, CurrentMaxSpeed);
     }
 
     public void SetInput(MovementInputFrame inputFrame)
@@ -170,6 +227,7 @@ public class RunnerMovementMotor : MonoBehaviour
     public void SetTuningProfile(MovementTuningProfile profile)
     {
         tuningProfile = profile;
+        SyncMomentumTier();
 
         if (!BounceMovementMath.ShouldUseBounceFlightShaper(tuningProfile))
         {
@@ -343,7 +401,8 @@ public class RunnerMovementMotor : MonoBehaviour
             Up,
             Time.time < lowControlUntil && Time.time >= dashControlBoostUntil,
             Time.time < dashControlBoostUntil,
-            deltaTime);
+            deltaTime,
+            CurrentMaxSpeed);
     }
 
     void ApplyPlanarDrag(ref Vector3 velocity, float drag, float deltaTime)
@@ -353,7 +412,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplySoftSpeedLimit(ref Vector3 velocity, float deltaTime)
     {
-        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime);
+        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime, CurrentMaxSpeed);
     }
 
     void ApplyPlanarSpeedFloor(ref Vector3 velocity)
@@ -365,7 +424,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
         float planarSpeed = planarVelocity.magnitude;
-        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, tuningProfile.MaxSpeed);
+        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
 
         if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
         {
@@ -465,9 +524,9 @@ public class RunnerMovementMotor : MonoBehaviour
 
         planarSpeedFloorDirection = planarVelocity / planarSpeed;
         bool isSpeedReducingBounce = response.HasPlanarDragOverride || response.VelocityScale < 1f || response.PlanarBoost < 0f;
-        planarSpeedFloor = isSpeedReducingBounce
+        planarSpeedFloor = Mathf.Min(CurrentMaxSpeed, isSpeedReducingBounce
             ? planarSpeed
-            : Mathf.Max(planarSpeedFloor, planarSpeed);
+            : Mathf.Max(planarSpeedFloor, planarSpeed));
     }
 
     void UpdatePlanarSpeedFloorForBraking(Vector3 velocity)

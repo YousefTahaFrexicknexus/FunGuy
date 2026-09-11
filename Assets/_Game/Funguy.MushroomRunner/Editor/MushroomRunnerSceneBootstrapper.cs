@@ -1,4 +1,4 @@
-﻿// using System;
+// using System;
 // using System.Reflection;
 // using UnityEditor;
 // using UnityEditor.SceneManagement;
@@ -215,8 +215,6 @@
 //         RunnerInputSource inputHandler = new GameObject("RunnerInputSource").AddComponent<RunnerInputSource>();
 //         inputHandler.transform.SetParent(systemsRoot.transform);
 
-//         RunScoreService scoreTracker = new GameObject("RunScoreService").AddComponent<RunScoreService>();
-//         scoreTracker.transform.SetParent(systemsRoot.transform);
 
 //         LegacyEnvironmentResetAdapter legacyEnvironmentResetAdapter = new GameObject("LegacyEnvironmentResetAdapter").AddComponent<LegacyEnvironmentResetAdapter>();
 //         legacyEnvironmentResetAdapter.transform.SetParent(systemsRoot.transform);
@@ -228,7 +226,6 @@
 
 //         MushroomRunnerPlayer playerController = playerInstance.GetComponent<MushroomRunnerPlayer>();
 //         RunnerMovementMotor movementMotor = playerInstance.GetComponent<RunnerMovementMotor>();
-//         RunMultiplierService multiplierService = playerInstance.GetComponent<RunMultiplierService>();
 //         Rigidbody playerBody = playerInstance.GetComponent<Rigidbody>();
 //         Transform cameraFollowTarget = playerController.CameraFollowTarget;
 
@@ -243,13 +240,6 @@
 //         controllerSo.FindProperty("tuningProfile").objectReferenceValue = tuningProfile;
 //         controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
-//         if (multiplierService != null)
-//         {
-//             SerializedObject multiplierSo = new(multiplierService);
-//             multiplierSo.FindProperty("player").objectReferenceValue = playerController;
-//             multiplierSo.FindProperty("movementMotor").objectReferenceValue = movementMotor;
-//             multiplierSo.ApplyModifiedPropertiesWithoutUndo();
-//         }
 
 //         RunnerCourseStreamer areaStreamer = new GameObject("RunnerCourseStreamer").AddComponent<RunnerCourseStreamer>();
 //         areaStreamer.transform.SetParent(systemsRoot.transform);
@@ -257,11 +247,6 @@
 //         RunFlowCoordinator runResetCoordinator = new GameObject("RunFlowCoordinator").AddComponent<RunFlowCoordinator>();
 //         runResetCoordinator.transform.SetParent(systemsRoot.transform);
 
-//         SerializedObject scoreTrackerSo = new(scoreTracker);
-//         scoreTrackerSo.FindProperty("trackedPlayer").objectReferenceValue = playerController;
-//         scoreTrackerSo.FindProperty("trackedTarget").objectReferenceValue = playerInstance.transform;
-//         scoreTrackerSo.FindProperty("multiplierService").objectReferenceValue = multiplierService;
-//         scoreTrackerSo.ApplyModifiedPropertiesWithoutUndo();
 
 //         SerializedObject streamerSo = new(areaStreamer);
 //         streamerSo.FindProperty("player").objectReferenceValue = playerInstance.transform;
@@ -269,7 +254,6 @@
 //         streamerSo.FindProperty("decorationRoot").objectReferenceValue = generatedEnvironmentRoot.transform;
 //         streamerSo.FindProperty("generationProfile").objectReferenceValue = generationProfile;
 //         streamerSo.FindProperty("tuningProfile").objectReferenceValue = tuningProfile;
-//         streamerSo.FindProperty("scoreTracker").objectReferenceValue = scoreTracker;
 //         streamerSo.FindProperty("startSpawnDefinition").objectReferenceValue = startSpawnDefinition;
 //         streamerSo.FindProperty("startMushroomPosition").vector3Value = Vector3.zero;
 //         streamerSo.FindProperty("autoInitializeOnStart").boolValue = false;
@@ -287,7 +271,7 @@
 //         CreateBackdrop(scene, runtimeRoot.transform, groundMaterial);
 //         CreateDeathPlaneResetVolume(scene, runtimeRoot.transform, playerInstance.transform, runResetCoordinator, dangerMaterial);
 //         CreateEventSystem(scene);
-//         CreateHud(scene, scoreTracker, movementMotor, out FloatingJoystick joystick, out TouchDashButton dashButton);
+//         CreateHud(scene, movementMotor, out FloatingJoystick joystick, out TouchDashButton dashButton);
 
 //         SerializedObject inputSo = new(inputHandler);
 //         inputSo.FindProperty("movementJoystick").objectReferenceValue = joystick;
@@ -501,7 +485,7 @@
 //         throw new InvalidOperationException($"[MushroomRunnerSceneBootstrapper] Could not resolve type '{typeName}' from assembly '{assemblyName}'.");
 //     }
 
-//     static void CreateHud(Scene scene, RunScoreService scoreTracker, RunnerMovementMotor movementMotor, out FloatingJoystick joystick, out TouchDashButton dashButton)
+//     static void CreateHud(Scene scene, RunnerMovementMotor movementMotor, out FloatingJoystick joystick, out TouchDashButton dashButton)
 //     {
 //         Sprite uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 //         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -610,7 +594,7 @@
 
 //         dashButton = dashButtonObject.GetComponent<TouchDashButton>();
 
-//         GameObject scoreObject = new("ScoreText", typeof(RectTransform), typeof(Text), typeof(RunScoreHud));
+//         GameObject scoreObject = new("ScoreText", typeof(RectTransform), typeof(Text));
 //         scoreObject.transform.SetParent(canvasObject.transform, false);
 
 //         RectTransform scoreRect = scoreObject.GetComponent<RectTransform>();
@@ -654,12 +638,6 @@
 //         momentumOutline.effectColor = new Color(0.04f, 0.05f, 0.08f, 0.55f);
 //         momentumOutline.effectDistance = new Vector2(1.75f, -1.75f);
 
-//         RunScoreHud scoreView = scoreObject.GetComponent<RunScoreHud>();
-//         SerializedObject scoreViewSo = new(scoreView);
-//         scoreViewSo.FindProperty("scoreTracker").objectReferenceValue = scoreTracker;
-//         scoreViewSo.FindProperty("scoreText").objectReferenceValue = scoreText;
-//         scoreViewSo.FindProperty("statusText").objectReferenceValue = momentumText;
-//         scoreViewSo.ApplyModifiedPropertiesWithoutUndo();
 
 //         GameObject speedRoot = new("SpeedMeter", typeof(RectTransform), typeof(Image), typeof(PlayerSpeedHudPresenter));
 //         speedRoot.transform.SetParent(canvasObject.transform, false);
@@ -829,7 +807,10 @@
 //         so.FindProperty("forwardAirControlMultiplier").floatValue = preset.ForwardAirControlMultiplier;
 //         so.FindProperty("airBrakeAcceleration").floatValue = preset.AirBrakeAcceleration;
 //         so.FindProperty("maxControllableSpeed").floatValue = preset.MaxControllableSpeed;
-//         so.FindProperty("maxSpeed").floatValue = preset.MaxSpeed;
+//         so.FindProperty("maxSpeedX1").floatValue = preset.MaxSpeed;
+//         so.FindProperty("maxSpeedX2").floatValue = preset.MaxSpeed;
+//         so.FindProperty("maxSpeedX3").floatValue = preset.MaxSpeed;
+//         so.FindProperty("maxSpeedX4").floatValue = preset.MaxSpeed;
 //         so.FindProperty("overSpeedDrag").floatValue = preset.OverSpeedDrag;
 //         so.FindProperty("airDrag").floatValue = preset.AirDrag;
 //         so.FindProperty("gravityScale").floatValue = preset.GravityScale;
@@ -1289,7 +1270,6 @@
 
 //         RunnerMovementMotor movementMotor = root.AddComponent<RunnerMovementMotor>();
 //         MushroomRunnerPlayer playerController = root.AddComponent<MushroomRunnerPlayer>();
-//         RunMultiplierService multiplierService = root.AddComponent<RunMultiplierService>();
 
 //         GameObject cameraTarget = new("CameraFollowTarget");
 //         cameraTarget.transform.SetParent(root.transform, false);
@@ -1313,10 +1293,6 @@
 //         controllerSo.FindProperty("cameraFollowTarget").objectReferenceValue = cameraTarget.transform;
 //         controllerSo.ApplyModifiedPropertiesWithoutUndo();
 
-//         SerializedObject multiplierSo = new(multiplierService);
-//         multiplierSo.FindProperty("player").objectReferenceValue = playerController;
-//         multiplierSo.FindProperty("movementMotor").objectReferenceValue = movementMotor;
-//         multiplierSo.ApplyModifiedPropertiesWithoutUndo();
 
 //         return SavePrefab(root, path);
 //     }

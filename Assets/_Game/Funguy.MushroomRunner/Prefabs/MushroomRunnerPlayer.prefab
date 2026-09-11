@@ -134,7 +134,6 @@ GameObject:
   - component: {fileID: 6698093244278556446}
   - component: {fileID: 3264662956738846588}
   - component: {fileID: 8683741851017507597}
-  - component: {fileID: 5034897476475055596}
   m_Layer: 0
   m_Name: MushroomRunnerPlayer
   m_TagString: Player
@@ -240,24 +239,3 @@ MonoBehaviour:
   tuningProfile: {fileID: 0}
   cameraFollowTarget: {fileID: 781000000000000002}
   initialState: 0
---- !u!114 &5034897476475055596
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4056237532050983834}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21bf2c25678827d42b4d88f0597fcc06, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.RunMultiplierService
-  player: {fileID: 8683741851017507597}
-  movementMotor: {fileID: 3264662956738846588}
-  forwardReleaseBreakDelay: 0.5
-  comboStepSize: 0.25
-  maxComboMultiplier: 2
-  forwardInputRequiredThreshold: 0.01
-  airtimeRewardStartDelay: 0.35
-  airtimeStatusStartDelay: 0.85
-  airtimeComboMultiplierStartDelay: 1.15

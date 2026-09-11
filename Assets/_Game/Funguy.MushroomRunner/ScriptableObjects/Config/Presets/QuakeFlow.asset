@@ -17,7 +17,10 @@ MonoBehaviour:
   forwardAirControlMultiplier: 0.35
   airBrakeAcceleration: 12
   maxControllableSpeed: 13
-  maxSpeed: 22
+  maxSpeedX1: 22
+  maxSpeedX2: 22
+  maxSpeedX3: 22
+  maxSpeedX4: 22
   overSpeedDrag: 2.5
   airDrag: 0.04
   gravityScale: 0.95

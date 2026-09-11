@@ -77,8 +77,6 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
     BounceAreaGenerationProfile generationProfile;
     [SerializeField, Tooltip("Movement profile used when validating whether sampled hops are reachable. This is refreshed from the player when available.")]
     MovementTuningProfile tuningProfile;
-    [SerializeField, Tooltip("Score service reset and rebound whenever a new run is built.")]
-    RunScoreService scoreTracker;
     [SerializeField, Tooltip("Explicit spawn definition used for the very first mushroom in a run.")]
     BounceSpawnDefinition startSpawnDefinition;
     [SerializeField, Tooltip("World position of the first route mushroom.")]
@@ -99,6 +97,7 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
     float nextEnvironmentBlockStartZ;
     int nextAreaIndexToGenerate;
     bool initialized;
+    RunnerMovementMotor movementMotor;
 
     Vector3 Up => worldUp.sqrMagnitude > BounceMovementMath.MinimumDirectionSqrMagnitude
         ? worldUp.normalized
@@ -162,12 +161,6 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
         nextAreaIndexToGenerate = 0;
         initialized = true;
 
-        if (scoreTracker != null)
-        {
-            scoreTracker.SetTarget(player);
-            scoreTracker.ResetProgress(runStartZ);
-        }
-
         EnsureAreasForPlayer(GetPlayerAreaIndex());
     }
 
@@ -181,11 +174,6 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
     {
         player = playerTransform;
         SyncTuningProfileFromPlayer();
-    }
-
-    public void SetScoreService(RunScoreService scoreService)
-    {
-        scoreTracker = scoreService;
     }
 
     bool ResolveReferences()
@@ -209,10 +197,11 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
     {
         if (player == null)
         {
+            movementMotor = null;
             return;
         }
 
-        RunnerMovementMotor movementMotor = player.GetComponent<RunnerMovementMotor>();
+        movementMotor = player.GetComponent<RunnerMovementMotor>();
         if (movementMotor == null)
         {
             movementMotor = player.GetComponentInParent<RunnerMovementMotor>();
@@ -221,11 +210,6 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
         if (movementMotor != null && movementMotor.TuningProfile != null)
         {
             tuningProfile = movementMotor.TuningProfile;
-        }
-
-        if (scoreTracker != null)
-        {
-            scoreTracker.SetTarget(player);
         }
     }
 
@@ -630,7 +614,8 @@ public sealed class RunnerCourseStreamer : MonoBehaviour
             generationProfile.LandingRadius,
             generationProfile.LandingHeightTolerance,
             generationProfile.SimulationTimeStep,
-            generationProfile.MaxSimulationTime);
+            generationProfile.MaxSimulationTime,
+            movementMotor != null ? movementMotor.CurrentMaxSpeed : tuningProfile.MaxSpeed);
 
         return BounceReachEvaluator.TryEvaluate(request, out result);
     }

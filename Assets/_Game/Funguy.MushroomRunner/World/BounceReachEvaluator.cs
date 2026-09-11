@@ -15,7 +15,8 @@
             float landingRadius,
             float landingHeightTolerance,
             float simulationTimeStep,
-            float maxSimulationTime)
+            float maxSimulationTime,
+            float? maximumSpeed = null)
         {
             SurfaceRootPosition = surfaceRootPosition;
             IncomingVelocity = incomingVelocity;
@@ -30,6 +31,7 @@
             LandingHeightTolerance = landingHeightTolerance;
             SimulationTimeStep = simulationTimeStep;
             MaxSimulationTime = maxSimulationTime;
+            MaximumSpeed = Mathf.Max(0f, maximumSpeed ?? (tuningProfile != null ? tuningProfile.MaxSpeed : 0f));
         }
 
         public Vector3 SurfaceRootPosition { get; }
@@ -57,6 +59,8 @@
         public float SimulationTimeStep { get; }
 
         public float MaxSimulationTime { get; }
+
+        public float MaximumSpeed { get; }
     }
 
     public readonly struct BounceReachResult
@@ -134,14 +138,15 @@
                         up,
                         elapsedTime < request.TuningProfile.PostBounceLowControlTime,
                         false,
-                        deltaTime);
+                        deltaTime,
+                        request.MaximumSpeed);
 
                     if (drag > 0f)
                     {
                         BounceMovementMath.ApplyPlanarDrag(ref velocity, up, drag, deltaTime);
                     }
 
-                    BounceMovementMath.ApplySoftSpeedLimit(ref velocity, request.TuningProfile, up, deltaTime);
+                    BounceMovementMath.ApplySoftSpeedLimit(ref velocity, request.TuningProfile, up, deltaTime, request.MaximumSpeed);
                 }
 
                 position += velocity * deltaTime;

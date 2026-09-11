@@ -179,7 +179,8 @@ public static class BounceMovementMath
         Vector3 worldUp,
         bool inPostBounceLowControl,
         bool inPostDashBoost,
-        float deltaTime)
+        float deltaTime,
+        float? maximumSpeed = null)
     {
         if (tuningProfile == null || !inputFrame.HasMoveInput)
         {
@@ -190,6 +191,8 @@ public static class BounceMovementMath
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
         Vector3 verticalVelocity = up * Vector3.Dot(velocity, up);
         Vector3 wishDirection = inputFrame.WishDirection.normalized;
+        float targetAlongWish = Mathf.Min(tuningProfile.MaxControllableSpeed,
+            Mathf.Max(0f, maximumSpeed ?? tuningProfile.MaxSpeed)) * inputFrame.Magnitude;
 
         if (planarVelocity.sqrMagnitude <= MinimumDirectionSqrMagnitude)
         {
@@ -198,7 +201,7 @@ public static class BounceMovementMath
                 * inputFrame.Magnitude
                 * deltaTime;
 
-            planarVelocity += wishDirection * initialAccelerationDelta;
+            planarVelocity += wishDirection * Mathf.Min(initialAccelerationDelta, targetAlongWish);
             velocity = planarVelocity + verticalVelocity;
             return;
         }
@@ -242,7 +245,6 @@ public static class BounceMovementMath
         }
 
         currentAlongWish = Vector3.Dot(planarVelocity, wishDirection);
-        float targetAlongWish = tuningProfile.MaxControllableSpeed * inputFrame.Magnitude;
         float speedToAdd = targetAlongWish - currentAlongWish;
         if (speedToAdd <= 0f)
         {
@@ -277,7 +279,8 @@ public static class BounceMovementMath
         ref Vector3 velocity,
         MovementTuningProfile tuningProfile,
         Vector3 worldUp,
-        float deltaTime)
+        float deltaTime,
+        float? maximumSpeed = null)
     {
         if (tuningProfile == null)
         {
@@ -287,7 +290,7 @@ public static class BounceMovementMath
         Vector3 up = GetSafeUp(worldUp);
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
         float planarSpeed = planarVelocity.magnitude;
-        float overflow = planarSpeed - tuningProfile.MaxSpeed;
+        float overflow = planarSpeed - Mathf.Max(0f, maximumSpeed ?? tuningProfile.MaxSpeed);
 
         if (overflow <= 0f || planarSpeed <= MinimumDirectionSqrMagnitude)
         {

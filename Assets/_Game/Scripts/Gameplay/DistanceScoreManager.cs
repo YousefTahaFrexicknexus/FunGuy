@@ -19,6 +19,7 @@ public class DistanceScoreManager : MonoBehaviour
 
     public int CurrentScore => Mathf.FloorToInt((float)preciseScore);
     public float CurrentMultiplier => GetMultiplier();
+    public MomentumSystem MomentumSource => momentumSystem;
     public bool IsScoring { get; private set; }
     public bool IsPaused { get; private set; }
 
