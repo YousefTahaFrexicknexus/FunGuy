@@ -82,4 +82,14 @@ public class GameplayManager : MonoBehaviour
             momentumSystem.Tick(runnerMovementMotor.Velocity.z, Time.fixedDeltaTime);
         }
     }
+
+    void OnPauseGame()
+    {
+        Time.timeScale = 0;
+    }
+
+    void OnUnPauseGame()
+    {
+        Time.timeScale = 1;
+    }
 }

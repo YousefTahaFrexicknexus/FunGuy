@@ -1,0 +1,29 @@
+fileFormatVersion: 2
+guid: bba45b51c5b144696867ca333d4a9dfd
+timeCreated: 1519202234
+licenseType: Store
+AudioImporter:
+  serializedVersion: 6
+  defaultSettings:
+    loadType: 0
+    sampleRateSetting: 0
+    sampleRateOverride: 44100
+    compressionFormat: 1
+    quality: 1
+    conversionMode: 0
+  platformSettingOverrides: {}
+  forceToMono: 0
+  normalize: 1
+  preloadAudioData: 1
+  loadInBackground: 0
+  3D: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 112051
+  packageName: Game Music Stingers and UI SFX 2 Pack
+  packageVersion: 1.0
+  assetPath: Assets/Game Music Stingers and UI SFX Pack 2/UI_SFX/Misc/CGM3_Plow_01_1.wav
+  uploadId: 231041
