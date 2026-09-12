@@ -25,18 +25,13 @@ public struct MushroomSpeedRule
     public float Evaluate(float incomingSpeed, float effectiveness)
     {
         float effectiveSpeed = Mathf.Max(0f, incomingSpeed) * Mathf.Clamp(effectiveness, 0f, 2f);
-        return Mathf.Max(0f, Apply(effectiveSpeed));
-    }
-
-    /// <summary>Applies one step. Effectiveness and the final speed clamp belong to the whole sequence.</summary>
-    public float Apply(float speed)
-    {
-        return mode switch
+        float result = mode switch
         {
-            MushroomSpeedMode.Multiply => speed * value,
+            MushroomSpeedMode.Multiply => effectiveSpeed * value,
             MushroomSpeedMode.Set => value,
-            _ => speed + value
+            _ => effectiveSpeed + value
         };
+        return Mathf.Max(0f, result);
     }
 }
 
@@ -58,9 +53,9 @@ public sealed class MushroomLauncher : MonoBehaviour
     [SerializeField] Collider perfectTrigger;
 
     [Header("Speed Rules")]
-    [SerializeField, InspectorName("Normal / Bad")] List<MushroomSpeedRule> normalRules = new() { new(MushroomSpeedMode.Add, 0f) };
-    [SerializeField, InspectorName("Good")] List<MushroomSpeedRule> goodRules = new() { new(MushroomSpeedMode.Add, 5f) };
-    [SerializeField, InspectorName("Perfect")] List<MushroomSpeedRule> perfectRules = new() { new(MushroomSpeedMode.Add, 10f) };
+    [SerializeField, InspectorName("Normal / Bad")] MushroomSpeedRule normalRule = new(MushroomSpeedMode.Add, 0f);
+    [SerializeField, InspectorName("Good")] MushroomSpeedRule goodRule = new(MushroomSpeedMode.Add, 5f);
+    [SerializeField, InspectorName("Perfect")] MushroomSpeedRule perfectRule = new(MushroomSpeedMode.Add, 10f);
 
     [Header("Optional Visuals")]
     [SerializeField] MushroomBouncePresentation presentation;
@@ -136,14 +131,14 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect
             : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
-        List<MushroomSpeedRule> rules = quality switch
+        MushroomSpeedRule rule = quality switch
         {
-            LandingQuality.Perfect => perfectRules,
-            LandingQuality.Good => goodRules,
-            _ => normalRules
+            LandingQuality.Perfect => perfectRule,
+            LandingQuality.Good => goodRule,
+            _ => normalRule
         };
         if (!TryCalculateLaunch(motor.Velocity, motor.TuningProfile.MushroomBounceEffectiveness,
-            rules, launchDirection.forward, out Vector3 outgoingVelocity))
+            rule, launchDirection.forward, out Vector3 outgoingVelocity))
         {
             return false;
         }
@@ -166,35 +161,12 @@ public sealed class MushroomLauncher : MonoBehaviour
     public static bool TryCalculateLaunch(Vector3 incomingVelocity, float effectiveness, MushroomSpeedRule rule,
         Vector3 direction, out Vector3 outgoingVelocity)
     {
-        return TryCalculateLaunch(incomingVelocity, effectiveness, new[] { rule }, direction, out outgoingVelocity);
-    }
-
-    public static bool TryCalculateLaunch(Vector3 incomingVelocity, float effectiveness, IReadOnlyList<MushroomSpeedRule> rules,
-        Vector3 direction, out Vector3 outgoingVelocity)
-    {
         outgoingVelocity = Vector3.zero;
-        if (!IsValidDirection(direction) || !IsFinite(incomingVelocity.z) || !IsFinite(effectiveness))
+        if (!IsValidDirection(direction) || !IsFinite(incomingVelocity.z) || !IsFinite(effectiveness) || !IsFinite(rule.value))
             return false;
-
-        // Scale incoming speed once, then apply each rule in Inspector order. An empty list adds nothing.
-        float speed = Mathf.Max(0f, incomingVelocity.z) * Mathf.Clamp(effectiveness, 0f, 2f);
-        if (!IsFinite(speed))
-            return false;
-        if (rules != null)
-        {
-            for (int index = 0; index < rules.Count; index++)
-            {
-                MushroomSpeedRule rule = rules[index];
-                if (!IsFinite(rule.value))
-                    return false;
-                speed = rule.Apply(speed);
-                if (!IsFinite(speed))
-                    return false;
-            }
-        }
 
         direction.Normalize();
-        speed = Mathf.Max(0f, speed);
+        float speed = rule.Evaluate(incomingVelocity.z, effectiveness);
         outgoingVelocity = direction * (speed / direction.z);
         return IsFinite(outgoingVelocity.x) && IsFinite(outgoingVelocity.y) && IsFinite(outgoingVelocity.z);
     }

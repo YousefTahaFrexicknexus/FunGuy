@@ -56,13 +56,13 @@ public sealed class MovementTuningProfile : ScriptableObject
     [Header("Air Control")]
     [SerializeField, Tooltip("If enabled, movement input can add horizontal speed. If disabled, input only steers existing velocity and brakes.")]
     bool allowAirAcceleration;
-    [SerializeField, Tooltip("Forward acceleration is this value multiplied by positive joystick Y (19 at Y=0.1 gives 1.9). Also supplies the existing sideways steering acceleration.")]
+    [SerializeField, Tooltip("Air acceleration applied when steering in a desired direction.")]
     float moveAcceleration = 24f;
     [SerializeField, Tooltip("Overall strength of air steering relative to the desired input direction.")]
     float airControlStrength = 1f;
     [SerializeField, Tooltip("Multiplier applied to forward steering so forward control can be looser or tighter than strafe control.")]
     float forwardAirControlMultiplier = 0.6f;
-    [SerializeField, Tooltip("Backward input removes speed at this value multiplied by the strength of negative joystick Y. Existing sideways steering also uses this setting.")]
+    [SerializeField, Tooltip("How quickly brake input removes planar speed while airborne.")]
     float airBrakeAcceleration = 18f;
     [SerializeField, Tooltip("Speed where normal air control starts to taper off.")]
     float maxControllableSpeed = 12f;

@@ -76,6 +76,7 @@ public struct BounceFlightShapeState
 public static class BounceMovementMath
 {
     public const float MinimumDirectionSqrMagnitude = 0.0001f;
+    const float BackwardBrakeMultiplier = 0.75f;
 
     public static void ApplyShapedGravity(
         ref Vector3 velocity,
@@ -203,7 +204,8 @@ public static class BounceMovementMath
                 float steeringAlignment = Vector3.Dot(planarVelocity / speed, wishDirection);
                 float control = ResolveContextualAirControlMultiplier(
                     tuningProfile, steeringAlignment, inPostBounceLowControl, inPostDashBoost);
-                float brakeDelta = tuningProfile.AirBrakeAcceleration * inputFrame.BrakeAmount * deltaTime;
+                float brakeDelta = tuningProfile.AirBrakeAcceleration * inputFrame.BrakeAmount
+                    * BackwardBrakeMultiplier * deltaTime;
                 float remainingSpeed = Mathf.Max(0f, speed - brakeDelta);
                 float turnRadians = tuningProfile.MoveAcceleration * control * inputFrame.Magnitude
                     * deltaTime / Mathf.Max(speed, 0.001f);
@@ -218,9 +220,12 @@ public static class BounceMovementMath
 
         if (planarVelocity.sqrMagnitude <= MinimumDirectionSqrMagnitude)
         {
-            Vector3 initialAcceleration = ResolveInputAcceleration(tuningProfile, inputFrame, wishDirection, up,
-                ResolveContextualAirControlMultiplier(tuningProfile, 0f, inPostBounceLowControl, inPostDashBoost)) * deltaTime;
-            planarVelocity += Vector3.ClampMagnitude(initialAcceleration, targetAlongWish);
+            float initialAccelerationDelta = tuningProfile.MoveAcceleration
+                * ResolveContextualAirControlMultiplier(tuningProfile, 0f, inPostBounceLowControl, inPostDashBoost)
+                * inputFrame.Magnitude
+                * deltaTime;
+
+            planarVelocity += wishDirection * Mathf.Min(initialAccelerationDelta, targetAlongWish);
             velocity = planarVelocity + verticalVelocity;
             return;
         }
@@ -248,7 +253,7 @@ public static class BounceMovementMath
             planarVelocity = (wishDirection * currentAlongWish) + sideVelocity;
         }
 
-        if (alignment < 0f && inputFrame.BrakeAmount <= 0f && tuningProfile.AirBrakeAcceleration > 0f)
+        if (alignment < 0f && tuningProfile.AirBrakeAcceleration > 0f)
         {
             float brakeDelta = tuningProfile.AirBrakeAcceleration * (-alignment) * inputFrame.Magnitude * deltaTime;
             planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, brakeDelta);
@@ -258,6 +263,7 @@ public static class BounceMovementMath
         {
             float backwardBrakeDelta = tuningProfile.AirBrakeAcceleration
                 * inputFrame.BrakeAmount
+                * BackwardBrakeMultiplier
                 * deltaTime;
             planarVelocity = Vector3.MoveTowards(planarVelocity, Vector3.zero, backwardBrakeDelta);
         }
@@ -270,26 +276,13 @@ public static class BounceMovementMath
             return;
         }
 
-        Vector3 inputAcceleration = ResolveInputAcceleration(tuningProfile, inputFrame, wishDirection, up,
-            contextualMultiplier) * deltaTime;
-        float accelerationAlongWish = Vector3.Dot(inputAcceleration, wishDirection);
-        if (accelerationAlongWish > speedToAdd)
-        {
-            inputAcceleration *= speedToAdd / accelerationAlongWish;
-        }
-        planarVelocity += inputAcceleration;
-        velocity = planarVelocity + verticalVelocity;
-    }
+        float accelerationDelta = tuningProfile.MoveAcceleration
+            * contextualMultiplier
+            * inputFrame.Magnitude
+            * deltaTime;
 
-    static Vector3 ResolveInputAcceleration(MovementTuningProfile tuningProfile, in MovementInputFrame inputFrame,
-        Vector3 wishDirection, Vector3 up, float steeringMultiplier)
-    {
-        Vector3 forward = Vector3.ProjectOnPlane(inputFrame.ReferenceForward, up).normalized;
-        // Preserve the existing sideways acceleration and its steering modifiers.
-        Vector3 acceleration = wishDirection * tuningProfile.MoveAcceleration * steeringMultiplier * inputFrame.Magnitude;
-        // Only the forward rate uses raw positive Y; backward Y is handled by braking above.
-        float forwardRate = tuningProfile.MoveAcceleration * Mathf.Clamp01(inputFrame.Move.y);
-        return acceleration + forward * (forwardRate - Vector3.Dot(acceleration, forward));
+        planarVelocity += wishDirection * Mathf.Min(speedToAdd, accelerationDelta);
+        velocity = planarVelocity + verticalVelocity;
     }
 
     public static void ApplyPlanarDrag(ref Vector3 velocity, Vector3 worldUp, float drag, float deltaTime)
