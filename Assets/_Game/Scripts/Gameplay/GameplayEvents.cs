@@ -13,11 +13,13 @@ public static class GameplayEvents
     // --- Gameplay changes --- 
     public static System.Action<int> OnAirJump;                                     // Jumps left
     public static System.Action OnMushroomJump; 
+    public static System.Action<LandingQuality> OnMushroomLanding;                  // Landing quality
     public static System.Action<float, float> OnSpeedChanged;                       // Current speed and maximum speed
     
     // --- Momentum --- 
-    public static System.Action<int> OnScoreChanged;                                // Current score
     public static System.Action<float> OnMomentumChanged;                           // Current momentum
     public static System.Action<float> OnMultiplierChanged;                         // Current multiplier
 
+    // --- Score changes ---
+    public static System.Action<int> OnScoreChanged;                                // Current score
 }

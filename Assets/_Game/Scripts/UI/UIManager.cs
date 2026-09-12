@@ -134,6 +134,9 @@ public enum UIType
 {
     appUpdate_Popup,
     noInternet,
+    Pause,
+    Settings,
+    
     // language,
     // profile,
     // editProfile,

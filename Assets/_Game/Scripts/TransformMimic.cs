@@ -22,6 +22,8 @@ public class TransformMimic : MonoBehaviour
     {
         if (target == null)
         {
+            Debug.LogWarning($"TransformMimic on {gameObject.name} has no target assigned. Disabling script.");
+            this.enabled = false;
             return;
         }
 

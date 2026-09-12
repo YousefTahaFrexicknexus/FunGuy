@@ -128,6 +128,8 @@ public class MomentumSystem : MonoBehaviour
     // Call exactly once per landing, from the existing landing detector.
     public void OnMushroomLanded(LandingQuality _quality)
     {
+        GameplayEvents.OnMushroomLanding?.Invoke(_quality);
+        
         switch(_quality)
         {
             case LandingQuality.Perfect:

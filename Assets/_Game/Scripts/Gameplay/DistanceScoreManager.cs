@@ -142,13 +142,24 @@ public class DistanceScoreManager : MonoBehaviour
         switch(_tier)
         {
             case MomentumTier.Medium:
+            {
                 return stage2Multiplier;
+            }
+
             case MomentumTier.High:
+            {
                 return stage3Multiplier;
+            }
+
             case MomentumTier.Maximum:
+            {
                 return stage4Multiplier;
+            }
+
             default:
+            {
                 return stage1Multiplier;
+            }
         }
     }
 }

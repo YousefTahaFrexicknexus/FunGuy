@@ -6,10 +6,18 @@ using UnityEngine.UI;
 
 using TMPro;
 
+using DG.Tweening;
+
 public class HUD_UI : MonoBehaviour
-{
+{    
     [TabGroup("Score UI")]
     [TabGroup("Score UI"),SerializeField] TextMeshProUGUI scoreText;
+
+    [TabGroup("Landing UI")]
+    [TabGroup("Landing UI"),SerializeField] TextMeshProUGUI landingQualityText;
+    [TabGroup("Scale Parameters"), Header("Scale Parameters"), Space]
+    [SerializeField, LabelText("Initial Scale")]  Vector3 initScale = Vector3.one * 0.75f;
+    [TabGroup("Scale Parameters"), SerializeField, LabelText("Final Scale")]  Vector3 finalScale = Vector3.one;
 
     [TabGroup("Momentum UI")]
     [TabGroup("Momentum UI"),SerializeField] TextMeshProUGUI momentumMultiplierText;
@@ -35,26 +43,41 @@ public class HUD_UI : MonoBehaviour
 
     void RegisterGameplayEvents()
     {
+        // --- Game preperation ---
         GameplayEvents.OnSetActiveTuningProfile += Init;
+
+        // --- Game state changes ---
         GameplayEvents.GameplayReset += OnReset;
 
+        // --- Gameplay changes --- 
         GameplayEvents.OnAirJump += OnAirJump;
-        GameplayEvents.OnMushroomJump += OnMushroomJump;
+        GameplayEvents.OnMushroomLanding += OnMushroomLanding;
 
+        // --- Momentum --- 
         GameplayEvents.OnMomentumChanged += OnMomentumChanged;
         GameplayEvents.OnMultiplierChanged += OnMultiplierChanged;
+
+        // --- Score changes ---
         GameplayEvents.OnScoreChanged += OnScoreChanged;
     }
 
     void UnregisterGameplayEvents()
     {
+        // --- Game preperation ---
         GameplayEvents.OnSetActiveTuningProfile -= Init;
+
+        // --- Game state changes ---
         GameplayEvents.GameplayReset -= OnReset;
 
+        // --- Gameplay changes --- 
         GameplayEvents.OnAirJump -= OnAirJump;
-        GameplayEvents.OnMushroomJump -= OnMushroomJump;
+        GameplayEvents.OnMushroomLanding -= OnMushroomLanding;
+
+        // --- Momentum --- 
         GameplayEvents.OnMomentumChanged -= OnMomentumChanged;
         GameplayEvents.OnMultiplierChanged -= OnMultiplierChanged;
+
+        // --- Score changes ---
         GameplayEvents.OnScoreChanged -= OnScoreChanged;
     }
 
@@ -93,12 +116,46 @@ public class HUD_UI : MonoBehaviour
         }
     }
 
-    void OnMushroomJump()
+    void OnMushroomLanding(LandingQuality _landingQuality)
     {
+        OnLandingQuality(_landingQuality);
+
         foreach(Image jumpImage in jumpImages)
         {
             jumpImage.sprite = jumpActive_Sprite;
         }
+    }
+
+    void OnLandingQuality(LandingQuality _landingQuality)
+    {
+        landingQualityText.text = $"{_landingQuality}";
+
+        switch(_landingQuality)
+        {
+            case LandingQuality.Perfect:
+                landingQualityText.color = Color.purple;
+                break;
+            case LandingQuality.Good:
+                landingQualityText.color = Color.green;
+                break;
+            case LandingQuality.Bad:
+                landingQualityText.color = Color.red;
+                break;
+            default:
+                landingQualityText.color = Color.white;
+                break;
+        }
+
+        // landingQualityText.DOScale(finalScale * 1.1f, duration / 2).SetEase(easeIn_Type).OnComplete(() =>
+        // {
+        //     landingQualityText.DOScale(initScale, duration / 2).SetEase(easeOut_Type);
+        // });
+
+        // landingQualityText.DOFade(0, duration).OnComplete(() =>
+        // {
+        //     isAnimating = false;
+        //     this.gameObject.SetActive(false);
+        // });
     }
 
     void OnReset()
@@ -114,4 +171,8 @@ public class HUD_UI : MonoBehaviour
         }
     }
 
+    public void OnClick_Pause()
+    {
+        UIManager.Instance.Open_PopupsAndPanels(UIType.Pause);
+    }
 }
