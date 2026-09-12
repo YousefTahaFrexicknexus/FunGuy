@@ -136,6 +136,7 @@ public enum UIType
     noInternet,
     Pause,
     Settings,
+    Results,
     
     // language,
     // profile,

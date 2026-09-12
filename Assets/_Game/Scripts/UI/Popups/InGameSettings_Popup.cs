@@ -36,17 +36,19 @@ public class InGameSettings_Popup : MonoBehaviour
 
     void OnMusicVolumeChanged(float _volume)
     {
-        AudioManager.Instance.SetMusicVolume(_volume);
+        AudioManager.Instance?.SetMusicVolume(_volume);
     }
 
     void OnSFXVolumeChanged(float _volume)
     {
-        AudioManager.Instance.SetSFXVolume(_volume);
+        AudioManager.Instance?.SetSFXVolume(_volume);
     }
 
-    public void ClosePopup()
+    public void OnClick_Close()
     {
-        AudioManager.Instance.SaveVolumeSettings();
-        gameObject.SetActive(false);
+        AudioManager.Instance?.SaveVolumeSettings();
+
+        UIManager.Instance.Close_PopupsAndPanels(UIType.Settings);
+        UIManager.Instance.Open_PopupsAndPanels(UIType.Pause);
     }
 }
