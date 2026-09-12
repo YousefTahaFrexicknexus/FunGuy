@@ -2,7 +2,7 @@
 
 Drag `Assets/_Game/Funguy.MushroomRunner/Prefabs/MushroomLauncher.prefab` into the runner scene to test it. Existing mushrooms and spawner selections are unchanged.
 
-Select **Triggers > NormalLanding (Launcher)** to edit the launcher. Each **Normal / Bad**, **Good**, and **Perfect** row has a mode and a value:
+Select **Triggers > NormalLanding (Launcher)** to edit the launcher. Each **Normal / Bad**, **Good**, and **Perfect** section has an ordered list of speed rules. Add or remove entries with the list controls and drag them into the order you want. Each entry has a mode and a value:
 
 | Rule | Incoming forward speed | Outgoing forward speed |
 | --- | --- | --- |
@@ -11,11 +11,13 @@ Select **Triggers > NormalLanding (Launcher)** to edit the launcher. Each **Norm
 | Multiply 0.5 | 50 | 25 |
 | Set 30 | Any | 30 |
 
-The default rules are Add 0 / Add 5 / Add 10. Negative final results clamp to zero; there is no minimum launch speed. A stationary player needs an Add or Set rule greater than zero to get moving.
+Rules run from top to bottom: at incoming speed 50, Add 10 then Multiply 2 gives 120, while Multiply 2 then Add 10 gives 110. Set 30 then Add 5 gives 35. Effectiveness applies once before the list; clamping to zero happens only after all rules. An empty list keeps the effective incoming speed.
+
+New components start with Add 0 / Add 5 / Add 10. The existing prototype prefab retains its tuned Multiply 1.1 / Multiply 1.3 / Multiply 1.5 as one-entry lists. Negative final results clamp to zero; there is no minimum launch speed. A stationary player needs an Add or Set rule greater than zero to get moving.
 
 On the active **MovementTuningProfile**, **Mushroom Bounce Effectiveness** scales incoming speed before Add or Multiply (default 1, range 0–2). For example, incoming 50 at effectiveness 0.8 becomes 40, then Add 10 produces 50. Set ignores incoming speed and effectiveness.
 
-**Allow Air Acceleration** defaults to off. Off allows steering and braking without adding horizontal speed. On restores normal input acceleration, limited by the current score tier and the profile's air-control maximum. This profile setting also applies when testing the older mushrooms.
+**Allow Air Acceleration** retains the existing movement styles. Forward acceleration uses `Move Acceleration * max(0, joystick Y)`; backward braking uses `Air Brake Acceleration * max(0, -joystick Y)`. For example, Move Acceleration 19 and Y +0.1 gives a forward acceleration rate of 1.9 before reaching the existing control-speed limit. Sideways steering retains its existing calculations. Brake values are flat speed-per-second rates, not percentages. Existing gravity, drag, speed limits, and joystick dead zones still apply (input exactly at the dead-zone boundary is accepted).
 
 Rotate the **LaunchDirection** transform: its blue Z arrow specifies the whole launch direction. It starts tilted 45 degrees upward and forward. The launch is scaled so world-Z velocity equals the resulting speed, matching the current HUD. The arrow must keep a normalized world-Z component of at least 0.1; the Inspector warns about missing or invalid settings and invalid configurations do not launch.
 
