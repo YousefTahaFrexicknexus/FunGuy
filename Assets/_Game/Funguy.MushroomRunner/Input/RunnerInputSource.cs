@@ -48,7 +48,7 @@ public class RunnerInputSource : MonoBehaviour
 
         float magnitude = Mathf.Clamp01(move.magnitude);
 
-        if (magnitude <= deadZone)
+        if (magnitude < deadZone)
         {
             move = Vector2.zero;
             magnitude = 0f;
