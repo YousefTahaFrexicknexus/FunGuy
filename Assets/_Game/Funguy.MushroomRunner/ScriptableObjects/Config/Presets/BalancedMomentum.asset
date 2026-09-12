@@ -12,20 +12,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49a83c9ea272458db4eca91eeceee7e6, type: 3}
   m_Name: BalancedMomentum
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
+  allowAirAcceleration: 1
   moveAcceleration: 19
   airControlStrength: 1.5
   forwardAirControlMultiplier: 0.9
   airBrakeAcceleration: 24
   maxControllableSpeed: 15
-  maxSpeedX1: 48
-  maxSpeedX2: 48
-  maxSpeedX3: 48
-  maxSpeedX4: 48
+  maxSpeedX1: 15
+  maxSpeedX2: 25
+  maxSpeedX3: 40
+  maxSpeedX4: 60
   overSpeedDrag: 7.5
   airDrag: 0.18
   gravityScale: 1
   jumpGravityMultiplier: 2
   fallGravityMultiplier: 2
+  useBounceFlightShaper: 1
+  referencePlanarSpeed: 13.5
+  maximumPlanarSpeed: 30
+  slowRiseGravityMultiplier: 1.05
+  fastRiseGravityMultiplier: 0.9
+  slowFallGravityMultiplier: 2.15
+  fastFallGravityMultiplier: 1.95
+  apexTransitionVerticalSpeed: 1.1
+  apexExtraDownAcceleration: 12
+  apexExtraDownDuration: 0.06
+  mushroomBounceEffectiveness: 1
   baseJumpForce: 10
   baseBounceSpeedGain: 3
   dashForce: 7.5

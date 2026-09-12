@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: RiskOfRainCruiser
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   moveAcceleration: 13.5
+  allowAirAcceleration: 0
   airControlStrength: 0.48
   forwardAirControlMultiplier: 0.65
   airBrakeAcceleration: 18
@@ -36,6 +37,7 @@ MonoBehaviour:
   apexTransitionVerticalSpeed: 1.1
   apexExtraDownAcceleration: 12
   apexExtraDownDuration: 0.06
+  mushroomBounceEffectiveness: 1
   baseJumpForce: 9.25
   baseBounceSpeedGain: 1
   dashForce: 7.25

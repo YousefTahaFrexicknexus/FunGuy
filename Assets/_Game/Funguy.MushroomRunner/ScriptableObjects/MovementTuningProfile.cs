@@ -54,6 +54,8 @@ public readonly struct BounceFlightShaperSettings
 public sealed class MovementTuningProfile : ScriptableObject
 {
     [Header("Air Control")]
+    [SerializeField, Tooltip("If enabled, movement input can add horizontal speed. If disabled, input only steers existing velocity and brakes.")]
+    bool allowAirAcceleration;
     [SerializeField, Tooltip("Air acceleration applied when steering in a desired direction.")]
     float moveAcceleration = 24f;
     [SerializeField, Tooltip("Overall strength of air steering relative to the desired input direction.")]
@@ -111,6 +113,8 @@ public sealed class MovementTuningProfile : ScriptableObject
     float apexExtraDownDuration = 0.06f;
 
     [Header("Bounce And Dash")]
+    [SerializeField, Range(0f, 2f), Tooltip("Scales incoming forward speed before a Mushroom Launcher's Add or Multiply rule. Set Speed ignores incoming speed.")]
+    float mushroomBounceEffectiveness = 1f;
     [SerializeField, Tooltip("Base upward force used by standard bounce calculations.")]
     float baseJumpForce = 9f;
     [SerializeField, Tooltip("Default planar speed gain added by bounce responses.")]
@@ -139,6 +143,10 @@ public sealed class MovementTuningProfile : ScriptableObject
     float minGroundDot = 0.65f;
 
     public float MoveAcceleration => moveAcceleration;
+
+    public bool AllowAirAcceleration => allowAirAcceleration;
+
+    public float MushroomBounceEffectiveness => Mathf.Clamp(mushroomBounceEffectiveness, 0f, 2f);
 
     public float AirControlStrength => airControlStrength;
 
@@ -212,6 +220,7 @@ public sealed class MovementTuningProfile : ScriptableObject
 
     void OnValidate()
     {
+        mushroomBounceEffectiveness = Mathf.Clamp(mushroomBounceEffectiveness, 0f, 2f);
         moveAcceleration = Mathf.Max(0f, moveAcceleration);
         airControlStrength = Mathf.Max(0f, airControlStrength);
         forwardAirControlMultiplier = Mathf.Max(0f, forwardAirControlMultiplier);

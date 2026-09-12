@@ -24,6 +24,7 @@ public class RunnerMovementMotor : MonoBehaviour
     float lowControlUntil = float.NegativeInfinity;
     float dashControlBoostUntil = float.NegativeInfinity;
     float planarSpeedFloor;
+    bool suppressPlanarSpeedFloor;
     Vector3 planarSpeedFloorDirection;
     Collider lastConsumedSurface;
     Collider ignoredBounceSurface;
@@ -41,6 +42,8 @@ public class RunnerMovementMotor : MonoBehaviour
     public Vector3 Velocity => rigidBody != null ? rigidBody.linearVelocity : Vector3.zero;
 
     public MovementTuningProfile TuningProfile => tuningProfile;
+
+    public MomentumSystem MomentumSource => momentumSystem;
 
     public float CurrentMaxSpeed => tuningProfile != null
         ? tuningProfile.GetMaxSpeed(momentumSystem != null ? currentMomentumTier : MomentumTier.Low)
@@ -273,6 +276,7 @@ public class RunnerMovementMotor : MonoBehaviour
         lowControlUntil = float.NegativeInfinity;
         dashControlBoostUntil = float.NegativeInfinity;
         planarSpeedFloor = 0f;
+        suppressPlanarSpeedFloor = false;
         planarSpeedFloorDirection = Vector3.zero;
         lastConsumedSurface = null;
         isGrounded = false;
@@ -288,6 +292,39 @@ public class RunnerMovementMotor : MonoBehaviour
         rigidBody.WakeUp();
         RestoreIgnoredBounceSurface();
     }
+
+    /// <summary>Accepts a mushroom's complete launch velocity without applying any motor-owned bounce response.</summary>
+    public bool ApplyMushroomLaunch(Vector3 outgoingVelocity, Collider sourceCollider, Vector3 contactPoint, Vector3 contactNormal)
+    {
+        if (!isActiveAndEnabled || !motorEnabled || rigidBody == null || tuningProfile == null ||
+            !IsFinite(outgoingVelocity.x) || !IsFinite(outgoingVelocity.y) || !IsFinite(outgoingVelocity.z))
+        {
+            return false;
+        }
+
+        Vector3 incomingVelocity = rigidBody.linearVelocity;
+        hasBounceCandidate = false;
+        lastBounceCandidate = default;
+        lastSurfaceTouchTime = float.NegativeInfinity;
+        lastConsumedSurface = sourceCollider;
+        activeBounceFlightShape = default;
+        planarSpeedFloor = 0f;
+        planarSpeedFloorDirection = Vector3.zero;
+        suppressPlanarSpeedFloor = true;
+        lowControlUntil = float.NegativeInfinity;
+        isGrounded = false;
+        RestoreIgnoredBounceSurface();
+        rigidBody.linearVelocity = outgoingVelocity;
+
+        Vector3 normal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude ? contactNormal.normalized : Up;
+        // Response is intentionally empty: this launch has already been fully resolved by the mushroom.
+        Bounced?.Invoke(new BounceEventData(sourceCollider, contactPoint, normal, incomingVelocity, outgoingVelocity, default));
+        GameplayEvents.OnMushroomJump?.Invoke();
+        GameplayEvents.OnSpeedChanged?.Invoke(outgoingVelocity.z, CurrentMaxSpeed);
+        return true;
+    }
+
+    static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     public bool ApplyForce(Transform forceDirection, MushroomBounceProfile bounceProfile)
     {
@@ -330,6 +367,7 @@ public class RunnerMovementMotor : MonoBehaviour
         Vector3 forceDelta = outgoingVelocity - incomingVelocity;
         rigidBody.AddForce(forceDelta, ForceMode.VelocityChange);
 
+        suppressPlanarSpeedFloor = false;
         activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
         UpdatePlanarSpeedFloor(outgoingVelocity, response);
         lastConsumedSurface = sourceCollider;
@@ -417,7 +455,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplyPlanarSpeedFloor(ref Vector3 velocity)
     {
-        if (tuningProfile == null || currentInput.BrakeAmount > 0.01f || planarSpeedFloor <= 0f)
+        if (suppressPlanarSpeedFloor || tuningProfile == null || currentInput.BrakeAmount > 0.01f || planarSpeedFloor <= 0f)
         {
             return;
         }
@@ -487,6 +525,7 @@ public class RunnerMovementMotor : MonoBehaviour
             currentInput);
 
         response = lastBounceCandidate.Surface.GetBounceResponse(in context);
+        suppressPlanarSpeedFloor = false;
         velocity = ApplyBounceResponse(incomingVelocity, response);
         activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(velocity, tuningProfile, Up);
 

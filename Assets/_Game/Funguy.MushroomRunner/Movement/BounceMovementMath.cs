@@ -190,7 +190,31 @@ public static class BounceMovementMath
         Vector3 up = GetSafeUp(worldUp);
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, up);
         Vector3 verticalVelocity = up * Vector3.Dot(velocity, up);
-        Vector3 wishDirection = inputFrame.WishDirection.normalized;
+        Vector3 wishDirection = Vector3.ProjectOnPlane(inputFrame.WishDirection, up).normalized;
+        if (wishDirection.sqrMagnitude <= MinimumDirectionSqrMagnitude)
+        {
+            return;
+        }
+
+        if (!tuningProfile.AllowAirAcceleration)
+        {
+            float speed = planarVelocity.magnitude;
+            if (speed > 0f)
+            {
+                float steeringAlignment = Vector3.Dot(planarVelocity / speed, wishDirection);
+                float control = ResolveContextualAirControlMultiplier(
+                    tuningProfile, steeringAlignment, inPostBounceLowControl, inPostDashBoost);
+                float brakeDelta = tuningProfile.AirBrakeAcceleration * inputFrame.BrakeAmount
+                    * BackwardBrakeMultiplier * deltaTime;
+                float remainingSpeed = Mathf.Max(0f, speed - brakeDelta);
+                float turnRadians = tuningProfile.MoveAcceleration * control * inputFrame.Magnitude
+                    * deltaTime / Mathf.Max(speed, 0.001f);
+                // Rotating a direction cannot create speed, even when reversing or starting at rest.
+                Vector3 direction = Vector3.RotateTowards(planarVelocity / speed, wishDirection, turnRadians, 0f);
+                velocity = direction * remainingSpeed + verticalVelocity;
+            }
+            return;
+        }
         float targetAlongWish = Mathf.Min(tuningProfile.MaxControllableSpeed,
             Mathf.Max(0f, maximumSpeed ?? tuningProfile.MaxSpeed)) * inputFrame.Magnitude;
 

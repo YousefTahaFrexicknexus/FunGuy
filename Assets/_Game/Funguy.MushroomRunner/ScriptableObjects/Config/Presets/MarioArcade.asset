@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: MarioArcade
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MovementTuningProfile
   moveAcceleration: 16
+  allowAirAcceleration: 0
   airControlStrength: 0.35
   forwardAirControlMultiplier: 0.45
   airBrakeAcceleration: 28
@@ -36,6 +37,7 @@ MonoBehaviour:
   apexTransitionVerticalSpeed: 1.1
   apexExtraDownAcceleration: 12
   apexExtraDownDuration: 0.06
+  mushroomBounceEffectiveness: 1
   baseJumpForce: 8.5
   baseBounceSpeedGain: 1
   dashForce: 6.5
