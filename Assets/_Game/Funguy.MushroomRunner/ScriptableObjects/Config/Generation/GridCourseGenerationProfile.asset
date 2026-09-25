@@ -27,7 +27,7 @@ MonoBehaviour:
   mushroomSideToSideVariation: 1
   mushroomForwardBackVariation: 1
   mushroomEntries:
-  - prefab: {fileID: 900000000000000001, guid: e46e570de8914ff98a724764a44b35f7, type: 3}
+  - prefab: {fileID: 900000000000000001, guid: 9ec710c3bce55f840a741119f39eb051, type: 3}
     minimumScore: 0
     spawnWeight: 1
     localOffset: {x: 0, y: 0, z: 0}
