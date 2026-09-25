@@ -828,7 +828,7 @@ MonoBehaviour:
   - type: 2
     uiPanelAnimator: {fileID: 5837207602425751656}
   - type: 3
-    uiPanelAnimator: {fileID: 1401197071511341551}
+    uiPanelAnimator: {fileID: 5976492555489275790}
   - type: 4
     uiPanelAnimator: {fileID: 1401197071511341551}
 --- !u!1 &1690560222785544944
@@ -5374,6 +5374,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: faf49861fe2e4be4f9e6db7bf60c14c9, type: 3}
+--- !u!114 &5976492555489275790 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3073738596987806376, guid: faf49861fe2e4be4f9e6db7bf60c14c9, type: 3}
+  m_PrefabInstance: {fileID: 8671919296578440486}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50da665943f3c774290d4d54ef3e8555, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIPanelAnimator
 --- !u!224 &8395833143781692589 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 926375265853430155, guid: faf49861fe2e4be4f9e6db7bf60c14c9, type: 3}

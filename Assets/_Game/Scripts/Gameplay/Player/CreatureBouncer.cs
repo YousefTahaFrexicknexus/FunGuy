@@ -243,13 +243,17 @@ public class CreatureBouncer : MonoBehaviour
     IEnumerator ScaleTo(Vector3 target, float duration)
     {
         Vector3 start = meshTransform.localScale;
+
         float t = 0f;
+
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(duration, 0.001f);
             meshTransform.localScale = Vector3.LerpUnclamped(start, target, EaseOutBack(Mathf.Clamp01(t)));
+            
             yield return null;
         }
+
         meshTransform.localScale = target;
     }
 
@@ -282,14 +286,15 @@ public class CreatureBouncer : MonoBehaviour
 
     void ApplyAirborneWobble()
     {
-        if (Mathf.Abs(rb.linearVelocity.y) < 0.5f) return;
+        if (Mathf.Abs(rb.linearVelocity.y) < 0.5f)
+        {
+            return;
+        }
+
         wobbleTime += Time.deltaTime * wobbleSpeed;
-        float w = Mathf.Sin(wobbleTime) * wobbleAmount;
-        meshTransform.localScale = new Vector3(
-            originalScale.x * (1f + w),
-            meshTransform.localScale.y,
-            originalScale.z * (1f - w)
-        );
+
+        float wobbleValue = Mathf.Sin(wobbleTime) * wobbleAmount;
+        meshTransform.localScale = new Vector3(originalScale.x * (1f + wobbleValue), meshTransform.localScale.y, originalScale.z * (1f - wobbleValue));
     }
 
     public void ResetVeclocity()

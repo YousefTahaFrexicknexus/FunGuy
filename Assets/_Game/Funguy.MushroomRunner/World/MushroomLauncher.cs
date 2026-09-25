@@ -99,6 +99,36 @@ public sealed class MushroomLauncher : MonoBehaviour
         playerColliders.Clear();
     }
 
+    void OnCollisionEnter(Collision collision)
+    {
+        if(collision.gameObject.CompareTag("Player") == false)
+        {
+            return;
+        }
+        
+        RunnerMovementMotor motor = ResolveMotor(collision);
+
+        if (motor != null)
+        {
+            TryLaunch(motor);
+        }
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        if(collision.gameObject.CompareTag("Player") == false)
+        {
+            return;
+        }
+
+        RunnerMovementMotor motor = ResolveMotor(collision);
+
+        if (motor != null && !HasPlayerOverlap(motor, normalTrigger))
+        {
+            launchedPlayers.Remove(motor);
+        }
+    }
+
     void OnTriggerEnter(Collider other)
     {
         RunnerMovementMotor motor = ResolveMotor(other);
@@ -233,5 +263,10 @@ public sealed class MushroomLauncher : MonoBehaviour
         if (other == null || other.attachedRigidbody == null || other.isTrigger)
             return null;
         return other.attachedRigidbody.GetComponent<RunnerMovementMotor>();
+    }
+
+    static RunnerMovementMotor ResolveMotor(Collision other)
+    {
+        return other.gameObject.GetComponent<RunnerMovementMotor>();
     }
 }
