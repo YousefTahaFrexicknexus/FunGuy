@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -45,9 +45,21 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public MomentumSystem MomentumSource => momentumSystem;
 
-    public float CurrentMaxSpeed => tuningProfile != null
+    float blendedMaxSpeed;
+    bool hasBlendedMaxSpeed;
+    bool UsesBlendedSpeed => momentumSystem != null && momentumSystem.UsesTierSpeedDecay;
+    float TargetMaxSpeed => tuningProfile != null
         ? tuningProfile.GetMaxSpeed(momentumSystem != null ? currentMomentumTier : MomentumTier.Low)
         : 0f;
+
+    public float CurrentMaxSpeed => UsesBlendedSpeed && hasBlendedMaxSpeed ? blendedMaxSpeed : TargetMaxSpeed;
+
+    void ResetTierSpeed()
+    {
+        currentMomentumTier = MomentumTier.Low;
+        blendedMaxSpeed = tuningProfile != null ? tuningProfile.MaxSpeed : 0f;
+        hasBlendedMaxSpeed = true;
+    }
 
     public bool IsGrounded => isGrounded;
 
@@ -109,6 +121,7 @@ public class RunnerMovementMotor : MonoBehaviour
     {
         UnbindMomentumEvents();
         momentumSystem = source;
+        momentumSystem?.SetMovementProfile(tuningProfile);
         BindMomentumEvents();
     }
 
@@ -119,6 +132,7 @@ public class RunnerMovementMotor : MonoBehaviour
         {
             subscribedMomentumSystem = momentumSystem;
             subscribedMomentumSystem.OnTierChanged.AddListener(HandleMomentumTierChanged);
+            subscribedMomentumSystem.RunReset += ResetTierSpeed;
         }
         SyncMomentumTier();
     }
@@ -128,6 +142,7 @@ public class RunnerMovementMotor : MonoBehaviour
         if (subscribedMomentumSystem != null)
         {
             subscribedMomentumSystem.OnTierChanged.RemoveListener(HandleMomentumTierChanged);
+            subscribedMomentumSystem.RunReset -= ResetTierSpeed;
         }
         subscribedMomentumSystem = null;
     }
@@ -140,8 +155,13 @@ public class RunnerMovementMotor : MonoBehaviour
     void HandleMomentumTierChanged(MomentumTier tier)
     {
         currentMomentumTier = tier;
+        if (!hasBlendedMaxSpeed || !UsesBlendedSpeed)
+        {
+            blendedMaxSpeed = TargetMaxSpeed;
+            hasBlendedMaxSpeed = true;
+        }
         // Do not retain a faster tier's floor and restore it after a later tier increase.
-        planarSpeedFloor = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
+        planarSpeedFloor = Mathf.Min(planarSpeedFloor, TargetMaxSpeed);
     }
 
     void FixedUpdate()
@@ -165,6 +185,11 @@ public class RunnerMovementMotor : MonoBehaviour
         }
 
         float deltaTime = Time.fixedDeltaTime;
+        // One ordered tick: momentum observes incoming speed, then the cap and movement advance.
+        if (UsesBlendedSpeed) momentumSystem.Tick(rigidBody.linearVelocity.z, deltaTime);
+        if (UsesBlendedSpeed && momentumSystem.IsRunning && !momentumSystem.IsPaused && Time.timeScale > 0f)
+            blendedMaxSpeed = RunnerBalanceMath.BlendCap(CurrentMaxSpeed, TargetMaxSpeed,
+                momentumSystem.TierSpeedTransitionTime, deltaTime);
         Vector3 velocity = rigidBody.linearVelocity;
 
         ApplyShapedGravity(ref velocity, deltaTime);
@@ -230,6 +255,7 @@ public class RunnerMovementMotor : MonoBehaviour
     public void SetTuningProfile(MovementTuningProfile profile)
     {
         tuningProfile = profile;
+        momentumSystem?.SetMovementProfile(profile);
         SyncMomentumTier();
 
         if (!BounceMovementMath.ShouldUseBounceFlightShaper(tuningProfile))
@@ -259,6 +285,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
+        if (UsesBlendedSpeed) ResetTierSpeed();
         if (rigidBody == null)
         {
             rigidBody = GetComponent<Rigidbody>();

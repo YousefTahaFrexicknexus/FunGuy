@@ -24,6 +24,7 @@ public class DistanceScoreManager : MonoBehaviour
     public bool IsPaused { get; private set; }
 
     double preciseScore;
+    float lastNotifiedMultiplier = float.NaN;
     float previousZPosition;
 
     void OnEnable()
@@ -69,8 +70,8 @@ public class DistanceScoreManager : MonoBehaviour
         IsPaused = false;
         SyncPlayerPosition();
 
-        GameplayEvents.OnScoreChanged.Invoke(CurrentScore);
-        GameplayEvents.OnMultiplierChanged.Invoke(CurrentMultiplier);
+        GameplayEvents.OnScoreChanged?.Invoke(CurrentScore);
+        NotifyMultiplier(CurrentMultiplier);
     }
 
     public void EndRun()
@@ -88,7 +89,7 @@ public class DistanceScoreManager : MonoBehaviour
     {
         SyncPlayerPosition();
         preciseScore = 0d;
-        GameplayEvents.OnScoreChanged.Invoke(CurrentScore);
+        GameplayEvents.OnScoreChanged?.Invoke(CurrentScore);
     }
 
     // Call after manually resetting or teleporting the player.
@@ -123,13 +124,20 @@ public class DistanceScoreManager : MonoBehaviour
     {
         if(CurrentScore != _previousScore)
         {
-            GameplayEvents.OnScoreChanged.Invoke(CurrentScore);
+            GameplayEvents.OnScoreChanged?.Invoke(CurrentScore);
         }
     }
 
     void OnMomentumTierChanged(MomentumTier _tier)
     {
-        GameplayEvents.OnMultiplierChanged.Invoke(GetMultiplier(_tier));
+        NotifyMultiplier(GetMultiplier(_tier));
+    }
+
+    void NotifyMultiplier(float multiplier)
+    {
+        if (lastNotifiedMultiplier == multiplier) return;
+        lastNotifiedMultiplier = multiplier;
+        GameplayEvents.OnMultiplierChanged?.Invoke(multiplier);
     }
 
     float GetMultiplier()

@@ -19,8 +19,8 @@ MonoBehaviour:
   airBrakeAcceleration: 15
   maxControllableSpeed: 15
   maxSpeedX1: 15
-  maxSpeedX2: 25
-  maxSpeedX3: 40
+  maxSpeedX2: 30
+  maxSpeedX3: 45
   maxSpeedX4: 60
   overSpeedDrag: 7.5
   airDrag: 0.18

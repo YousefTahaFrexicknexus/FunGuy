@@ -391,19 +391,19 @@ MonoBehaviour:
   perfectTrigger: {fileID: 3225215379218126638}
   normalRules:
   - mode: 0
-    value: 5
+    value: 1
   - mode: 1
-    value: 1.1
+    value: 0.91999996
   goodRules:
   - mode: 0
-    value: 5
+    value: 1
   - mode: 1
-    value: 1.3
+    value: 1.12
   perfectRules:
   - mode: 0
     value: 5
   - mode: 1
-    value: 1.5
+    value: 1.25
   presentation: {fileID: 4031444048134765987}
 --- !u!114 &5996202582015260497
 MonoBehaviour:

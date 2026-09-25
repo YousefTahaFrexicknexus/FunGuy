@@ -77,10 +77,9 @@ public class GameplayManager : MonoBehaviour
     
     void FixedUpdate()
     {
-        if (momentumSystem != null && runnerMovementMotor != null)
-        {
+        // Legacy configurations retain their original update path. Opted-in balance ticks run in the motor.
+        if (momentumSystem != null && runnerMovementMotor != null && !momentumSystem.UsesTierSpeedDecay)
             momentumSystem.Tick(runnerMovementMotor.Velocity.z, Time.fixedDeltaTime);
-        }
     }
 
     void OnPauseGame()

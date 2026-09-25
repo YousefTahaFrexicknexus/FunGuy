@@ -35,6 +35,24 @@ public class MomentumSystem : MonoBehaviour
     [SerializeField, Min(0f)] float momentumGainPerSecond = 2f;
     [SerializeField, Min(0f)] float momentumDecayPerSecond = 5f;
 
+    [Header("Runner Balance Lab (Opt In)")]
+    [SerializeField] bool useTierSpeedDecay;
+    [SerializeField, Min(0f)] float tierDecayStrength = 4f;
+    [SerializeField, Min(0f)] float tierHysteresis = 2f;
+    [SerializeField, Min(0f)] float tierSpeedTransitionTime = 0.35f;
+    [SerializeField] bool useSmoothMomentumDifficulty;
+    [SerializeField] Vector4 momentumUpkeep = new Vector4(0, 0.4f, 1.6f, 3.2f);
+    [SerializeField, Min(1f)] float highMomentumPressure = 4f;
+    public bool UsesSmoothDifficulty => useTierSpeedDecay && useSmoothMomentumDifficulty;
+    public float LossPerSecond(float speed) => UsesSmoothDifficulty
+        ? RunnerBalanceMath.SmoothLoss(CurrentMomentum, speed, RunnerBalanceMath.Caps(movementProfile), momentumUpkeep, tierDecayStrength, highMomentumPressure)
+        : RunnerBalanceMath.Decay(speed, CurrentTier, RunnerBalanceMath.Caps(movementProfile), tierDecayStrength);
+    MovementTuningProfile movementProfile;
+    public bool UsesTierSpeedDecay => useTierSpeedDecay;
+    public float TierSpeedTransitionTime => tierSpeedTransitionTime;
+    public event Action RunReset;
+    public void SetMovementProfile(MovementTuningProfile profile) => movementProfile = profile;
+
     [Header("Landings")]
     [SerializeField, Min(0f)] float perfectLandingBonus = 15f;
     [SerializeField, Min(0f)] float goodLandingBonus = 7.5f;
@@ -84,7 +102,16 @@ public class MomentumSystem : MonoBehaviour
 
     void ValidateSettings()
     {
-        maximumMomentum = Mathf.Max(1f, maximumMomentum);
+        maximumMomentum = useTierSpeedDecay ? 100f : Mathf.Max(1f, maximumMomentum);
+        tierDecayStrength = Mathf.Max(0f, tierDecayStrength);
+        highMomentumPressure = float.IsNaN(highMomentumPressure) || float.IsInfinity(highMomentumPressure) ? 4f : Mathf.Max(1f, highMomentumPressure);
+        for(int i=0;i<4;i++)
+        {
+            float minimum=i==0?0:momentumUpkeep[i-1];
+            momentumUpkeep[i]=float.IsNaN(momentumUpkeep[i])||float.IsInfinity(momentumUpkeep[i])?minimum:Mathf.Max(minimum,momentumUpkeep[i]);
+        }
+        tierHysteresis = Mathf.Max(0f, tierHysteresis);
+        tierSpeedTransitionTime = Mathf.Max(0f, tierSpeedTransitionTime);
         startingMomentum = Mathf.Clamp(startingMomentum, 0f, maximumMomentum);
         minimumMomentumSpeed = Mathf.Max(0f, minimumMomentumSpeed);
         maximumMomentumSpeed = Mathf.Max(minimumMomentumSpeed + 0.01f, maximumMomentumSpeed);
@@ -98,7 +125,8 @@ public class MomentumSystem : MonoBehaviour
     {
         IsRunning = true;
         IsPaused = false;
-        SetMomentum(startingMomentum, true);
+        SetMomentum(useTierSpeedDecay ? 0f : startingMomentum, true);
+        RunReset?.Invoke();
     }
 
     public void EndRun()
@@ -117,6 +145,12 @@ public class MomentumSystem : MonoBehaviour
     {
         if(!CanUpdate || _deltaTime <= 0f || float.IsNaN(_deltaTime) || float.IsInfinity(_deltaTime) || float.IsNaN(_forwardSpeed) || float.IsInfinity(_forwardSpeed))
         {
+            return;
+        }
+
+        if (useTierSpeedDecay)
+        {
+            SetMomentum(CurrentMomentum - LossPerSecond(_forwardSpeed) * _deltaTime);
             return;
         }
 
@@ -186,10 +220,9 @@ public class MomentumSystem : MonoBehaviour
 
     public void ResetMomentum()
     {
-        if(CanUpdate)
-        {
-            SetMomentum(0f);
-        }
+        if (!useTierSpeedDecay && !CanUpdate) return;
+        SetMomentum(0f, true);
+        RunReset?.Invoke();
     }
 
     void SetMomentum(float _value, bool _forceNotify = false)
@@ -204,14 +237,13 @@ public class MomentumSystem : MonoBehaviour
         MomentumTier previousTier = CurrentTier;
         CurrentMomentum = nextMomentum;
         currentMomentumRef = CurrentMomentum;
-        GameplayEvents.OnMomentumChanged?.Invoke(Mathf.Clamp01(CurrentMomentum * 0.01f));
+        GameplayEvents.OnMomentumChanged?.Invoke(NormalizedMomentum);
 
-        CurrentTier = CalculateTier();
-
-        if(CurrentTier != previousTier)
-        {
-            GameplayEvents.OnMultiplierChanged?.Invoke(GetActiveMultiplier());
-        }
+        CurrentTier = useTierSpeedDecay
+            ? RunnerBalanceMath.ResolveTier(CurrentMomentum, _forceNotify ? MomentumTier.Low : previousTier,
+                new Vector3(mediumThreshold, highThreshold, maximumThreshold) * maximumMomentum,
+                tierHysteresis, maximumMomentum)
+            : CalculateTier();
 
         OnMomentumChanged.Invoke(CurrentMomentum);
         OnNormalizedMomentumChanged.Invoke(NormalizedMomentum);
