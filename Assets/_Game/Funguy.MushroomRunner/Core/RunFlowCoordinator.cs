@@ -31,6 +31,26 @@ public sealed class RunFlowCoordinator : MonoBehaviour
         CacheSpawnPoseIfNeeded();
     }
 
+    void OnEnable()
+    {
+        SubscribeToGameplayEvents();
+    }
+
+    void OnDisable()
+    {
+        UnsubscribeFromGameplayEvents();
+    }
+
+    void SubscribeToGameplayEvents()
+    {
+        GameplayEvents.GameplayReset += ResetRun;
+    }
+
+    void UnsubscribeFromGameplayEvents()
+    {
+        GameplayEvents.GameplayReset -= ResetRun;
+    }
+
     void Start()
     {
         if (initializeRunOnStart)

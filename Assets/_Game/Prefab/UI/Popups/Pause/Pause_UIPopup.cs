@@ -1,19 +1,25 @@
+using DG.Tweening;
 using UnityEngine;
 
 public class Pause_UIPopup : MonoBehaviour
 {
+    void OnEnable()
+    {
+       GameplayEvents.OnPauseGameplay?.Invoke(true); 
+    }
+
     public void OnClick_Resume()
     {
+        GameplayManager.Instance.OnPauseGameplay(false);
         UIManager.Instance.Close_PopupsAndPanels(UIType.Pause);
-
-        // TODO: Tell UI Manager to close all gameplay popups and resume gameplay
     }
 
     public void OnClick_Restart()
     {
         UIManager.Instance.Close_PopupsAndPanels(UIType.Pause);
 
-        // TODO: Tell UI Manager to close all gameplay popups and restart game
+        GameplayManager.Instance.OnPauseGameplay(false);
+        GameplayManager.Instance.RestartGame();
     }
 
     public void OnClick_Settings()

@@ -60,9 +60,9 @@ public class UIButtonAnimator : MonoBehaviour
 
         PlayOnClickSFX();
 
-        this.transform.DOScale(startVal, 0.1f).SetEase(Ease.InBack).OnComplete(() =>
+        this.transform.DOScale(startVal, 0.1f).SetEase(Ease.InBack).SetUpdate(true).OnComplete(() =>
         {
-            this.transform.DOScale(finalVal, duration).SetEase(ease);
+            this.transform.DOScale(finalVal, duration).SetEase(ease).SetUpdate(true);
         });
 
         StartCoroutine(OnClickProcess(duration));

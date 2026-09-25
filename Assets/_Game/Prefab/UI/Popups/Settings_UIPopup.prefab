@@ -1626,9 +1626,37 @@ PrefabInstance:
       propertyPath: m_Name
       value: Close_Btn
       objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1234347065184595339}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: OnClick_Close
+      objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: InGameSettings_Popup, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 5679375846385700595, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
     - target: {fileID: 6135555650989790440, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
       propertyPath: callBackFn.m_PersistentCalls.m_Calls.Array.size
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6135555650989790440, guid: 2de857a237d90d042b6a53bc24128c07, type: 3}
       propertyPath: callBackFn.m_PersistentCalls.m_Calls.Array.data[0].m_Mode

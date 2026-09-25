@@ -129,12 +129,12 @@ public class UIPanelAnimator : MonoBehaviour
 
         popupContent_Rect.localScale = initScale;
 
-        popupContent_Rect.DOScale(finalScale * 1.1f, duration / 2).SetEase(easeIn_Type).OnComplete(() =>
+        popupContent_Rect.DOScale(finalScale * 1.1f, duration / 2).SetEase(easeIn_Type).SetUpdate(true).OnComplete(() =>
         {
-            popupContent_Rect.DOScale(finalScale, duration / 2).SetEase(easeOut_Type);
+            popupContent_Rect.DOScale(finalScale, duration / 2).SetEase(easeOut_Type).SetUpdate(true);
         });
 
-        this_CanvasGroup.DOFade(1, duration).OnComplete(() =>
+        this_CanvasGroup.DOFade(1, duration).SetUpdate(true).OnComplete(() =>
         {
             isAnimating = false;
         });
@@ -149,12 +149,12 @@ public class UIPanelAnimator : MonoBehaviour
 
         PlaySFX(false);
 
-        popupContent_Rect.DOScale(finalScale * 1.1f, duration / 2).SetEase(easeIn_Type).OnComplete(() =>
+        popupContent_Rect.DOScale(finalScale * 1.1f, duration / 2).SetEase(easeIn_Type).SetUpdate(true).OnComplete(() =>
         {
-            popupContent_Rect.DOScale(initScale, duration / 2).SetEase(easeOut_Type);
+            popupContent_Rect.DOScale(initScale, duration / 2).SetEase(easeOut_Type).SetUpdate(true);
         });
 
-        this_CanvasGroup.DOFade(0, duration).OnComplete(() =>
+        this_CanvasGroup.DOFade(0, duration).SetUpdate(true).OnComplete(() =>
         {
             isAnimating = false;
             this.gameObject.SetActive(false);
@@ -175,12 +175,12 @@ public class UIPanelAnimator : MonoBehaviour
 
         popupContent_Rect.anchoredPosition = startPosTemp;
 
-        popupContent_Rect.DOAnchorPos(endPosTemp, duration).SetEase(easeIn_Type).OnComplete(() =>
+        popupContent_Rect.DOAnchorPos(endPosTemp, duration).SetEase(easeIn_Type).SetUpdate(true).OnComplete(() =>
         {
             isAnimating = false;
         });
 
-        this_CanvasGroup.DOFade(1, duration);
+        this_CanvasGroup.DOFade(1, duration).SetUpdate(true);
     }
 
     void AnimateClose_Slide()
@@ -194,13 +194,13 @@ public class UIPanelAnimator : MonoBehaviour
 
         Vector2 endPosTemp = startPos;
 
-        popupContent_Rect.DOAnchorPos(endPosTemp, duration).SetEase(easeOut_Type).OnComplete(() =>
+        popupContent_Rect.DOAnchorPos(endPosTemp, duration).SetEase(easeOut_Type).SetUpdate(true).OnComplete(() =>
         {
             isAnimating = false;
             this.gameObject.SetActive(false);
         });
 
-        this_CanvasGroup.DOFade(0, duration);
+        this_CanvasGroup.DOFade(0, duration).SetUpdate(true);
     }
 
     
@@ -316,7 +316,7 @@ public class UIPanelAnimator : MonoBehaviour
 
         PlaySFX(true);
 
-        this_CanvasGroup.DOFade(1, duration).OnComplete(()=>
+        this_CanvasGroup.DOFade(1, duration).SetUpdate(true).OnComplete(()=>
         {
             isAnimating = false;
         });;
@@ -329,7 +329,7 @@ public class UIPanelAnimator : MonoBehaviour
 
         isAnimating = true;
 
-        this_CanvasGroup.DOFade(0, duration).OnComplete(()=>
+        this_CanvasGroup.DOFade(0, duration).SetUpdate(true).OnComplete(()=>
         {
             isAnimating = false;
             gameObject.SetActive(false);

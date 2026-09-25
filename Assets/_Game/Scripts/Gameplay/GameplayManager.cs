@@ -1,7 +1,22 @@
 using UnityEngine;
+using DG.Tweening;
 
 public class GameplayManager : MonoBehaviour
 {
+    #region Instance
+    static GameplayManager _instance;
+
+    public static GameplayManager Instance
+    {
+        get
+        {
+            if (!_instance)
+                _instance = GameObject.FindAnyObjectByType<GameplayManager>();
+            return _instance;
+        }
+    }
+    #endregion --- Instance ---
+
     [SerializeField] MovementTuningProfile defaultMovementTuningProfile;
     [SerializeField] MomentumSystem momentumSystem;
     [SerializeField] RunnerMovementMotor runnerMovementMotor;
@@ -21,12 +36,14 @@ public class GameplayManager : MonoBehaviour
 
     void SubscribeToGameplayEvents()
     {
-        GameplayEvents.GameplayReset += GameplayReset;
+        GameplayEvents.GameplayReset += OnGameplayReset;
+        GameplayEvents.OnPauseGameplay += OnPauseGameplay;
     }
 
     void UnsubscribeFromGameplayEvents()
     {
-        GameplayEvents.GameplayReset -= GameplayReset;
+        GameplayEvents.GameplayReset -= OnGameplayReset;
+        GameplayEvents.OnPauseGameplay -= OnPauseGameplay;
     }
 
     void Start()
@@ -37,7 +54,12 @@ public class GameplayManager : MonoBehaviour
         distanceScoreManager?.BeginRun();
     }
 
-    void GameplayReset()
+    public void RestartGame()
+    {
+        GameplayEvents.GameplayReset?.Invoke();
+    }
+
+    void OnGameplayReset()
     {
         momentumSystem?.ResetMomentum();
         distanceScoreManager?.ResetScore();
@@ -62,6 +84,7 @@ public class GameplayManager : MonoBehaviour
                 runnerMovementMotor.SetTuningProfile(_movementTuningProfile);
             }
         }
+
         GameplayEvents.OnSetActiveTuningProfile?.Invoke(_movementTuningProfile);
     }
 
@@ -72,6 +95,7 @@ public class GameplayManager : MonoBehaviour
         {
             momentumSystem = distanceScoreManager.MomentumSource;
         }
+
         runnerMovementMotor?.SetMomentumSystem(momentumSystem);
     }
     
@@ -79,16 +103,20 @@ public class GameplayManager : MonoBehaviour
     {
         // Legacy configurations retain their original update path. Opted-in balance ticks run in the motor.
         if (momentumSystem != null && runnerMovementMotor != null && !momentumSystem.UsesTierSpeedDecay)
+        {
             momentumSystem.Tick(runnerMovementMotor.Velocity.z, Time.fixedDeltaTime);
+        }
     }
 
-    void OnPauseGame()
+    public void OnPauseGameplay(bool _isPause)
     {
-        Time.timeScale = 0;
-    }
-
-    void OnUnPauseGame()
-    {
-        Time.timeScale = 1;
+        if(_isPause)
+        {
+            DOTween.To(() => Time.timeScale, x => Time.timeScale = x, 0, 0.25f).SetEase(Ease.OutQuad).SetUpdate(true);
+        }
+        else
+        {
+            DOTween.To(() => Time.timeScale, x => Time.timeScale = x, 1, 0.25f).SetEase(Ease.OutQuad).SetUpdate(true);
+        }
     }
 }

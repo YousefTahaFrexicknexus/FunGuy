@@ -5,7 +5,10 @@ using System.Threading.Tasks;
 
 using PlayFab;
 using PlayFab.ClientModels;
+
+#if UNITY_ANDROID
 using GooglePlayGames;
+#endif
 
 public class PlayFab_Authentication : MonoBehaviour
 {
@@ -61,7 +64,9 @@ public class PlayFab_Authentication : MonoBehaviour
 
     void ActivateGooglePlayGames()
     {
+        #if UNITY_ANDROID
         PlayGamesPlatform.Activate();
+        #endif
     }
 
     void OnLoginSuccess(LoginResult result)
