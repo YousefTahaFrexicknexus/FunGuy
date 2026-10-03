@@ -100,12 +100,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 5570133528672860580}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b944769d7e843b4a90ac13cfde488f1, type: 3}
+  m_Script: {fileID: 11500000, guid: 6e213522d29f4b408c1caeb5b619a5d9, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RotationOverTime
-  rotationAxis: {x: 0.5, y: 1, z: 1}
-  rotationSpeed: 180
-  randomizeDirection: 0
+  m_EditorClassIdentifier: Assembly-CSharp::CoinIdleAnimation
+  rotationDuration: 6
+  hoverHeight: 0.2
+  hoverHalfDuration: 1.2
 --- !u!1 &7843620198409197577
 GameObject:
   m_ObjectHideFlags: 0
@@ -117,6 +117,7 @@ GameObject:
   - component: {fileID: 252640817687619364}
   - component: {fileID: 1150415018638478266}
   - component: {fileID: -7021964293667350198}
+  - component: {fileID: 8924135267723110001}
   m_Layer: 0
   m_Name: Collectable_Coin
   m_TagString: Untagged
@@ -173,3 +174,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fbd5ae8104396746847010b420f6bd3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  value: 1
+  onCollected:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &8924135267723110001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7843620198409197577}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce084028f0f4eeab441af1d5c1edbec, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::CoinMagnet
+  target: {fileID: 0}
+  attractionRadius: 5
+  proximityCheckInterval: 0.1
+  startingSpeed: 6
+  acceleration: 80
+  catchUpSpeed: 18
+  arrivalDistance: 0.25
+  targetOffset: {x: 0, y: 0, z: 0}

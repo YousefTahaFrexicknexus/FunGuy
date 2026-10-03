@@ -34,11 +34,19 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePooling: 1
     bounceProfileOverride: {fileID: 0}
-  coinChanceStart: 0
-  coinChanceEnd: 0.35
+  maximumEmptyCoinRows: 5
+  coinChanceStart: 0.01
+  coinChanceEnd: 0.01
   obstacleChanceStart: 0
   obstacleChanceEnd: 0.25
-  coinEntries: []
+  coinEntries:
+  - prefab: {fileID: 6685371126065863661, guid: 5e46899cb7accac41bb554e28c80acfd, type: 3}
+    minimumScore: 0
+    spawnWeight: 1
+    localOffset: {x: 0, y: 0, z: 0}
+    localScale: {x: 1, y: 1, z: 1}
+    usePooling: 1
+    bounceProfileOverride: {fileID: 0}
   obstacleEntries: []
   seed: 1337
   randomizeSeed: 1

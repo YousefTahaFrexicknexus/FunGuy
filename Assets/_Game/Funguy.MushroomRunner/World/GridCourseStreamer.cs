@@ -58,12 +58,19 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     readonly Queue<GridSlice> activeSlices = new();
     readonly Dictionary<GameObject, Stack<GameObject>> pools = new();
+    readonly Dictionary<GameObject, Collectable[]> instanceCoins = new();
+    readonly List<SpawnedRuntime> pendingRecycles = new();
     readonly List<int> columnScratch = new(3);
+    readonly GridSpawnEntry[] upperEntryScratch = new GridSpawnEntry[6];
+    readonly Vector3[] columnPlacementOffsets = new Vector3[3];
+    readonly bool[] columnHasMushroom = new bool[3];
+    readonly int[] eligibleCoinCells = new int[6];
 
     System.Random random;
     float generationStartZ;
     int nextSliceIndex;
     int consecutiveEmptyMushroomRows;
+    int consecutiveEmptyCoinRows;
     bool initialized;
 
     void Reset()
@@ -86,6 +93,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     void Update()
     {
+        RecycleFinishedBundles();
         if (!initialized || generationProfile == null || streamingTarget == null)
         {
             return;
@@ -126,12 +134,17 @@ public sealed class GridCourseStreamer : MonoBehaviour
     {
         while (activeSlices.Count > 0)
         {
-            RecycleSlice(activeSlices.Dequeue());
+            RecycleSlice(activeSlices.Dequeue(), true);
         }
+
+        // A reset cancels attraction rather than carrying coins into the next run.
+        foreach (SpawnedRuntime spawned in pendingRecycles) RecycleInstance(spawned);
+        pendingRecycles.Clear();
 
         nextSliceIndex = 0;
         consecutiveEmptyMushroomRows = 0;
         initialized = false;
+        consecutiveEmptyCoinRows = 0;
     }
 
     public void GenerateNextSlice()
@@ -204,6 +217,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
         nextSliceIndex = 0;
         consecutiveEmptyMushroomRows = 0;
         initialized = true;
+        consecutiveEmptyCoinRows = 0;
     }
 
     void StreamFromTarget()
@@ -220,6 +234,9 @@ public sealed class GridCourseStreamer : MonoBehaviour
     {
         int score = Mathf.Max(0, Mathf.FloorToInt(slice.StartZ - generationStartZ));
 
+        // Columns without a mushroom keep their normal grid position.
+        System.Array.Clear(columnPlacementOffsets, 0, columnPlacementOffsets.Length);
+        System.Array.Clear(columnHasMushroom, 0, columnHasMushroom.Length);
         SpawnMushroomRow(slice, score);
         SpawnUpperLevels(slice, score);
     }
@@ -245,7 +262,9 @@ public sealed class GridCourseStreamer : MonoBehaviour
             columnScratch.RemoveAt(columnIndex);
 
             GridSpawnEntry entry = PickEntry(generationProfile.MushroomEntries, score);
-            SpawnEntry(entry, GetCellPosition(column, 0, slice.StartZ) + GetMushroomPlacementOffset(), slice);
+            Vector3 offset = GetMushroomPlacementOffset();
+            if (entry != null && entry.Prefab != null) columnPlacementOffsets[column] = offset;
+            columnHasMushroom[column] = SpawnEntry(entry, GetCellPosition(column, 0, slice.StartZ) + offset, slice);
         }
     }
 
@@ -267,19 +286,48 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     void SpawnUpperLevels(GridSlice slice, int score)
     {
+        bool hasCoinRow = false;
+        int eligibleCoinCount = 0;
+        for (int cell = 0; cell < upperEntryScratch.Length; cell++)
+        {
+            // Even indices are middle-level cells; odd indices are top-level cells.
+            bool allowCoins = cell % 2 == 1 || columnHasMushroom[cell / 2];
+            if (allowCoins) eligibleCoinCells[eligibleCoinCount++] = cell;
+            upperEntryScratch[cell] = PickUpperLevelEntry(score, allowCoins, out bool isCoin);
+            hasCoinRow |= isCoin;
+        }
+
+        if (!hasCoinRow && eligibleCoinCount > 0
+            && consecutiveEmptyCoinRows >= generationProfile.MaximumEmptyCoinRows)
+        {
+            GridSpawnEntry guaranteedCoin = PickEntry(generationProfile.CoinEntries, score);
+            if (guaranteedCoin != null)
+            {
+                // Replace the planned cell before spawning so coins never overlap an obstacle.
+                int cell = eligibleCoinCells[RandomRangeInclusive(0, eligibleCoinCount - 1)];
+                upperEntryScratch[cell] = guaranteedCoin;
+                hasCoinRow = true;
+            }
+        }
+
+        // Saturate the counter even if no coin entries are unlocked yet.
+        consecutiveEmptyCoinRows = hasCoinRow ? 0
+            : (consecutiveEmptyCoinRows < int.MaxValue ? consecutiveEmptyCoinRows + 1 : int.MaxValue);
+
         for (int column = 0; column < 3; column++)
         {
             for (int level = 1; level <= 2; level++)
             {
-                GridSpawnEntry entry = PickUpperLevelEntry(score);
-                SpawnEntry(entry, GetCellPosition(column, level, slice.StartZ), slice);
+                GridSpawnEntry entry = upperEntryScratch[column * 2 + level - 1];
+                SpawnEntry(entry, GetCellPosition(column, level, slice.StartZ) + columnPlacementOffsets[column], slice);
             }
         }
     }
 
-    GridSpawnEntry PickUpperLevelEntry(int score)
+    GridSpawnEntry PickUpperLevelEntry(int score, bool allowCoins, out bool isCoin)
     {
-        bool hasCoins = HasAvailableEntry(generationProfile.CoinEntries, score);
+        isCoin = false;
+        bool hasCoins = allowCoins && HasAvailableEntry(generationProfile.CoinEntries, score);
         bool hasObstacles = HasAvailableEntry(generationProfile.ObstacleEntries, score);
         float coinChance = hasCoins ? generationProfile.EvaluateCoinChance(score) : 0f;
         float obstacleChance = hasObstacles ? generationProfile.EvaluateObstacleChance(score) : 0f;
@@ -295,20 +343,23 @@ public sealed class GridCourseStreamer : MonoBehaviour
             return PickEntry(generationProfile.ObstacleEntries, score);
         }
 
-        return PickEntry(generationProfile.CoinEntries, score);
+        if (!hasCoins) return null;
+        GridSpawnEntry coin = PickEntry(generationProfile.CoinEntries, score);
+        isCoin = coin != null;
+        return coin;
     }
 
-    void SpawnEntry(GridSpawnEntry entry, Vector3 position, GridSlice slice)
+    bool SpawnEntry(GridSpawnEntry entry, Vector3 position, GridSlice slice)
     {
         if (entry == null || entry.Prefab == null)
         {
-            return;
+            return false;
         }
 
         GameObject instance = GetInstance(entry.Prefab, entry.UsePooling);
         if (instance == null)
         {
-            return;
+            return false;
         }
 
         instance.transform.SetParent(spawnRoot, false);
@@ -316,8 +367,11 @@ public sealed class GridCourseStreamer : MonoBehaviour
         instance.transform.rotation = Quaternion.identity;
         instance.transform.localScale = entry.LocalScale;
         ApplyMushroomProfile(instance, entry.BounceProfileOverride);
+        // Enable only after the bundle and all its coins have been reset and placed.
+        instance.SetActive(true);
 
         slice.SpawnedObjects.Add(new SpawnedRuntime(entry.Prefab, instance, entry.UsePooling));
+        return true;
     }
 
     void ApplyMushroomProfile(GameObject instance, MushroomBounceProfile profile)
@@ -353,19 +407,55 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     GameObject GetInstance(GameObject prefab, bool usePooling)
     {
+        GameObject instance;
         if (usePooling && pools.TryGetValue(prefab, out Stack<GameObject> pool) && pool.Count > 0)
         {
-            GameObject pooled = pool.Pop();
-            pooled.SetActive(true);
-            return pooled;
+            instance = pool.Pop();
+        }
+        else
+        {
+            instance = Instantiate(prefab);
+            instance.SetActive(false);
+            // Include collected/inactive children; only allocate this array once per instance.
+            instanceCoins.Add(instance, instance.GetComponentsInChildren<Collectable>(true));
         }
 
-        GameObject created = Instantiate(prefab);
-        created.SetActive(true);
-        return created;
+        foreach (Collectable coin in instanceCoins[instance])
+        {
+            if (coin == null) continue;
+            coin.ResetForReuse();
+            // Keep the root inactive until SpawnEntry has positioned it.
+            if (coin.gameObject != instance) coin.gameObject.SetActive(true);
+        }
+
+        return instance;
     }
 
-    void RecycleSlice(GridSlice slice)
+    bool HasAttractingCoins(GameObject instance)
+    {
+        if (instance == null || !instanceCoins.TryGetValue(instance, out Collectable[] coins)) return false;
+        foreach (Collectable coin in coins)
+        {
+            if (coin != null && coin.IsBeingAttracted) return true;
+        }
+        return false;
+    }
+
+    void RecycleFinishedBundles()
+    {
+        for (int index = pendingRecycles.Count - 1; index >= 0; index--)
+        {
+            SpawnedRuntime spawned = pendingRecycles[index];
+            if (HasAttractingCoins(spawned.Instance)) continue;
+            RecycleInstance(spawned);
+            // Order does not matter; avoid shifting the remaining bundles.
+            int last = pendingRecycles.Count - 1;
+            pendingRecycles[index] = pendingRecycles[last];
+            pendingRecycles.RemoveAt(last);
+        }
+    }
+
+    void RecycleSlice(GridSlice slice, bool force = false)
     {
         for (int index = 0; index < slice.SpawnedObjects.Count; index++)
         {
@@ -375,26 +465,33 @@ public sealed class GridCourseStreamer : MonoBehaviour
                 continue;
             }
 
-            if (spawned.UsePooling && spawned.PoolKey != null)
+            // Let coins finish flying without holding up forward grid generation.
+            if (!force && HasAttractingCoins(spawned.Instance))
             {
-                spawned.Instance.SetActive(false);
+                pendingRecycles.Add(spawned);
+            }
+            else RecycleInstance(spawned);
+        }
+    }
 
-                if (!pools.TryGetValue(spawned.PoolKey, out Stack<GameObject> pool))
-                {
-                    pool = new Stack<GameObject>();
-                    pools.Add(spawned.PoolKey, pool);
-                }
-
-                pool.Push(spawned.Instance);
-            }
-            else if (Application.isPlaying)
+    void RecycleInstance(SpawnedRuntime spawned)
+    {
+        if (spawned.Instance == null) return;
+        if (spawned.UsePooling && spawned.PoolKey != null)
+        {
+            spawned.Instance.SetActive(false);
+            if (!pools.TryGetValue(spawned.PoolKey, out Stack<GameObject> pool))
             {
-                Destroy(spawned.Instance);
+                pool = new Stack<GameObject>();
+                pools.Add(spawned.PoolKey, pool);
             }
-            else
-            {
-                DestroyImmediate(spawned.Instance);
-            }
+            pool.Push(spawned.Instance);
+        }
+        else
+        {
+            instanceCoins.Remove(spawned.Instance);
+            if (Application.isPlaying) Destroy(spawned.Instance);
+            else DestroyImmediate(spawned.Instance);
         }
     }
 

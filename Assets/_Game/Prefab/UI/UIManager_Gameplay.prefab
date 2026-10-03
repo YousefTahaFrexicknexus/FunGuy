@@ -1235,7 +1235,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 141.2
+  m_fontSize: 142.45
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1473,6 +1473,7 @@ GameObject:
   - component: {fileID: 1697514202045596502}
   - component: {fileID: 3897802825732865599}
   - component: {fileID: 2448904526810654635}
+  - component: {fileID: 877939817252972252}
   m_Layer: 0
   m_Name: ScoreValue_TMP
   m_TagString: Untagged
@@ -1554,7 +1555,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 64.65
+  m_fontSize: 66.85
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1599,6 +1600,30 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &877939817252972252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3151245273139176629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4c8ea1faebf35498b4118b6cdba1ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TextAnimator
+  textTMP: {fileID: 2448904526810654635}
+  counterPrefix: 
+  counterDuration: 0.25
+  counter_EaseType: 10
+  easeInType: 10
+  easeOutType: 10
+  scaleDuration: 0.2
+  increaseScale: {x: 1.2, y: 1.2, z: 1.2}
+  decreaseScale: {x: 0.8, y: 0.8, z: 0.8}
+  fadeInDuration: 1
+  fadeOutDuration: 0.25
+  targetValue_Debugging: Text
 --- !u!1 &3585683773295991717
 GameObject:
   m_ObjectHideFlags: 0
@@ -2543,7 +2568,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 42.95
+  m_fontSize: 44.35
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1

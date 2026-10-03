@@ -38,14 +38,16 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     int minimumMushroomsPerActiveRow = 1;
     [SerializeField, Range(1, 3), Tooltip("Maximum mushrooms spawned in a non-empty bottom row.")]
     int maximumMushroomsPerActiveRow = 3;
-    [SerializeField, Range(0f, 1f), Tooltip("Random left-right mushroom offset inside the cell. 1 means half of the distance from cell center to cell edge.")]
+    [SerializeField, Range(0f, 1f), Tooltip("Random left-right offset shared by the mushroom and both cells above it. 1 means half of the distance from cell center to cell edge.")]
     float mushroomSideToSideVariation = 1f;
-    [SerializeField, Range(0f, 1f), Tooltip("Random forward-back mushroom offset inside the cell. 1 means half of the distance from cell center to cell edge.")]
+    [SerializeField, Range(0f, 1f), Tooltip("Random forward-back offset shared by the mushroom and both cells above it. 1 means half of the distance from cell center to cell edge.")]
     float mushroomForwardBackVariation = 1f;
     [SerializeField, Tooltip("Mushroom prefabs that can spawn on grid level 0.")]
     List<GridSpawnEntry> mushroomEntries = new();
 
     [Header("Upper Levels")]
+    [SerializeField, Min(0), Tooltip("Maximum consecutive forward rows without coins. After this many empty rows, the next row gets a coin bundle. 0 guarantees coins every row. Requires an unlocked coin entry with positive spawn weight; overrides coin chance, including 0.")]
+    int maximumEmptyCoinRows = 5;
     [SerializeField, Range(0f, 1f), Tooltip("Chance for an upper grid cell to spawn a coin prefab at the start of the run.")]
     float coinChanceStart = 0f;
     [SerializeField, Range(0f, 1f), Tooltip("Chance for an upper grid cell to spawn a coin prefab at full difficulty.")]
@@ -54,7 +56,7 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     float obstacleChanceStart = 0f;
     [SerializeField, Range(0f, 1f), Tooltip("Chance for an upper grid cell to spawn an obstacle prefab at full difficulty.")]
     float obstacleChanceEnd = 0.25f;
-    [SerializeField, Tooltip("Coin or coin-cluster prefabs that can spawn on grid levels 1 and 2.")]
+    [SerializeField, Tooltip("Coin or coin-cluster prefabs for levels 1 and 2. Level 1 requires a mushroom below it in the same column; level 2 does not.")]
     List<GridSpawnEntry> coinEntries = new();
     [SerializeField, Tooltip("Obstacle prefabs that can spawn on grid levels 1 and 2.")]
     List<GridSpawnEntry> obstacleEntries = new();
@@ -98,6 +100,8 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     public IReadOnlyList<GridSpawnEntry> MushroomEntries => mushroomEntries;
 
     public IReadOnlyList<GridSpawnEntry> CoinEntries => coinEntries;
+
+    public int MaximumEmptyCoinRows => Mathf.Max(0, maximumEmptyCoinRows);
 
     public IReadOnlyList<GridSpawnEntry> ObstacleEntries => obstacleEntries;
 
@@ -172,6 +176,7 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
         mushroomSideToSideVariation = Mathf.Clamp01(mushroomSideToSideVariation);
         mushroomForwardBackVariation = Mathf.Clamp01(mushroomForwardBackVariation);
         coinChanceStart = Mathf.Clamp01(coinChanceStart);
+        maximumEmptyCoinRows = Mathf.Max(0, maximumEmptyCoinRows);
         coinChanceEnd = Mathf.Clamp01(coinChanceEnd);
         obstacleChanceStart = Mathf.Clamp01(obstacleChanceStart);
         obstacleChanceEnd = Mathf.Clamp01(obstacleChanceEnd);

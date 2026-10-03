@@ -22,5 +22,6 @@ public static class GameplayEvents
     public static System.Action<float> OnMultiplierChanged;                         // Current multiplier
 
     // --- Score changes ---
+    public static System.Action<int> OnCoinCollected;                               // Coin value
     public static System.Action<int> OnScoreChanged;                                // Current score
 }
