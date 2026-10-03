@@ -14,13 +14,13 @@ public class HUD_UI : MonoBehaviour
     [TabGroup("Score UI"),SerializeField] TextMeshProUGUI scoreText;
 
     [TabGroup("Landing UI")]
-    [TabGroup("Landing UI"),SerializeField] TextMeshProUGUI landingQualityText;
+    [TabGroup("Landing UI"),SerializeField] TextAnimator landingQuality_TextAnimator;
     [TabGroup("Scale Parameters"), Header("Scale Parameters"), Space]
     [SerializeField, LabelText("Initial Scale")]  Vector3 initScale = Vector3.one * 0.75f;
     [TabGroup("Scale Parameters"), SerializeField, LabelText("Final Scale")]  Vector3 finalScale = Vector3.one;
 
     [TabGroup("Momentum UI")]
-    [TabGroup("Momentum UI"),SerializeField] TextMeshProUGUI momentumMultiplierText;
+    [TabGroup("Momentum UI"),SerializeField] TextAnimator momentumMultiplier_TextAnimator;
     [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S1;
     [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S2;
     [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S3;
@@ -105,7 +105,7 @@ public class HUD_UI : MonoBehaviour
 
     void OnMultiplierChanged(float _multiplier)
     {
-        momentumMultiplierText.text = $"X{_multiplier}";
+        momentumMultiplier_TextAnimator.SetAndAnimateMultiplier((int)_multiplier);
     }
 
     void OnAirJump(int _jumpsLeft)
@@ -128,21 +128,22 @@ public class HUD_UI : MonoBehaviour
 
     void OnLandingQuality(LandingQuality _landingQuality)
     {
-        landingQualityText.text = $"{_landingQuality}";
+        bool isGoodOrPerfectLanding = _landingQuality == LandingQuality.Good || _landingQuality == LandingQuality.Perfect;
+        landingQuality_TextAnimator.SetAndAnimateLandingQuality(_landingQuality.ToString(), isGoodOrPerfectLanding);
 
         switch(_landingQuality)
         {
             case LandingQuality.Perfect:
-                landingQualityText.color = Color.purple;
+                landingQuality_TextAnimator.SetColor(Color.orange);
                 break;
             case LandingQuality.Good:
-                landingQualityText.color = Color.green;
+                landingQuality_TextAnimator.SetColor(Color.green);
                 break;
             case LandingQuality.Bad:
-                landingQualityText.color = Color.red;
+                landingQuality_TextAnimator.SetColor(Color.red);
                 break;
             default:
-                landingQualityText.color = Color.white;
+                landingQuality_TextAnimator.SetColor(Color.white);
                 break;
         }
 
