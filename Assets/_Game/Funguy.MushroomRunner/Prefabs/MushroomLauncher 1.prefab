@@ -129,9 +129,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   materials:
-  - {fileID: 2100000, guid: a6c76c7e8a9cc9e4d83bfa119950437a, type: 2}
   - {fileID: 2100000, guid: e291bae5f0579a74ba0d002b0ac0bc03, type: 2}
   - {fileID: 2100000, guid: 061999fc6c258ec478b9b7f036728970, type: 2}
+  - {fileID: 2100000, guid: a6c76c7e8a9cc9e4d83bfa119950437a, type: 2}
   meshRenderers:
   - {fileID: 6345963864022865616}
   - {fileID: 3916662753586096840}
