@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 781000000000000002}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: CameraFollowTarget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -42,7 +42,7 @@ GameObject:
   - component: {fileID: 1442339717588692674}
   - component: {fileID: 2559711217421388042}
   - component: {fileID: 7210084855854126596}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -136,7 +136,7 @@ GameObject:
   - component: {fileID: 3264662956738846588}
   - component: {fileID: 8683741851017507597}
   - component: {fileID: 7116488026709556512}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: MushroomRunnerPlayer
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -158,6 +158,7 @@ Transform:
   m_Children:
   - {fileID: 781000000000000002}
   - {fileID: 1442339717588692674}
+  - {fileID: 2419281398012664018}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &3925252380958837808
@@ -221,7 +222,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.RunnerMovementMotor
   rigidBody: {fileID: 3925252380958837808}
-  tuningProfile: {fileID: 0}
+  tuningProfile: {fileID: 11400000, guid: 1ffbe787ab4d4766b0a28db8a8b8c8d4, type: 2}
   motorEnabled: 1
   worldUp: {x: 0, y: 1, z: 0}
 --- !u!114 &8683741851017507597
@@ -238,7 +239,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Funguy.MushroomRunner::Funguy.MushroomRunner.MushroomRunnerPlayer
   inputHandler: {fileID: 0}
   movementMotor: {fileID: 3264662956738846588}
-  tuningProfile: {fileID: 0}
+  tuningProfile: {fileID: 11400000, guid: 1ffbe787ab4d4766b0a28db8a8b8c8d4, type: 2}
   cameraFollowTarget: {fileID: 781000000000000002}
   initialState: 0
 --- !u!114 &7116488026709556512
@@ -269,6 +270,37 @@ MonoBehaviour:
   tiltSmoothSpeed: 8
   meshTransform: {fileID: 1442339717588692674}
   rb: {fileID: 3925252380958837808}
+--- !u!1 &8407610915257108569
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2419281398012664018}
+  m_Layer: 6
+  m_Name: CameraRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2419281398012664018
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8407610915257108569}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1139970826828433190}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &3285299320377038826
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -311,23 +343,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.92387956
+      value: 0.97176784
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.38268343
+      value: 0.2359392
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 45
+      value: 27.294
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f59b8bf927b0a8b48a61a74f73051111, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
