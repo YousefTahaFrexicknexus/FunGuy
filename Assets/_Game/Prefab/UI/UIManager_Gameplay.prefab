@@ -1235,7 +1235,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 142.45
+  m_fontSize: 141.2
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1555,7 +1555,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 66.85
+  m_fontSize: 64.65
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -2568,7 +2568,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 44.35
+  m_fontSize: 42.95
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -3978,7 +3978,7 @@ RectTransform:
   m_AnchorMin: {x: 0.3798894, y: -2.6238382}
   m_AnchorMax: {x: 0.61992264, y: -0.76302063}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0.0000038146973}
+  m_SizeDelta: {x: 179.8176, y: 49.7945}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2478146954716841227
 CanvasRenderer:
@@ -4008,7 +4008,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 15420
+  m_text: Perfect
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 425dc4a66c846ef4c90ff6d5d40182db, type: 2}
   m_sharedMaterial: {fileID: -7115484685195284375, guid: 425dc4a66c846ef4c90ff6d5d40182db, type: 2}
@@ -4035,7 +4035,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 54.2
+  m_fontSize: 96.3
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1

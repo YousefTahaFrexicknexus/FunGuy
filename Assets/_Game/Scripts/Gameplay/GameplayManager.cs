@@ -38,12 +38,16 @@ public class GameplayManager : MonoBehaviour
     {
         GameplayEvents.GameplayReset += OnGameplayReset;
         GameplayEvents.OnPauseGameplay += OnPauseGameplay;
+        GameplayEvents.OnMushroomJump += OnMushroomJump;
+        GameplayEvents.OnAirJump += OnAirJump;
     }
 
     void UnsubscribeFromGameplayEvents()
     {
         GameplayEvents.GameplayReset -= OnGameplayReset;
         GameplayEvents.OnPauseGameplay -= OnPauseGameplay;
+        GameplayEvents.OnMushroomJump -= OnMushroomJump;
+        GameplayEvents.OnAirJump -= OnAirJump;
     }
 
     void Start()
@@ -118,5 +122,19 @@ public class GameplayManager : MonoBehaviour
         {
             DOTween.To(() => Time.timeScale, x => Time.timeScale = x, 1, 0.25f).SetEase(Ease.OutQuad).SetUpdate(true);
         }
+    }
+
+    void OnMushroomJump()
+    {
+        int mushroomJumpVarioation = Random.Range(1, 4);
+        float pitchVariation = Random.Range(0.9f, 1.1f);
+        AudioManager.Instance.PlaySFX($"MushroomJump_{mushroomJumpVarioation}", pitchVariation);
+    }
+
+    void OnAirJump(int _jumpCount)
+    {
+        int airJumpVarioation = Random.Range(1, 4);
+        float pitchVariation = Random.Range(0.9f, 1.1f);
+        AudioManager.Instance.PlaySFX($"AirJump_{airJumpVarioation}", pitchVariation, 0.5f);
     }
 }

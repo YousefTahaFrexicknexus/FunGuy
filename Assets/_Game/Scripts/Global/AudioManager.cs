@@ -102,7 +102,7 @@ public class AudioManager : MonoBehaviour
         return BGM_AudioElements.FirstOrDefault(audioElement => audioElement.audioName == name);
     }
 
-    public void PlaySFX(string _name, float _volume = 1.0f, bool _isOneShot = true)
+    public void PlaySFX(string _name, float _pitch = 1.0f, float _volume = 1.0f, bool _isOneShot = true)
     {
         // Debug.Log("SFX name: " + _name);
 
@@ -114,7 +114,11 @@ public class AudioManager : MonoBehaviour
         AudioElement audioElement = GetSFX_ByName(_name);
 
         if (audioElement == null)
+        {
             return;
+        }
+
+        SFX_AudioSource.pitch = _pitch;
 
         if(_isOneShot)
         {

@@ -4,6 +4,7 @@ using System.Collections;
 public class CharacterAnimator : MonoBehaviour
 {
     [Header("Main references")]
+    [SerializeField] RunnerMovementMotor runnerMovementMotor;
     [SerializeField] Animator animator;
 
     void OnEnable()
@@ -22,18 +23,22 @@ public class CharacterAnimator : MonoBehaviour
         {
             animator = GetComponent<Animator>();
         }
+
+        defaultVisualRotation = tumblePivot.localRotation;
     }
 
     void SubscribeToGameplayEvents()
     {
         GameplayEvents.OnMushroomJump += OnMushroomJump;
         GameplayEvents.OnAirJump += OnAirJump;
+
+        runnerMovementMotor.Bounced += HandleBounce;
     }
 
     void UnsubscribeToGameplayEvents()
     {
-        GameplayEvents.OnMushroomJump += OnMushroomJump;
-        GameplayEvents.OnAirJump += OnAirJump;
+        GameplayEvents.OnMushroomJump -= OnMushroomJump;
+        GameplayEvents.OnAirJump -= OnAirJump;
     }
 
     void OnMushroomJump()
@@ -44,8 +49,14 @@ public class CharacterAnimator : MonoBehaviour
 
     void OnAirJump(int _)
     {
+        DisableTumble();
+
+        tumblePivot.localRotation = defaultVisualRotation;
+        
         TriggerBounce();
         animator.SetTrigger("MushroomBounce");
+
+        Invoke(nameof(EnableTumble), 0.1f);
     }
 
     // TODO: Migrate this to its own behavior
@@ -170,4 +181,105 @@ public class CharacterAnimator : MonoBehaviour
         float wobbleValue = Mathf.Sin(wobbleTime) * wobbleAmount;
         meshTransform.localScale = new Vector3(originalScale.x * (1f + wobbleValue), meshTransform.localScale.y, originalScale.z * (1f - wobbleValue));
     }
+
+    #region Tumble
+    [SerializeField] Transform tumblePivot;
+    [SerializeField] float spinImpulse = 720f;
+    [SerializeField] float angularDrag = 0.6f;
+    [SerializeField] float uprightStrength = 2f;
+    [SerializeField] float uprightFadeSpeed = 360f;
+
+    bool updateTumble = true;
+    Vector3 angularVelocity;
+    Quaternion defaultVisualRotation;
+
+    
+    void LateUpdate()
+    {
+        TumbleTick();
+    }
+
+    void TumbleTick()
+    {
+        if(!updateTumble)
+        {
+            return;
+        }
+
+        float remainingTime = Time.deltaTime;
+
+        // Small simulation steps keep the spring stable during slower frames.
+        while (remainingTime > 0f)
+        {
+            float step = Mathf.Min(remainingTime, 1f / 120f);
+            SimulateTumble(step);
+            remainingTime -= step;
+        }
+    }
+
+    void EnableTumble()
+    {
+        updateTumble = true;
+    }
+
+    void DisableTumble()
+    {
+        updateTumble = false;
+    }
+
+    void SimulateTumble(float _deltaTime)
+    {
+        Quaternion rotationError = (defaultVisualRotation * Quaternion.Inverse(tumblePivot.localRotation)).normalized;
+        rotationError.ToAngleAxis(out float angle, out Vector3 axis);
+
+        if (angle > 180f)
+        {
+            angle -= 360f;
+        }
+
+        // Let him spin freely at high speed; recover more strongly as he slows.
+        float speedRatio = angularVelocity.magnitude / Mathf.Max(uprightFadeSpeed, 0.01f);
+        float recoveryWeight = 1f / (1f + speedRatio * speedRatio);
+
+        if (Mathf.Abs(angle) > 0.001f)
+        {
+            angularVelocity += axis * angle * uprightStrength * recoveryWeight * _deltaTime;
+        }
+
+        angularVelocity *= Mathf.Exp(-angularDrag * _deltaTime);
+
+        float speed = angularVelocity.magnitude;
+
+        if (speed > 0.001f)
+        {
+            Quaternion rotationStep = Quaternion.AngleAxis(speed * _deltaTime, angularVelocity / speed);
+            tumblePivot.localRotation = (rotationStep * tumblePivot.localRotation).normalized;
+        }
+    }
+
+    void HandleBounce(BounceEventData _bounceData)
+    {
+        StartBounceTumble(_bounceData.ContactPoint, _bounceData.SurfaceCollider);
+    }
+
+    void StartBounceTumble(Vector3 _characterPosition, Collider _mushroomCollider)
+    {
+        Vector3 offset = _characterPosition - _mushroomCollider.bounds.center;
+        Vector3 horizontalOffset = Vector3.ProjectOnPlane(offset, Vector3.up);
+
+        if (horizontalOffset.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Vector3 worldAxis = Vector3.Cross(Vector3.up, horizontalOffset.normalized);
+        Vector3 localAxis = tumblePivot.parent != null ? tumblePivot.parent.InverseTransformDirection(worldAxis).normalized : worldAxis;
+
+        float radius = Mathf.Max(_mushroomCollider.bounds.extents.x, _mushroomCollider.bounds.extents.z);
+        float edgeAmount = Mathf.Clamp01(horizontalOffset.magnitude / Mathf.Max(radius, 0.01f));
+
+        // Add to existing velocity instead of restarting the tumble.
+        angularVelocity += localAxis * spinImpulse * edgeAmount;
+    }
+    #endregion
 }

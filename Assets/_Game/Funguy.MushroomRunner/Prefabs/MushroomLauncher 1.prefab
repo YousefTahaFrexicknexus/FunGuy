@@ -429,7 +429,7 @@ MonoBehaviour:
   followXRotation: 1
   followYRotation: 1
   followZRotation: 1
-  scaleOffset: {x: 0.1, y: 0.1, z: 0.1}
+  scaleOffset: {x: 0.25, y: 0.25, z: 0.25}
 --- !u!1 &4277520300807129934
 GameObject:
   m_ObjectHideFlags: 0
