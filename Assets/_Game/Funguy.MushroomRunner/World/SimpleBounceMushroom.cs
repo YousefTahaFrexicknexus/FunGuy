@@ -83,7 +83,7 @@ public sealed class SimpleBounceMushroom : MonoBehaviour
             return false;
         }
 
-        HandleLandingQuality();
+        HandleLandingQuality(movementMotor);
         ResolvePresentation()?.PlayBounce();
         NotifyModifiers(movementMotor, sourceCollider, playerCollider);
         return true;
@@ -96,8 +96,14 @@ public sealed class SimpleBounceMushroom : MonoBehaviour
         ResolvePresentation();
     }
 
-    void HandleLandingQuality()
+    void HandleLandingQuality(RunnerMovementMotor motor)
     {
+        if (motor.Modifiers != null && motor.Modifiers.ForcesPerfectLandings)
+        {
+            if (motor.MomentumSource != null) motor.MomentumSource.OnMushroomLanded(LandingQuality.Perfect);
+            else GameplayEvents.OnMushroomLanding?.Invoke(LandingQuality.Perfect);
+            return;
+        }
         if (landingHitbox == null || landingHitbox.Count == 0)
         {
             return;

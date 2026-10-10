@@ -1,0 +1,6 @@
+Chilling.wav: ice.wav from Ice spells by bart (source recording by Stephan / pdsounds).
+Source: https://opengameart.org/content/ice-spells
+Download: https://opengameart.org/sites/default/files/icespells.zip
+License: CC0 1.0 Public Domain Dedication
+https://creativecommons.org/publicdomain/zero/1.0/
+Downloaded 2026-10-10. Original audio, renamed for this project.

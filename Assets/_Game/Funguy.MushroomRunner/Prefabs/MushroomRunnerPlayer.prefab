@@ -136,6 +136,7 @@ GameObject:
   - component: {fileID: 3264662956738846588}
   - component: {fileID: 8683741851017507597}
   - component: {fileID: 7116488026709556512}
+  - component: {fileID: 1600745904984454257}
   m_Layer: 6
   m_Name: MushroomRunnerPlayer
   m_TagString: Player
@@ -276,6 +277,19 @@ MonoBehaviour:
   angularDrag: 0.6
   uprightStrength: 2
   uprightFadeSpeed: 360
+--- !u!114 &1600745904984454257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4056237532050983834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 679c2c3b4307c5c48956223d5fead7cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunnerModifierController
+  vfxAnchor: {fileID: 0}
 --- !u!1 &8407610915257108569
 GameObject:
   m_ObjectHideFlags: 0

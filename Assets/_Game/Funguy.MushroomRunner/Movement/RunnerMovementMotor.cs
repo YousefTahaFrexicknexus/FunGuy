@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Rigidbody), typeof(RunnerModifierController))]
 public class RunnerMovementMotor : MonoBehaviour
 {
     const float LandingVerticalTolerance = 0.25f;
@@ -39,6 +39,27 @@ public class RunnerMovementMotor : MonoBehaviour
     public event Action<BounceEventData> Bounced;
     public event Action Dashed;
 
+    RunnerModifierController modifiers;
+    float horizontalSpeedMultiplier = 1f;
+    public RunnerModifierController Modifiers => modifiers != null ? modifiers : modifiers = GetComponent<RunnerModifierController>();
+    public Vector3 UnmodifiedVelocity => ScaleHorizontal(Velocity, 1f / horizontalSpeedMultiplier);
+    public bool CanAcceptMushroomLaunch => isActiveAndEnabled && motorEnabled && rigidBody != null && tuningProfile != null;
+
+    public Vector3 ScaleHorizontal(Vector3 velocity, float multiplier)
+    {
+        Vector3 vertical = Up * Vector3.Dot(velocity, Up);
+        return vertical + (velocity - vertical) * multiplier;
+    }
+
+    public void SetHorizontalSpeedMultiplier(float multiplier)
+    {
+        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return;
+        multiplier = Mathf.Clamp(multiplier, 0.01f, 1f);
+        if (rigidBody != null && multiplier != horizontalSpeedMultiplier)
+            rigidBody.linearVelocity = ScaleHorizontal(rigidBody.linearVelocity, multiplier / horizontalSpeedMultiplier);
+        horizontalSpeedMultiplier = multiplier;
+    }
+
     public Vector3 Velocity => rigidBody != null ? rigidBody.linearVelocity : Vector3.zero;
 
     public MovementTuningProfile TuningProfile => tuningProfile;
@@ -52,7 +73,8 @@ public class RunnerMovementMotor : MonoBehaviour
         ? tuningProfile.GetMaxSpeed(momentumSystem != null ? currentMomentumTier : MomentumTier.Low)
         : 0f;
 
-    public float CurrentMaxSpeed => UsesBlendedSpeed && hasBlendedMaxSpeed ? blendedMaxSpeed : TargetMaxSpeed;
+    public float UnmodifiedMaxSpeed => UsesBlendedSpeed && hasBlendedMaxSpeed ? blendedMaxSpeed : TargetMaxSpeed;
+    public float CurrentMaxSpeed => UnmodifiedMaxSpeed * horizontalSpeedMultiplier;
 
     void ResetTierSpeed()
     {
@@ -80,6 +102,8 @@ public class RunnerMovementMotor : MonoBehaviour
             rigidBody = GetComponent<Rigidbody>();
         }
 
+        modifiers = GetComponent<RunnerModifierController>();
+        if (modifiers == null) modifiers = gameObject.AddComponent<RunnerModifierController>();
         CacheBodyColliders();
         ConfigureRigidrigidBody();
     }
@@ -114,6 +138,7 @@ public class RunnerMovementMotor : MonoBehaviour
     void OnDisable()
     {
         UnbindMomentumEvents();
+        Modifiers?.Clear();
         RestoreIgnoredBounceSurface();
     }
 
@@ -188,9 +213,9 @@ public class RunnerMovementMotor : MonoBehaviour
         // One ordered tick: momentum observes incoming speed, then the cap and movement advance.
         if (UsesBlendedSpeed) momentumSystem.Tick(rigidBody.linearVelocity.z, deltaTime);
         if (UsesBlendedSpeed && momentumSystem.IsRunning && !momentumSystem.IsPaused && Time.timeScale > 0f)
-            blendedMaxSpeed = RunnerBalanceMath.BlendCap(CurrentMaxSpeed, TargetMaxSpeed,
+            blendedMaxSpeed = RunnerBalanceMath.BlendCap(UnmodifiedMaxSpeed, TargetMaxSpeed,
                 momentumSystem.TierSpeedTransitionTime, deltaTime);
-        Vector3 velocity = rigidBody.linearVelocity;
+        Vector3 velocity = UnmodifiedVelocity;
 
         ApplyShapedGravity(ref velocity, deltaTime);
 
@@ -229,10 +254,10 @@ public class RunnerMovementMotor : MonoBehaviour
         ApplyPlanarSpeedFloor(ref velocity);
         TryConsumeBufferedDash(ref velocity, bouncedThisStep);
 
-        rigidBody.linearVelocity = velocity;
+        rigidBody.linearVelocity = ScaleHorizontal(velocity, horizontalSpeedMultiplier);
         isGrounded = !bouncedThisStep && ComputeGroundedState();
 
-        GameplayEvents.OnSpeedChanged?.Invoke(velocity.z, CurrentMaxSpeed);
+        GameplayEvents.OnSpeedChanged?.Invoke(Velocity.z, CurrentMaxSpeed);
     }
 
     public void SetInput(MovementInputFrame inputFrame)
@@ -270,6 +295,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         if (!enabled)
         {
+            Modifiers?.Clear();
             bufferedDashUntil = float.NegativeInfinity;
             planarSpeedFloor = 0f;
             planarSpeedFloorDirection = Vector3.zero;
@@ -285,6 +311,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
+        Modifiers?.Clear();
         if (UsesBlendedSpeed) ResetTierSpeed();
         if (rigidBody == null)
         {
@@ -320,8 +347,8 @@ public class RunnerMovementMotor : MonoBehaviour
         RestoreIgnoredBounceSurface();
     }
 
-    /// <summary>Accepts a mushroom's complete launch velocity without applying any motor-owned bounce response.</summary>
-    public bool ApplyMushroomLaunch(Vector3 outgoingVelocity, Collider sourceCollider, Vector3 contactPoint, Vector3 contactNormal)
+    /// <summary>Accepts an unmodified mushroom launch, commits its optional modifier, then scales horizontal output once.</summary>
+    public bool ApplyMushroomLaunch(Vector3 outgoingVelocity, Collider sourceCollider, Vector3 contactPoint, Vector3 contactNormal, MushroomModifierDefinition modifier = null)
     {
         if (!isActiveAndEnabled || !motorEnabled || rigidBody == null || tuningProfile == null ||
             !IsFinite(outgoingVelocity.x) || !IsFinite(outgoingVelocity.y) || !IsFinite(outgoingVelocity.z))
@@ -330,6 +357,8 @@ public class RunnerMovementMotor : MonoBehaviour
         }
 
         Vector3 incomingVelocity = rigidBody.linearVelocity;
+        if (modifier != null && modifier.IsValid) Modifiers?.Apply(modifier);
+        outgoingVelocity = ScaleHorizontal(outgoingVelocity, horizontalSpeedMultiplier);
         hasBounceCandidate = false;
         lastBounceCandidate = default;
         lastSurfaceTouchTime = float.NegativeInfinity;
@@ -380,7 +409,7 @@ public class RunnerMovementMotor : MonoBehaviour
         Vector3 safeContactNormal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude
             ? contactNormal.normalized
             : Up;
-        Vector3 incomingVelocity = rigidBody.linearVelocity;
+        Vector3 incomingVelocity = UnmodifiedVelocity;
         BounceContext context = new(
             incomingVelocity,
             contactPoint,
@@ -391,8 +420,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         BounceSurfaceResponse response = bounceProfile.CreateDirectedResponse(forceDirection, context);
         Vector3 outgoingVelocity = ApplyBounceResponse(incomingVelocity, response);
-        Vector3 forceDelta = outgoingVelocity - incomingVelocity;
-        rigidBody.AddForce(forceDelta, ForceMode.VelocityChange);
+        rigidBody.linearVelocity = ScaleHorizontal(outgoingVelocity, horizontalSpeedMultiplier);
 
         suppressPlanarSpeedFloor = false;
         activeBounceFlightShape = BounceMovementMath.CreateBounceFlightShapeState(outgoingVelocity, tuningProfile, Up);
@@ -407,8 +435,8 @@ public class RunnerMovementMotor : MonoBehaviour
             sourceCollider,
             contactPoint,
             safeContactNormal,
-            incomingVelocity,
-            outgoingVelocity,
+            ScaleHorizontal(incomingVelocity, horizontalSpeedMultiplier),
+            ScaleHorizontal(outgoingVelocity, horizontalSpeedMultiplier),
             response));
 
         return true;
@@ -467,7 +495,7 @@ public class RunnerMovementMotor : MonoBehaviour
             Time.time < lowControlUntil && Time.time >= dashControlBoostUntil,
             Time.time < dashControlBoostUntil,
             deltaTime,
-            CurrentMaxSpeed);
+            UnmodifiedMaxSpeed);
     }
 
     void ApplyPlanarDrag(ref Vector3 velocity, float drag, float deltaTime)
@@ -477,7 +505,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplySoftSpeedLimit(ref Vector3 velocity, float deltaTime)
     {
-        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime, CurrentMaxSpeed);
+        BounceMovementMath.ApplySoftSpeedLimit(ref velocity, tuningProfile, Up, deltaTime, UnmodifiedMaxSpeed);
     }
 
     void ApplyPlanarSpeedFloor(ref Vector3 velocity)
@@ -489,7 +517,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
         float planarSpeed = planarVelocity.magnitude;
-        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, CurrentMaxSpeed);
+        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, UnmodifiedMaxSpeed);
 
         if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
         {
@@ -560,8 +588,8 @@ public class RunnerMovementMotor : MonoBehaviour
             lastBounceCandidate.Collider,
             lastBounceCandidate.ContactPoint,
             lastBounceCandidate.ContactNormal,
-            incomingVelocity,
-            velocity,
+            ScaleHorizontal(incomingVelocity, horizontalSpeedMultiplier),
+            ScaleHorizontal(velocity, horizontalSpeedMultiplier),
             response));
 
         ApplyPostBounceCollisionIgnore(lastBounceCandidate.Surface, lastBounceCandidate.Collider);
@@ -590,7 +618,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         planarSpeedFloorDirection = planarVelocity / planarSpeed;
         bool isSpeedReducingBounce = response.HasPlanarDragOverride || response.VelocityScale < 1f || response.PlanarBoost < 0f;
-        planarSpeedFloor = Mathf.Min(CurrentMaxSpeed, isSpeedReducingBounce
+        planarSpeedFloor = Mathf.Min(UnmodifiedMaxSpeed, isSpeedReducingBounce
             ? planarSpeed
             : Mathf.Max(planarSpeedFloor, planarSpeed));
     }

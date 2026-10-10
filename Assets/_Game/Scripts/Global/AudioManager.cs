@@ -132,6 +132,14 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    /// <summary>Play an assignable effect clip using the same mute and mixer settings as named SFX.</summary>
+    public void PlaySFXClip(AudioClip clip, float volume = 1f)
+    {
+        if (!isSoundActive || clip == null || SFX_AudioSource == null) return;
+        SFX_AudioSource.pitch = 1f;
+        SFX_AudioSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+    }
+
     public void PlayMusic(string _trackName, bool _forceTransition = false)
     {
         Debug.Log($"PlayMusic called, Track name: {_trackName}");

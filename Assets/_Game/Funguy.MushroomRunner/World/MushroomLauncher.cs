@@ -62,6 +62,10 @@ public sealed class MushroomLauncher : MonoBehaviour
     [SerializeField, InspectorName("Good")] List<MushroomSpeedRule> goodRules = new() { new(MushroomSpeedMode.Add, 5f) };
     [SerializeField, InspectorName("Perfect")] List<MushroomSpeedRule> perfectRules = new() { new(MushroomSpeedMode.Add, 10f) };
 
+    [Header("Timed Modifier")]
+    [SerializeField, Tooltip("Optional buff/debuff. Applies on this successful bounce; repeats refresh its timer.")]
+    MushroomModifierDefinition modifier;
+
     [Header("Optional Visuals")]
     [SerializeField] MushroomBouncePresentation presentation;
 
@@ -158,7 +162,7 @@ public sealed class MushroomLauncher : MonoBehaviour
 
     public bool TryLaunch(RunnerMovementMotor motor)
     {
-        if (!isActiveAndEnabled || motor == null || motor.TuningProfile == null ||
+        if (!isActiveAndEnabled || motor == null || !motor.CanAcceptMushroomLaunch ||
             launchedPlayers.Contains(motor) || ConfigurationWarning != null || !HasPlayerOverlap(motor, normalTrigger))
         {
             return false;
@@ -166,13 +170,16 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect
             : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
+        if ((motor.Modifiers != null && motor.Modifiers.ForcesPerfectLandings) ||
+            (modifier != null && modifier.IsValid && modifier.EffectType == MushroomModifierType.PerfectLandings))
+            quality = LandingQuality.Perfect;
         List<MushroomSpeedRule> rules = quality switch
         {
             LandingQuality.Perfect => perfectRules,
             LandingQuality.Good => goodRules,
             _ => normalRules
         };
-        if (!TryCalculateLaunch(motor.Velocity, motor.TuningProfile.MushroomBounceEffectiveness,
+        if (!TryCalculateLaunch(motor.UnmodifiedVelocity, motor.TuningProfile.MushroomBounceEffectiveness,
             rules, launchDirection.forward, out Vector3 outgoingVelocity))
         {
             return false;
@@ -180,7 +187,7 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         Vector3 contactPoint = normalTrigger.ClosestPoint(motor.rigidBody.worldCenterOfMass);
         launchedPlayers.Add(motor);
-        if (!motor.ApplyMushroomLaunch(outgoingVelocity, normalTrigger, contactPoint, motor.UpDirection))
+        if (!motor.ApplyMushroomLaunch(outgoingVelocity, normalTrigger, contactPoint, motor.UpDirection, modifier))
         {
             launchedPlayers.Remove(motor);
             return false;
@@ -188,6 +195,8 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         if (motor.MomentumSource != null)
             motor.MomentumSource.OnMushroomLanded(quality);
+        else
+            GameplayEvents.OnMushroomLanding?.Invoke(quality);
         if (presentation != null)
             presentation.PlayBounce();
         return true;
