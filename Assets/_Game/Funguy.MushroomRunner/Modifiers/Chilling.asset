@@ -16,6 +16,6 @@ MonoBehaviour:
   duration: 10
   speedMultiplier: 0.7
   icon: {fileID: 21300000, guid: e255d6d13ebc0774da0647ab48d5a3e6, type: 3}
-  playerVfxPrefab: {fileID: 2155777076173690695, guid: e6ba0a263c0a38c48948668b76bf97e2, type: 3}
+  playerVfxPrefab: {fileID: 9052320112042232133, guid: 3ca5825676ce7d8428378cb59d201e15, type: 3}
   activationSound: {fileID: 8300000, guid: d4d19261f708c244682a39de1208708a, type: 3}
   soundVolume: 0.6
