@@ -13,7 +13,8 @@ public static class GameplayEvents
     
     // --- Gameplay changes --- 
     public static System.Action<int> OnAirJump;                                     // Jumps left
-    public static System.Action OnMushroomJump; 
+    public static System.Action OnMushroomJump;
+    public static System.Action<MushroomModifierType> OnApplyModifier;
     public static System.Action<LandingQuality> OnMushroomLanding;                  // Landing quality
     public static System.Action<float, float> OnSpeedChanged;                       // Current speed and maximum speed
     

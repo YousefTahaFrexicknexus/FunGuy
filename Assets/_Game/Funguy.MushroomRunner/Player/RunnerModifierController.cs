@@ -73,6 +73,7 @@ public sealed class RunnerModifierController : MonoBehaviour
         state.Definition = definition;
         state.Remaining = definition.Duration;
         SyncMotor();
+
         if (changedPrefab)
         {
             StopVfx(state);
@@ -81,6 +82,7 @@ public sealed class RunnerModifierController : MonoBehaviour
             state.VfxPrefab = definition.PlayerVfxPrefab;
             state.Particles = Array.Empty<ParticleSystem>();
         }
+
         if (state.Vfx == null && state.VfxPrefab != null)
         {
             state.Vfx = Instantiate(state.VfxPrefab, vfxAnchor != null ? vfxAnchor : transform, false);
@@ -88,14 +90,19 @@ public sealed class RunnerModifierController : MonoBehaviour
             state.Particles = state.Vfx.GetComponentsInChildren<ParticleSystem>(true);
             wasActive = false;
         }
+
         if (state.Vfx != null && (!wasActive || changedPrefab))
         {
             state.Vfx.SetActive(true);
             foreach (ParticleSystem particle in state.Particles) particle.Play(false);
             if (paused) PauseParticles();
         }
+
         if (definition.ActivationSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFXClip(definition.ActivationSound, definition.SoundVolume);
+        {
+            GameplayEvents.OnApplyModifier?.Invoke(definition.EffectType);
+        }
+
         Changed?.Invoke();
         return true;
     }

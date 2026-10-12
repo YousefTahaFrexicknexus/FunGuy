@@ -393,7 +393,7 @@ MonoBehaviour:
   - mode: 0
     value: 1
   - mode: 1
-    value: 0.91999996
+    value: 1
   goodRules:
   - mode: 0
     value: 1
@@ -404,6 +404,7 @@ MonoBehaviour:
     value: 5
   - mode: 1
     value: 1.25
+  modifier: {fileID: 0}
   presentation: {fileID: 4031444048134765987}
 --- !u!114 &5996202582015260497
 MonoBehaviour:
@@ -492,8 +493,8 @@ Transform:
   m_GameObject: {fileID: 4556778487964324904}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.06563644, z: -0.0040000007}
-  m_LocalScale: {x: 0.2620679, y: 0.062264062, z: 0.2620679}
+  m_LocalPosition: {x: 0.0000000043903, y: 0.06563644, z: -0.004}
+  m_LocalScale: {x: 0.20415877, y: 0.048505574, z: 0.20415877}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 900000000000000051}
@@ -637,8 +638,8 @@ Transform:
   m_GameObject: {fileID: 8850549811515764499}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.06563644, z: -0.0040000007}
-  m_LocalScale: {x: 0.13103396, y: 0.062264062, z: 0.13103396}
+  m_LocalPosition: {x: 0.0000000043903, y: 0.06563644, z: -0.004}
+  m_LocalScale: {x: 0.102079384, y: 0.048505574, z: 0.102079384}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 900000000000000051}
