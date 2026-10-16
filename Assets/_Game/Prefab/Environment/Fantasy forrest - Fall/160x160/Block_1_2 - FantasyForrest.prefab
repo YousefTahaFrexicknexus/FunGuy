@@ -1257,6 +1257,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
       value: 40
@@ -2075,6 +2079,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -2127,7 +2135,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -2523,9 +2536,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 576880295736962674}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -2605,6 +2626,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -2657,7 +2682,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -2749,9 +2779,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5331604199224231938}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -2908,6 +2946,10 @@ PrefabInstance:
     - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
@@ -3134,6 +3176,10 @@ PrefabInstance:
     - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A (4)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
@@ -3653,9 +3699,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 576880295736962674}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -3809,6 +3863,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -3861,7 +3919,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -3953,9 +4016,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5331604199224231938}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5223,9 +5294,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8349686684024783485}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5449,9 +5528,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5331604199224231938}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5601,9 +5688,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8349686684024783485}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5760,6 +5855,10 @@ PrefabInstance:
     - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A
+      objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
@@ -6731,6 +6830,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -6783,7 +6886,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -7405,6 +7513,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
       value: 27.272
@@ -7553,6 +7665,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -7605,7 +7721,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -7923,6 +8044,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Birch_Tree_01B (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 440435098590616438, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 440435098590644054, guid: 9c96537e86f509441895f23eebd49598, type: 3}
       propertyPath: m_LocalScale.x
       value: 7.5183516
@@ -7975,7 +8100,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5914533343209455080, guid: 9c96537e86f509441895f23eebd49598, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

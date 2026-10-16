@@ -191,6 +191,11 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void FixedUpdate()
     {
+        if(Mathf.Abs(rigidBody.linearVelocity.y) > Mathf.Abs(lastYVel))
+        {
+            lastYVel = rigidBody.linearVelocity.y;
+        }
+
         RestoreIgnoredBounceSurfaceIfExpired();
         isGrounded = ComputeGroundedState();
         if (isGrounded)
@@ -372,6 +377,7 @@ public class RunnerMovementMotor : MonoBehaviour
         RestoreIgnoredBounceSurface();
         rigidBody.linearVelocity = outgoingVelocity;
 
+        lastYVel = 0;
         Vector3 normal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude ? contactNormal.normalized : Up;
         // Response is intentionally empty: this launch has already been fully resolved by the mushroom.
         Bounced?.Invoke(new BounceEventData(sourceCollider, contactPoint, normal, incomingVelocity, outgoingVelocity, default));
@@ -444,7 +450,15 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        CacheBounceCandidate(collision);
+        Debug.Log($"OnCollisionEnter: {collision.gameObject.tag}");
+        if(collision.gameObject.CompareTag("Ground"))
+        {
+            GroundBounce();
+        }
+        else
+        {
+            CacheBounceCandidate(collision);
+        }
     }
 
     void OnCollisionStay(Collision collision)
@@ -465,6 +479,17 @@ public class RunnerMovementMotor : MonoBehaviour
         {
             hasBounceCandidate = false;
         }
+    }
+
+    [SerializeField] float groundBounceMultiplier = 0.5f;
+    [SerializeField] float lastYVel = 0;
+
+    public void GroundBounce()
+    {
+        float YVel = Mathf.Abs(lastYVel);
+        rigidBody.linearVelocity = new Vector3(rigidBody.linearVelocity.x, YVel * groundBounceMultiplier, rigidBody.linearVelocity.z);
+
+        lastYVel = 0;
     }
 
     void ConfigureRigidrigidBody()

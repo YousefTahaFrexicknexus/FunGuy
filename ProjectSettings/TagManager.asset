@@ -5,6 +5,8 @@ TagManager:
   serializedVersion: 3
   tags:
   - Mushroom
+  - Ground
+  - Water
   layers:
   - Default
   - TransparentFX

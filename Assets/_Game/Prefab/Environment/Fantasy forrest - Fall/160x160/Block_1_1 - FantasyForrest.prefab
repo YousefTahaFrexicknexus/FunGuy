@@ -1557,9 +1557,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2682970243443389910}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -2079,9 +2087,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1291422258375268702}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -3489,9 +3505,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3873600367573328822}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -4833,6 +4857,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A
       objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
       value: 26.304314
@@ -5059,6 +5087,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Stone_Slab_01A (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 2184874480338919190, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     - target: {fileID: 2184874480339075894, guid: 7a1ba496be1afb54e929ae8dafda3ab6, type: 3}
       propertyPath: m_LocalScale.x
       value: 26.304314
@@ -5203,9 +5235,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3873600367573328822}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5429,9 +5469,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2682970243443389910}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x
@@ -5729,9 +5777,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1291422258375268702}
     m_Modifications:
+    - target: {fileID: 2253331211412291743, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_Name
       value: TFF_Rock_Large_03A (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3531547925804191714, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
+      propertyPath: m_TagString
+      value: Ground
       objectReference: {fileID: 0}
     - target: {fileID: 3531547925804225474, guid: 072fc000066065241bbe53d0fce35fbb, type: 3}
       propertyPath: m_LocalScale.x

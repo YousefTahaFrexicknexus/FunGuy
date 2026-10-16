@@ -85,6 +85,7 @@ public sealed class MushroomLauncher : MonoBehaviour
                 return "Assign the main trigger on this GameObject and enable Is Trigger.";
             if (goodTrigger == null || perfectTrigger == null || !goodTrigger.isTrigger || !perfectTrigger.isTrigger)
                 return "Assign both Good and Perfect trigger colliders and enable Is Trigger.";
+
             return null;
         }
     }
@@ -92,8 +93,11 @@ public sealed class MushroomLauncher : MonoBehaviour
     void Reset()
     {
         normalTrigger = GetComponent<Collider>();
+
         if (normalTrigger != null)
+        {
             normalTrigger.isTrigger = true;
+        }
     }
 
     void OnDisable()
@@ -136,49 +140,66 @@ public sealed class MushroomLauncher : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         RunnerMovementMotor motor = ResolveMotor(other);
+
         if (motor != null)
+        {
             TryLaunch(motor);
+        }
     }
 
     void OnTriggerExit(Collider other)
     {
         RunnerMovementMotor motor = ResolveMotor(other);
+
         if (motor != null && !HasPlayerOverlap(motor, normalTrigger))
+        {
             launchedPlayers.Remove(motor);
+        }
     }
 
     void FixedUpdate()
     {
         // Disabled/destroyed colliders and teleports do not always generate exit callbacks.
         exitedPlayers.Clear();
+
         foreach (RunnerMovementMotor motor in launchedPlayers)
         {
             if (motor == null || !HasPlayerOverlap(motor, normalTrigger))
+            {
                 exitedPlayers.Add(motor);
+            }
         }
+
         foreach (RunnerMovementMotor motor in exitedPlayers)
+        {
             launchedPlayers.Remove(motor);
+        }
     }
 
     public bool TryLaunch(RunnerMovementMotor motor)
     {
-        if (!isActiveAndEnabled || motor == null || !motor.CanAcceptMushroomLaunch ||
-            launchedPlayers.Contains(motor) || ConfigurationWarning != null || !HasPlayerOverlap(motor, normalTrigger))
+        if (!isActiveAndEnabled || motor == null || !motor.CanAcceptMushroomLaunch
+        || launchedPlayers.Contains(motor) || ConfigurationWarning != null
+        || !HasPlayerOverlap(motor, normalTrigger))
         {
             return false;
         }
 
-        LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect
-            : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
-        if ((motor.Modifiers != null && motor.Modifiers.ForcesPerfectLandings) ||
-            (modifier != null && modifier.IsValid && modifier.EffectType == MushroomModifierType.PerfectLandings))
+        LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
+
+        if ((motor.Modifiers != null && motor.Modifiers.ForcesPerfectLandings)
+        || (modifier != null && modifier.IsValid && modifier.EffectType == MushroomModifierType.PerfectLandings))
+        {
             quality = LandingQuality.Perfect;
+        }
+            
         List<MushroomSpeedRule> rules = quality switch
         {
             LandingQuality.Perfect => perfectRules,
             LandingQuality.Good => goodRules,
             _ => normalRules
         };
+
         if (!TryCalculateLaunch(motor.UnmodifiedVelocity, motor.TuningProfile.MushroomBounceEffectiveness,
             rules, launchDirection.forward, out Vector3 outgoingVelocity))
         {
@@ -187,6 +208,7 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         Vector3 contactPoint = normalTrigger.ClosestPoint(motor.rigidBody.worldCenterOfMass);
         launchedPlayers.Add(motor);
+
         if (!motor.ApplyMushroomLaunch(outgoingVelocity, normalTrigger, contactPoint, motor.UpDirection, modifier))
         {
             launchedPlayers.Remove(motor);
@@ -194,11 +216,19 @@ public sealed class MushroomLauncher : MonoBehaviour
         }
 
         if (motor.MomentumSource != null)
+        {
             motor.MomentumSource.OnMushroomLanded(quality);
+        }
         else
+        {
             GameplayEvents.OnMushroomLanding?.Invoke(quality);
+        }
+        
         if (presentation != null)
+        {
             presentation.PlayBounce();
+        }
+
         return true;
     }
 
@@ -212,13 +242,20 @@ public sealed class MushroomLauncher : MonoBehaviour
         Vector3 direction, out Vector3 outgoingVelocity)
     {
         outgoingVelocity = Vector3.zero;
+
         if (!IsValidDirection(direction) || !IsFinite(incomingVelocity.z) || !IsFinite(effectiveness))
+        {
             return false;
+        }
 
         // Scale incoming speed once, then apply each rule in Inspector order. An empty list adds nothing.
         float speed = Mathf.Max(0f, incomingVelocity.z) * Mathf.Clamp(effectiveness, 0f, 2f);
+
         if (!IsFinite(speed))
+        {
             return false;
+        }
+
         if (rules != null)
         {
             for (int index = 0; index < rules.Count; index++)
@@ -270,7 +307,10 @@ public sealed class MushroomLauncher : MonoBehaviour
     static RunnerMovementMotor ResolveMotor(Collider other)
     {
         if (other == null || other.attachedRigidbody == null || other.isTrigger)
+        {
             return null;
+        }
+
         return other.attachedRigidbody.GetComponent<RunnerMovementMotor>();
     }
 
