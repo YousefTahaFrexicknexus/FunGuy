@@ -463,6 +463,11 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
+        if(collision.gameObject.CompareTag("Ground"))
+        {
+            GameplayManager.Instance.SetIsPlayerGrounded(true);
+        }
+        
         CacheBounceCandidate(collision);
     }
 
@@ -478,6 +483,11 @@ public class RunnerMovementMotor : MonoBehaviour
         if (hasBounceCandidate && lastBounceCandidate.Collider == otherCollider)
         {
             hasBounceCandidate = false;
+        }
+
+        if(collision.gameObject.CompareTag("Ground"))
+        {
+            GameplayManager.Instance.SetIsPlayerGrounded(false);
         }
     }
 
