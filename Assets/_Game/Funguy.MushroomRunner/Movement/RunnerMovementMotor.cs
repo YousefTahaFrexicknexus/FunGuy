@@ -43,6 +43,14 @@ public class RunnerMovementMotor : MonoBehaviour
     float horizontalSpeedMultiplier = 1f;
     public RunnerModifierController Modifiers => modifiers != null ? modifiers : modifiers = GetComponent<RunnerModifierController>();
     public Vector3 UnmodifiedVelocity => ScaleHorizontal(Velocity, 1f / horizontalSpeedMultiplier);
+    public Vector3 GetMushroomLaunchInputVelocity(MushroomModifierDefinition pickup)
+    {
+        float nextMultiplier = Modifiers != null ? Modifiers.SpeedMultiplierAfterPickup(pickup) : horizontalSpeedMultiplier;
+        // A cleanse (or weaker slow) keeps actual incoming speed; do not turn the old
+        // nominal velocity into a free boost when the granting launch is calculated.
+        return ScaleHorizontal(UnmodifiedVelocity, Mathf.Min(1f, horizontalSpeedMultiplier / nextMultiplier));
+    }
+
     public bool CanAcceptMushroomLaunch => isActiveAndEnabled && motorEnabled && rigidBody != null && tuningProfile != null;
 
     public Vector3 ScaleHorizontal(Vector3 velocity, float multiplier)
@@ -55,8 +63,19 @@ public class RunnerMovementMotor : MonoBehaviour
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier)) return;
         multiplier = Mathf.Clamp(multiplier, 0.01f, 1f);
-        if (rigidBody != null && multiplier != horizontalSpeedMultiplier)
-            rigidBody.linearVelocity = ScaleHorizontal(rigidBody.linearVelocity, multiplier / horizontalSpeedMultiplier);
+        if (multiplier < horizontalSpeedMultiplier)
+        {
+            if (rigidBody != null)
+                rigidBody.linearVelocity = ScaleHorizontal(rigidBody.linearVelocity, multiplier / horizontalSpeedMultiplier);
+        }
+        else if (multiplier > horizontalSpeedMultiplier)
+        {
+            // Removing a slowdown lifts the penalty without awarding speed. Rebase the
+            // retained floor too, so the next physics tick cannot restore the lost speed.
+            planarSpeedFloor *= horizontalSpeedMultiplier / multiplier;
+            if (rigidBody != null)
+                planarSpeedFloor = Mathf.Min(planarSpeedFloor, Vector3.ProjectOnPlane(Velocity, Up).magnitude / multiplier);
+        }
         horizontalSpeedMultiplier = multiplier;
     }
 

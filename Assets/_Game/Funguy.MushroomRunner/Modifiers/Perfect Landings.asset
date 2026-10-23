@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Perfect Landings
   m_EditorClassIdentifier: Assembly-CSharp::MushroomModifierDefinition
   effectType: 1
-  duration: 10
+  category: 0
+  immuneToDebuffs: 1
+  cleanseDebuffsOnPickup: 1
+  duration: 7
   speedMultiplier: 0.7
   icon: {fileID: 21300000, guid: 3495ef2721c6fc04b9b8cedd8255e4ac, type: 3}
   playerVfxPrefab: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}

@@ -6,8 +6,8 @@
   <Project Path="Rowlan.YAPP.Editor.csproj" />
   <Project Path="Google.Play.Games.csproj" />
   <Project Path="PlayFabEditorExtensions.csproj" />
-  <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="Funguy.MushroomRunner.Editor.csproj" />
   <Project Path="PlayFabSDKEditor.csproj" />
   <Project Path="Sirenix.OdinInspector.Modules.UnityMathematics.csproj" />

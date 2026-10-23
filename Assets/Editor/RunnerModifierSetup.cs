@@ -70,6 +70,8 @@ public static class RunnerModifierSetup
         definition = ScriptableObject.CreateInstance<MushroomModifierDefinition>();
         var so = new SerializedObject(definition);
         so.FindProperty("effectType").enumValueIndex = (int)type;
+        so.FindProperty("category").enumValueIndex = (int)(type == MushroomModifierType.Chilling
+            ? MushroomModifierCategory.Debuff : MushroomModifierCategory.Buff);
         so.FindProperty("duration").floatValue = 10f;
         so.FindProperty("speedMultiplier").floatValue = 0.7f;
         so.FindProperty("playerVfxPrefab").objectReferenceValue = vfx;

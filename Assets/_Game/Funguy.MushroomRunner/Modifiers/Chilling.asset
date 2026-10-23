@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Chilling
   m_EditorClassIdentifier: Assembly-CSharp::MushroomModifierDefinition
   effectType: 0
-  duration: 10
+  category: 1
+  immuneToDebuffs: 0
+  cleanseDebuffsOnPickup: 0
+  duration: 4
   speedMultiplier: 0.7
   icon: {fileID: 21300000, guid: e255d6d13ebc0774da0647ab48d5a3e6, type: 3}
   playerVfxPrefab: {fileID: 9052320112042232133, guid: 3ca5825676ce7d8428378cb59d201e15, type: 3}

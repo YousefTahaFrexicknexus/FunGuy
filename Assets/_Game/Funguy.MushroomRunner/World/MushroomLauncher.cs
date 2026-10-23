@@ -187,8 +187,7 @@ public sealed class MushroomLauncher : MonoBehaviour
 
         LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
 
-        if ((motor.Modifiers != null && motor.Modifiers.ForcesPerfectLandings)
-        || (modifier != null && modifier.IsValid && modifier.EffectType == MushroomModifierType.PerfectLandings))
+        if (motor.Modifiers != null && motor.Modifiers.PerfectLandingsAfterPickup(modifier))
         {
             quality = LandingQuality.Perfect;
         }
@@ -200,7 +199,7 @@ public sealed class MushroomLauncher : MonoBehaviour
             _ => normalRules
         };
 
-        if (!TryCalculateLaunch(motor.UnmodifiedVelocity, motor.TuningProfile.MushroomBounceEffectiveness,
+        if (!TryCalculateLaunch(motor.GetMushroomLaunchInputVelocity(modifier), motor.TuningProfile.MushroomBounceEffectiveness,
             rules, launchDirection.forward, out Vector3 outgoingVelocity))
         {
             return false;

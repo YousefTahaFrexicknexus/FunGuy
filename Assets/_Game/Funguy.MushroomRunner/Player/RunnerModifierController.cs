@@ -23,6 +23,38 @@ public sealed class RunnerModifierController : MonoBehaviour
     public float HorizontalSpeedMultiplier => IsActive(MushroomModifierType.Chilling)
         ? effects[0].Definition.SpeedMultiplier : 1f;
     public bool ForcesPerfectLandings => IsActive(MushroomModifierType.PerfectLandings);
+    public bool IsImmuneToDebuffs
+    {
+        get
+        {
+            foreach (EffectState state in effects)
+                if (state.Remaining > 0f && state.Definition != null && state.Definition.ImmuneToDebuffs) return true;
+            return false;
+        }
+    }
+
+    public bool CanApply(MushroomModifierDefinition definition) => isActiveAndEnabled && definition != null
+        && definition.IsValid && !(definition.IsDebuff && IsImmuneToDebuffs);
+
+    // Preview without mutating timers or playing feedback. Launches commit only after validation.
+    MushroomModifierDefinition DefinitionAfterPickup(MushroomModifierType type, MushroomModifierDefinition pickup)
+    {
+        EffectState state = effects[(int)type];
+        var current = state.Remaining > 0f ? state.Definition : null;
+        if (!CanApply(pickup)) return current;
+        if (pickup.EffectType == type) return pickup;
+        return pickup.CleanseDebuffsOnPickup && current != null && current.IsDebuff ? null : current;
+    }
+
+    public float SpeedMultiplierAfterPickup(MushroomModifierDefinition pickup)
+    {
+        var chill = DefinitionAfterPickup(MushroomModifierType.Chilling, pickup);
+        return chill != null ? chill.SpeedMultiplier : 1f;
+    }
+
+    public bool PerfectLandingsAfterPickup(MushroomModifierDefinition pickup) =>
+        DefinitionAfterPickup(MushroomModifierType.PerfectLandings, pickup) != null;
+
     public bool IsActive(MushroomModifierType type) => GetRemaining(type) > 0f;
     public float GetRemaining(MushroomModifierType type) => effects[(int)type].Remaining;
     public MushroomModifierDefinition GetDefinition(MushroomModifierType type) => effects[(int)type].Definition;
@@ -66,7 +98,16 @@ public sealed class RunnerModifierController : MonoBehaviour
 
     public bool Apply(MushroomModifierDefinition definition)
     {
-        if (!isActiveAndEnabled || definition == null || !definition.IsValid) return false;
+        if (!CanApply(definition)) return false;
+        if (definition.CleanseDebuffsOnPickup)
+        {
+            foreach (EffectState active in effects)
+            {
+                if (active.Remaining <= 0f || active.Definition == null || !active.Definition.IsDebuff) continue;
+                active.Remaining = 0f;
+                StopVfx(active);
+            }
+        }
         EffectState state = effects[(int)definition.EffectType];
         bool wasActive = state.Remaining > 0f;
         bool changedPrefab = state.VfxPrefab != definition.PlayerVfxPrefab;

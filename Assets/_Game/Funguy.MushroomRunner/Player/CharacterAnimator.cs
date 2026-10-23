@@ -19,7 +19,7 @@ public class CharacterAnimator : MonoBehaviour
 
     void Awake()
     {
-        if(animator == null)
+        if (animator == null)
         {
             animator = GetComponent<Animator>();
         }
@@ -52,10 +52,10 @@ public class CharacterAnimator : MonoBehaviour
         DisableTumble();
 
         tumblePivot.localRotation = defaultVisualRotation;
-        
+
         TriggerBounce();
         animator.SetTrigger("MushroomBounce");
-
+        AirJumpVFX.Play();
         Invoke(nameof(EnableTumble), 0.1f);
     }
 
@@ -84,7 +84,8 @@ public class CharacterAnimator : MonoBehaviour
 
     [Header("Creature mesh")]
     [SerializeField] Transform meshTransform;
-
+    [Header("VFX")]
+    [SerializeField] ParticleSystem AirJumpVFX;
     // ── Runtime ────────────────────────────────────────────────
     [SerializeField] Rigidbody rb;
     Vector3 originalScale = Vector3.one;
@@ -132,12 +133,12 @@ public class CharacterAnimator : MonoBehaviour
         Vector3 start = meshTransform.localScale;
 
         float t = 0f;
-        
+
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(duration, 0.001f);
             meshTransform.localScale = Vector3.LerpUnclamped(start, target, EaseOutBack(Mathf.Clamp01(t)));
-            
+
             yield return null;
         }
 
@@ -193,7 +194,7 @@ public class CharacterAnimator : MonoBehaviour
     Vector3 angularVelocity;
     Quaternion defaultVisualRotation;
 
-    
+
     void LateUpdate()
     {
         TumbleTick();
@@ -201,7 +202,7 @@ public class CharacterAnimator : MonoBehaviour
 
     void TumbleTick()
     {
-        if(!updateTumble)
+        if (!updateTumble)
         {
             return;
         }
