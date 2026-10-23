@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+
 using UnityEngine;
+using UnityEngine.Events;
 
 public enum MushroomSpeedMode
 {
@@ -73,6 +75,9 @@ public sealed class MushroomLauncher : MonoBehaviour
     readonly List<RunnerMovementMotor> exitedPlayers = new();
     readonly List<Collider> playerColliders = new();
 
+    [Header("Events")]
+    [SerializeField] UnityEvent OnLaunchPlayer;
+
     public string ConfigurationWarning
     {
         get
@@ -144,6 +149,7 @@ public sealed class MushroomLauncher : MonoBehaviour
         if (motor != null)
         {
             TryLaunch(motor);
+            OnLaunchPlayer?.Invoke();
         }
     }
 
