@@ -1649,7 +1649,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 137.55
+  m_fontSize: 141.2
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -1981,7 +1981,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 99999
+  m_text: 0
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 425dc4a66c846ef4c90ff6d5d40182db, type: 2}
   m_sharedMaterial: {fileID: 2100000, guid: 8e6878e8f5e9a184085eee9515d794e8, type: 2}
@@ -2008,7 +2008,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 58.55
+  m_fontSize: 76.1
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -3097,7 +3097,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 39.1
+  m_fontSize: 42.95
   m_fontSizeBase: 99.1
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -3702,6 +3702,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HUD_UI
   scoreText: {fileID: 8442381204196525212}
+  coinCounter_TextAnimator: {fileID: 877939817252972252}
   landingQuality_TextAnimator: {fileID: 2291330736700873606}
   initScale: {x: 0.75, y: 0.75, z: 0.75}
   finalScale: {x: 1, y: 1, z: 1}
@@ -4583,8 +4584,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -18, y: 395}
-  m_SizeDelta: {x: 0.21409, y: -1927.2346}
+  m_AnchoredPosition: {x: -18, y: 415.06018}
+  m_SizeDelta: {x: 0.2141, y: -1887.1143}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &6398977929234050929
 MonoBehaviour:

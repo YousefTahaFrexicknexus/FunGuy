@@ -72,6 +72,20 @@ public class TextAnimator : MonoBehaviour
         });
     }
 
+    // Plain HUD counters use the same scale animation without a multiplier prefix.
+    public void SetAndAnimateCounter(int targetValue)
+    {
+        bool isIncreasing = targetValue > currentValue;
+        SetCounterValue(targetValue);
+        AnimateScale(isIncreasing);
+    }
+
+    public void SetCounterValue(int value)
+    {
+        currentValue = value;
+        textTMP.text = value.ToString();
+    }
+
     void AnimateScale(bool _isIncreasing = true, float _scaleDuration = 0.1f)
     {
         Vector3 targetScale = _isIncreasing ? increaseScale : decreaseScale;

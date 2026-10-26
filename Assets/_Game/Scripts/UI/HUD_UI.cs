@@ -9,27 +9,34 @@ using TMPro;
 using DG.Tweening;
 
 public class HUD_UI : MonoBehaviour
-{    
+{
     [TabGroup("Score UI")]
-    [TabGroup("Score UI"),SerializeField] TextMeshProUGUI scoreText;
+    [TabGroup("Score UI"), SerializeField] TextMeshProUGUI scoreText;
+    [TabGroup("Coin UI"), SerializeField] TextAnimator coinCounter_TextAnimator;
+    int collectedCoins;
 
     [TabGroup("Landing UI")]
-    [TabGroup("Landing UI"),SerializeField] TextAnimator landingQuality_TextAnimator;
+    [TabGroup("Landing UI"), SerializeField] TextAnimator landingQuality_TextAnimator;
     [TabGroup("Scale Parameters"), Header("Scale Parameters"), Space]
-    [SerializeField, LabelText("Initial Scale")]  Vector3 initScale = Vector3.one * 0.75f;
-    [TabGroup("Scale Parameters"), SerializeField, LabelText("Final Scale")]  Vector3 finalScale = Vector3.one;
+    [SerializeField, LabelText("Initial Scale")] Vector3 initScale = Vector3.one * 0.75f;
+    [TabGroup("Scale Parameters"), SerializeField, LabelText("Final Scale")] Vector3 finalScale = Vector3.one;
 
     [TabGroup("Momentum UI")]
-    [TabGroup("Momentum UI"),SerializeField] TextAnimator momentumMultiplier_TextAnimator;
-    [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S1;
-    [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S2;
-    [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S3;
-    [TabGroup("Momentum UI"),SerializeField] ProgressBar momentumBar_S4;
+    [TabGroup("Momentum UI"), SerializeField] TextAnimator momentumMultiplier_TextAnimator;
+    [TabGroup("Momentum UI"), SerializeField] ProgressBar momentumBar_S1;
+    [TabGroup("Momentum UI"), SerializeField] ProgressBar momentumBar_S2;
+    [TabGroup("Momentum UI"), SerializeField] ProgressBar momentumBar_S3;
+    [TabGroup("Momentum UI"), SerializeField] ProgressBar momentumBar_S4;
 
     [TabGroup("Jump UI")]
-    [TabGroup("Jump UI"),SerializeField] Sprite jumpActive_Sprite;
-    [TabGroup("Jump UI"),SerializeField] Sprite jumpInactive_Sprite;
-    [TabGroup("Jump UI"),SerializeField] List<Image> jumpImages;
+    [TabGroup("Jump UI"), SerializeField] Sprite jumpActive_Sprite;
+    [TabGroup("Jump UI"), SerializeField] Sprite jumpInactive_Sprite;
+    [TabGroup("Jump UI"), SerializeField] List<Image> jumpImages;
+
+    void Awake()
+    {
+        coinCounter_TextAnimator?.SetCounterValue(0);
+    }
 
     void OnEnable()
     {
@@ -59,6 +66,7 @@ public class HUD_UI : MonoBehaviour
 
         // --- Score changes ---
         GameplayEvents.OnScoreChanged += OnScoreChanged;
+        GameplayEvents.OnCoinCollected += OnCoinCollected;
     }
 
     void UnregisterGameplayEvents()
@@ -79,20 +87,28 @@ public class HUD_UI : MonoBehaviour
 
         // --- Score changes ---
         GameplayEvents.OnScoreChanged -= OnScoreChanged;
+        GameplayEvents.OnCoinCollected -= OnCoinCollected;
     }
 
     public void Init(MovementTuningProfile _movementTuningProfile)
     {
         // Set the number of jump images based on the number of dash charges per bounce
-        for(int i = 0; i < jumpImages.Count; i++)
+        for (int i = 0; i < jumpImages.Count; i++)
         {
             jumpImages[i].gameObject.SetActive(i < _movementTuningProfile.DashChargesPerBounce);
-        } 
+        }
     }
 
     void OnScoreChanged(int _score)
     {
         scoreText.text = _score.ToString();
+    }
+
+    void OnCoinCollected(int value)
+    {
+        if (value <= 0) return;
+        collectedCoins += value;
+        coinCounter_TextAnimator?.SetAndAnimateCounter(collectedCoins);
     }
 
     void OnMomentumChanged(float _normalizedMomentum)
@@ -110,7 +126,7 @@ public class HUD_UI : MonoBehaviour
 
     void OnAirJump(int _jumpsLeft)
     {
-        for(int i = 0; i < jumpImages.Count; i++)
+        for (int i = 0; i < jumpImages.Count; i++)
         {
             jumpImages[i].sprite = i < _jumpsLeft ? jumpActive_Sprite : jumpInactive_Sprite;
         }
@@ -120,7 +136,7 @@ public class HUD_UI : MonoBehaviour
     {
         OnLandingQuality(_landingQuality);
 
-        foreach(Image jumpImage in jumpImages)
+        foreach (Image jumpImage in jumpImages)
         {
             jumpImage.sprite = jumpActive_Sprite;
         }
@@ -131,7 +147,7 @@ public class HUD_UI : MonoBehaviour
         bool isGoodOrPerfectLanding = _landingQuality == LandingQuality.Good || _landingQuality == LandingQuality.Perfect;
         landingQuality_TextAnimator.SetAndAnimateLandingQuality(_landingQuality.ToString(), isGoodOrPerfectLanding);
 
-        switch(_landingQuality)
+        switch (_landingQuality)
         {
             case LandingQuality.Perfect:
                 landingQuality_TextAnimator.SetColor(Color.orange);
@@ -161,12 +177,15 @@ public class HUD_UI : MonoBehaviour
 
     void OnReset()
     {
+        collectedCoins = 0;
+        coinCounter_TextAnimator?.SetCounterValue(0);
+
         momentumBar_S1.BarReset();
         momentumBar_S2.BarReset();
         momentumBar_S3.BarReset();
         momentumBar_S4.BarReset();
 
-        foreach(Image jumpImage in jumpImages)
+        foreach (Image jumpImage in jumpImages)
         {
             jumpImage.sprite = jumpActive_Sprite;
         }
