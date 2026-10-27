@@ -72,6 +72,28 @@ public sealed class GridCourseStreamer : MonoBehaviour
     int consecutiveEmptyMushroomRows;
     int consecutiveEmptyCoinRows;
     bool initialized;
+    bool runFlowManaged;
+
+    public bool IsRunFlowManaged => runFlowManaged;
+
+    public float InitialStartZ => initialStartZ;
+
+    public float GetInitialEnvironmentEndZ(float startZ) => generationProfile != null
+        ? startZ + (generationProfile.VisibleGridCount * generationProfile.GridCellLength)
+        : startZ;
+
+    public float RequiredEnvironmentEndZ
+    {
+        get
+        {
+            if (generationProfile == null) return generationStartZ;
+            float length = generationProfile.GridCellLength;
+            float endZ = generationStartZ + nextSliceIndex * length;
+            if (streamingTarget != null)
+                endZ = Mathf.Max(endZ, streamingTarget.position.z + activeSlices.Count * length);
+            return endZ + length * 0.5f;
+        }
+    }
 
     void Reset()
     {
@@ -85,13 +107,20 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     void Start()
     {
-        if (buildOnStart)
+        if (!runFlowManaged && buildOnStart && !initialized)
         {
             BuildInitialGrid(initialStartZ);
         }
     }
 
     void Update()
+    {
+        if (!runFlowManaged) UpdateStreaming();
+    }
+
+    public void SetRunFlowManaged(bool managed) => runFlowManaged = managed;
+
+    public void UpdateStreaming()
     {
         RecycleFinishedBundles();
         if (!initialized || generationProfile == null || streamingTarget == null)
@@ -159,13 +188,19 @@ public sealed class GridCourseStreamer : MonoBehaviour
             BeginGeneration(initialStartZ);
         }
 
+        bool surfaceTransformsSynced = false;
+        GenerateNextSlice(ref surfaceTransformsSynced);
+    }
+
+    void GenerateNextSlice(ref bool surfaceTransformsSynced)
+    {
         GridSlice slice = new()
         {
             Index = nextSliceIndex,
             StartZ = generationStartZ + (nextSliceIndex * generationProfile.GridCellLength)
         };
 
-        SpawnSliceContent(slice);
+        SpawnSliceContent(slice, ref surfaceTransformsSynced);
         activeSlices.Enqueue(slice);
         nextSliceIndex++;
     }
@@ -198,9 +233,10 @@ public sealed class GridCourseStreamer : MonoBehaviour
         }
 
         int targetCount = Mathf.Max(0, count);
+        bool surfaceTransformsSynced = false;
         while (activeSlices.Count < targetCount)
         {
-            GenerateNextSlice();
+            GenerateNextSlice(ref surfaceTransformsSynced);
         }
 
         while (activeSlices.Count > targetCount)
@@ -223,33 +259,35 @@ public sealed class GridCourseStreamer : MonoBehaviour
     void StreamFromTarget()
     {
         float recycleDistance = generationProfile.GridCellLength * 2f;
+        bool surfaceTransformsSynced = false;
         while (activeSlices.Count > 0 && streamingTarget.position.z >= activeSlices.Peek().StartZ + recycleDistance)
         {
             RecycleOldestSlice();
-            GenerateNextSlice();
+            GenerateNextSlice(ref surfaceTransformsSynced);
         }
     }
 
-    void SpawnSliceContent(GridSlice slice)
+    void SpawnSliceContent(GridSlice slice, ref bool surfaceTransformsSynced)
     {
         int score = Mathf.Max(0, Mathf.FloorToInt(slice.StartZ - generationStartZ));
 
         // Columns without a mushroom keep their normal grid position.
         System.Array.Clear(columnPlacementOffsets, 0, columnPlacementOffsets.Length);
         System.Array.Clear(columnHasMushroom, 0, columnHasMushroom.Length);
-        SpawnMushroomRow(slice, score);
+        SpawnMushroomRow(slice, score, ref surfaceTransformsSynced);
         SpawnUpperLevels(slice, score);
     }
 
-    void SpawnMushroomRow(GridSlice slice, int score)
+    void SpawnMushroomRow(GridSlice slice, int score, ref bool surfaceTransformsSynced)
     {
         if (!ShouldSpawnMushroomRow(score))
         {
-            consecutiveEmptyMushroomRows++;
+            if (consecutiveEmptyMushroomRows < int.MaxValue) consecutiveEmptyMushroomRows++;
             return;
         }
 
-        consecutiveEmptyMushroomRows = 0;
+        bool hasMushroom = false;
+        bool checkSurface = HasAvailableMushroomSurfaceRules(score);
         int mushroomCount = RandomRangeInclusive(
             generationProfile.MinimumMushroomsPerActiveRow,
             generationProfile.MaximumMushroomsPerActiveRow);
@@ -261,11 +299,60 @@ public sealed class GridCourseStreamer : MonoBehaviour
             int column = columnScratch[columnIndex];
             columnScratch.RemoveAt(columnIndex);
 
-            GridSpawnEntry entry = PickEntry(generationProfile.MushroomEntries, score);
-            Vector3 offset = GetMushroomPlacementOffset();
-            if (entry != null && entry.Prefab != null) columnPlacementOffsets[column] = offset;
-            columnHasMushroom[column] = SpawnEntry(entry, GetCellPosition(column, 0, slice.StartZ) + offset, slice);
+            GridSpawnEntry entry;
+            Vector3 offset;
+            Vector3 position = GetCellPosition(column, 0, slice.StartZ);
+            if (checkSurface)
+            {
+                offset = GetMushroomPlacementOffset();
+                position += offset;
+                if (!surfaceTransformsSynced)
+                {
+                    // Initial grids and catch-up streaming share one sync per batch.
+                    Physics.SyncTransforms();
+                    surfaceTransformsSynced = true;
+                }
+
+                float startHeight = generationProfile.MushroomSurfaceStartHeight;
+                bool hitSurface = Physics.Raycast(
+                    position + Vector3.up * startHeight,
+                    Vector3.down,
+                    out RaycastHit hit,
+                    startHeight + generationProfile.MushroomSurfaceDownwardReach,
+                    generationProfile.MushroomSurfaceLayers,
+                    QueryTriggerInteraction.Collide);
+                // Read only the closest collider's own tag, once for every candidate.
+                string surfaceTag = hitSurface ? hit.collider.tag : null;
+                entry = PickEntry(generationProfile.MushroomEntries, score, true, surfaceTag);
+            }
+            else
+            {
+                // Preserve the existing random draw order when surface rules are unused.
+                entry = PickEntry(generationProfile.MushroomEntries, score);
+                offset = GetMushroomPlacementOffset();
+                position += offset;
+            }
+
+            if (!SpawnEntry(entry, position, slice)) continue;
+            columnPlacementOffsets[column] = offset;
+            columnHasMushroom[column] = true;
+            hasMushroom = true;
         }
+
+        consecutiveEmptyMushroomRows = hasMushroom ? 0
+            : (consecutiveEmptyMushroomRows < int.MaxValue ? consecutiveEmptyMushroomRows + 1 : int.MaxValue);
+    }
+
+    bool HasAvailableMushroomSurfaceRules(int score)
+    {
+        IReadOnlyList<GridSpawnEntry> entries = generationProfile.MushroomEntries;
+        if (entries == null) return false;
+        for (int index = 0; index < entries.Count; index++)
+        {
+            GridSpawnEntry entry = entries[index];
+            if (entry != null && entry.IsAvailable(score) && entry.HasSurfaceRules) return true;
+        }
+        return false;
     }
 
     bool ShouldSpawnMushroomRow(int score)
@@ -495,7 +582,8 @@ public sealed class GridCourseStreamer : MonoBehaviour
         }
     }
 
-    GridSpawnEntry PickEntry(IReadOnlyList<GridSpawnEntry> entries, int score)
+    GridSpawnEntry PickEntry(IReadOnlyList<GridSpawnEntry> entries, int score,
+        bool filterBySurface = false, string surfaceTag = null)
     {
         if (entries == null || entries.Count == 0)
         {
@@ -506,7 +594,8 @@ public sealed class GridCourseStreamer : MonoBehaviour
         for (int index = 0; index < entries.Count; index++)
         {
             GridSpawnEntry entry = entries[index];
-            if (entry != null && entry.IsAvailable(score))
+            if (entry != null && entry.IsAvailable(score)
+                && (!filterBySurface || entry.AllowsSurface(surfaceTag)))
             {
                 totalWeight += entry.SpawnWeight;
             }
@@ -522,7 +611,8 @@ public sealed class GridCourseStreamer : MonoBehaviour
         for (int index = 0; index < entries.Count; index++)
         {
             GridSpawnEntry entry = entries[index];
-            if (entry == null || !entry.IsAvailable(score))
+            if (entry == null || !entry.IsAvailable(score)
+                || (filterBySurface && !entry.AllowsSurface(surfaceTag)))
             {
                 continue;
             }

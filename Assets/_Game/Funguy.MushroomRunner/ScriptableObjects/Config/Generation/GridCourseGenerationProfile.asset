@@ -29,25 +29,42 @@ MonoBehaviour:
   mushroomEntries:
   - prefab: {fileID: 900000000000000001, guid: 9ec710c3bce55f840a741119f39eb051, type: 3}
     minimumScore: 0
+    allowedSurfaceTags:
+    - Ground
+    blockedSurfaceTags:
+    - Water
     spawnWeight: 1
     localOffset: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePooling: 1
     bounceProfileOverride: {fileID: 0}
   - prefab: {fileID: 900000000000000001, guid: 1170ae1cfa87ede4799d70977dadb7cb, type: 3}
-    minimumScore: 0
+    minimumScore: 500
+    allowedSurfaceTags:
+    - Ground
+    blockedSurfaceTags:
+    - Water
     spawnWeight: 0.1
     localOffset: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePooling: 1
     bounceProfileOverride: {fileID: 0}
   - prefab: {fileID: 900000000000000001, guid: f34f0182cc782c142bf934a6ed73a25f, type: 3}
-    minimumScore: 200
+    minimumScore: 700
+    allowedSurfaceTags:
+    - Ground
+    blockedSurfaceTags:
+    - Water
     spawnWeight: 0.03
     localOffset: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePooling: 1
     bounceProfileOverride: {fileID: 0}
+  mushroomSurfaceLayers:
+    serializedVersion: 2
+    m_Bits: 115
+  mushroomSurfaceStartHeight: -1
+  mushroomSurfaceDownwardReach: 100
   maximumEmptyCoinRows: 5
   coinChanceStart: 0.01
   coinChanceEnd: 0.01
@@ -56,6 +73,8 @@ MonoBehaviour:
   coinEntries:
   - prefab: {fileID: 6685371126065863661, guid: 5e46899cb7accac41bb554e28c80acfd, type: 3}
     minimumScore: 0
+    allowedSurfaceTags: []
+    blockedSurfaceTags: []
     spawnWeight: 1
     localOffset: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}

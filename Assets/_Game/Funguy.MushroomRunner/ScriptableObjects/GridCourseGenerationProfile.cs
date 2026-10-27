@@ -45,6 +45,14 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     [SerializeField, Tooltip("Mushroom prefabs that can spawn on grid level 0.")]
     List<GridSpawnEntry> mushroomEntries = new();
 
+    [Header("Mushroom Surface Check")]
+    [SerializeField, Tooltip("Layers considered by the mushroom surface check. Include both allowed and blocked surfaces. Trigger colliders are included.")]
+    LayerMask mushroomSurfaceLayers = Physics.DefaultRaycastLayers;
+    [SerializeField, Min(-1f), Tooltip("Ray start height above the randomized grid point. -1 uses half the cell height. Start above the surface colliders; entry Local Offset is ignored.")]
+    float mushroomSurfaceStartHeight = -1f;
+    [SerializeField, Min(0.1f), Tooltip("How far below the randomized grid point the mushroom surface ray reaches.")]
+    float mushroomSurfaceDownwardReach = 100f;
+
     [Header("Upper Levels")]
     [SerializeField, Min(0), Tooltip("Maximum consecutive forward rows without coins. After this many empty rows, the next row gets a coin bundle. 0 guarantees coins every row. Requires an unlocked coin entry with positive spawn weight; overrides coin chance, including 0.")]
     int maximumEmptyCoinRows = 5;
@@ -98,6 +106,13 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     public float MushroomForwardBackOffset => GridCellLength * 0.25f * Mathf.Clamp01(mushroomForwardBackVariation);
 
     public IReadOnlyList<GridSpawnEntry> MushroomEntries => mushroomEntries;
+
+    public LayerMask MushroomSurfaceLayers => mushroomSurfaceLayers;
+
+    public float MushroomSurfaceStartHeight => mushroomSurfaceStartHeight < 0f
+        ? CellHeight * 0.5f : mushroomSurfaceStartHeight;
+
+    public float MushroomSurfaceDownwardReach => Mathf.Max(0.1f, mushroomSurfaceDownwardReach);
 
     public IReadOnlyList<GridSpawnEntry> CoinEntries => coinEntries;
 
@@ -175,6 +190,8 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
         maximumMushroomsPerActiveRow = Mathf.Clamp(Mathf.Max(minimumMushroomsPerActiveRow, maximumMushroomsPerActiveRow), 1, 3);
         mushroomSideToSideVariation = Mathf.Clamp01(mushroomSideToSideVariation);
         mushroomForwardBackVariation = Mathf.Clamp01(mushroomForwardBackVariation);
+        mushroomSurfaceStartHeight = mushroomSurfaceStartHeight < 0f ? -1f : mushroomSurfaceStartHeight;
+        mushroomSurfaceDownwardReach = Mathf.Max(0.1f, mushroomSurfaceDownwardReach);
         coinChanceStart = Mathf.Clamp01(coinChanceStart);
         maximumEmptyCoinRows = Mathf.Max(0, maximumEmptyCoinRows);
         coinChanceEnd = Mathf.Clamp01(coinChanceEnd);

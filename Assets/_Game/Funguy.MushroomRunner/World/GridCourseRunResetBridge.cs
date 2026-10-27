@@ -43,6 +43,8 @@ public sealed class GridCourseRunResetBridge : MonoBehaviour
             return;
         }
 
+        // Coordinated runs already rebuilt the grid before publishing the event.
+        if (gridStreamer.IsRunFlowManaged) return;
         gridStreamer.BuildInitialGrid(startZ);
     }
 

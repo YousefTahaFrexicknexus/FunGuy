@@ -53,6 +53,10 @@ public class BlockSpawner : MonoBehaviour
 
     /// <summary>True once we've exhausted the sequence and looping is disabled.</summary>
     private bool _sequenceFinished = false;
+    private bool _initialized;
+    private bool _runFlowManaged;
+
+    public bool IsRunFlowManaged => _runFlowManaged;
 
     // -------------------------------------------------------------------------
     // Internal record: a spawned block instance + its Z boundaries
@@ -86,22 +90,34 @@ public class BlockSpawner : MonoBehaviour
 
     private void Start()
     {
-        _nextSpawnZ = initialSpawnZ;
-
-        // Pre-spawn a few blocks so the world isn't empty at startup.
-        for (int i = 0; i < preSpawnCount; i++)
-        {
-            if (!TrySpawnNext())
-                break;
-        }
+        if (!_runFlowManaged && !_initialized) ResetSpawner();
     }
 
     private void Update()
     {
-        if (player == null || _sequenceFinished) return;
+        if (!_runFlowManaged) UpdateStreaming();
+    }
 
+    public void SetRunFlowManaged(bool managed) => _runFlowManaged = managed;
+
+    public void SetStreamingTarget(Transform target) => player = target;
+
+    public void UpdateStreaming()
+    {
+        if (!_initialized || player == null) return;
         CheckAndSpawn();
         CheckAndDespawn();
+    }
+
+    // Called before grid generation so short blocks cannot leave its probes
+    // looking beyond the environment's normal player-relative lookahead.
+    public void EnsureSpawnedThrough(float worldZ)
+    {
+        if (!_initialized) ResetSpawner();
+        while (!_sequenceFinished && _nextSpawnZ <= worldZ)
+        {
+            if (!TrySpawnNext()) break;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -117,11 +133,7 @@ public class BlockSpawner : MonoBehaviour
         // Keep spawning until we're far enough ahead of the player.
         // This handles cases where spawnAheadDistance is large or the player
         // teleports forward.
-        while (player.position.z + spawnAheadDistance >= _nextSpawnZ)
-        {
-            if (!TrySpawnNext())
-                break;
-        }
+        EnsureSpawnedThrough(player.position.z + spawnAheadDistance);
     }
 
     /// <summary>
@@ -130,47 +142,43 @@ public class BlockSpawner : MonoBehaviour
     /// </summary>
     private bool TrySpawnNext()
     {
-        if (blockSequence == null || blockSequence.Count == 0)
+        if (blockSequence == null || blockSequence.Count == 0 || _sequenceFinished)
             return false;
 
-        // Wrap or stop at the end of the sequence.
-        if (_sequenceIndex >= blockSequence.Count)
+        // Bound skips so a looping sequence containing only invalid entries
+        // cannot hang initial generation or a catch-up streaming frame.
+        for (int attempt = 0; attempt < blockSequence.Count; attempt++)
         {
-            if (loopSequence)
-                _sequenceIndex = 0;
-            else
+            if (_sequenceIndex >= blockSequence.Count)
             {
-                _sequenceFinished = true;
-                Debug.Log("[BlockSpawner] Sequence complete. No more blocks to spawn.");
-                return false;
+                if (loopSequence) _sequenceIndex = 0;
+                else
+                {
+                    _sequenceFinished = true;
+                    return false;
+                }
             }
+
+            int entryIndex = _sequenceIndex++;
+            BlockData data = blockSequence[entryIndex];
+            if (data == null || data.prefab == null || data.zLength <= 0f
+                || float.IsNaN(data.zLength) || float.IsInfinity(data.zLength))
+            {
+                Debug.LogWarning($"[BlockSpawner] Entry {entryIndex} needs a prefab and a finite positive length. Skipping.", this);
+                continue;
+            }
+
+            Vector3 spawnPosition = new Vector3(0f, 0f, _nextSpawnZ);
+            GameObject instance = Instantiate(data.prefab, spawnPosition, Quaternion.identity, transform);
+            instance.name = $"{data.prefab.name}_Z{_nextSpawnZ:F0}";
+            float blockEnd = _nextSpawnZ + data.zLength;
+            _activeBlocks.Add(new SpawnedBlock(instance, _nextSpawnZ, blockEnd));
+            _nextSpawnZ = blockEnd;
+            return true;
         }
 
-        BlockData data = blockSequence[_sequenceIndex];
-
-        if (data == null || data.prefab == null)
-        {
-            Debug.LogWarning($"[BlockSpawner] BlockData at index {_sequenceIndex} is null or has no prefab. Skipping.");
-            _sequenceIndex++;
-            return true; // Skip but keep trying
-        }
-
-        // Spawn at the current Z cursor, no X/Y offset (adjust if your game needs it).
-        Vector3 spawnPosition = new Vector3(0f, 0f, _nextSpawnZ);
-        GameObject instance = Instantiate(data.prefab, spawnPosition, Quaternion.identity, transform);
-        instance.name = $"{data.prefab.name}_Z{_nextSpawnZ:F0}";
-
-        float blockEnd = _nextSpawnZ + data.zLength;
-
-        _activeBlocks.Add(new SpawnedBlock(instance, _nextSpawnZ, blockEnd));
-
-        Debug.Log($"[BlockSpawner] Spawned '{instance.name}' | Z {_nextSpawnZ:F1} → {blockEnd:F1} (length: {data.zLength})");
-
-        // Advance the Z cursor by this block's length.
-        _nextSpawnZ = blockEnd;
-        _sequenceIndex++;
-
-        return true;
+        _sequenceFinished = true;
+        return false;
     }
 
     // -------------------------------------------------------------------------
@@ -189,8 +197,7 @@ public class BlockSpawner : MonoBehaviour
             // Despawn when the player has moved past the block's end by the threshold.
             if (player.position.z - block.ZEnd > despawnBehindDistance)
             {
-                Debug.Log($"[BlockSpawner] Despawning '{block.Instance.name}'");
-                Destroy(block.Instance);
+                RemoveBlock(block.Instance);
                 _activeBlocks.RemoveAt(i);
             }
         }
@@ -206,14 +213,8 @@ public class BlockSpawner : MonoBehaviour
     /// </summary>
     public void ResetSpawner()
     {
-        foreach (SpawnedBlock block in _activeBlocks)
-            if (block.Instance != null)
-                Destroy(block.Instance);
-
-        _activeBlocks.Clear();
-        _sequenceIndex  = 0;
-        _nextSpawnZ     = initialSpawnZ;
-        _sequenceFinished = false;
+        ClearSpawnedBlocks();
+        _initialized = true;
 
         for (int i = 0; i < preSpawnCount; i++)
         {
@@ -221,7 +222,26 @@ public class BlockSpawner : MonoBehaviour
                 break;
         }
 
-        Debug.Log("[BlockSpawner] Spawner reset.");
+    }
+
+    public void ClearSpawnedBlocks()
+    {
+        foreach (SpawnedBlock block in _activeBlocks) RemoveBlock(block.Instance);
+        _activeBlocks.Clear();
+        _sequenceIndex = 0;
+        _nextSpawnZ = initialSpawnZ;
+        _sequenceFinished = false;
+        _initialized = false;
+    }
+
+    static void RemoveBlock(GameObject instance)
+    {
+        if (instance == null) return;
+        // Destroy is deferred in play mode. Hide old colliders immediately so
+        // the grid's same-frame surface probes only see the rebuilt world.
+        instance.SetActive(false);
+        if (Application.isPlaying) Destroy(instance);
+        else DestroyImmediate(instance);
     }
 
     /// <summary>Returns how many blocks are currently alive in the scene.</summary>
