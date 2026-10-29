@@ -53,6 +53,7 @@ public class AudioManager : MonoBehaviour
     [TabGroup("General"), Header("Main Components"), Space]
     [TabGroup("General"), SerializeField] AudioSource BGM_AudioSource;
     [TabGroup("General"), SerializeField] AudioSource SFX_AudioSource;
+    [TabGroup("General"), SerializeField] AudioSource PitchedSFX_AudioSource;
 
     [TabGroup("General"), Header("Settings"), Space]
     [TabGroup("General"), SerializeField] bool isSoundActive;
@@ -118,17 +119,24 @@ public class AudioManager : MonoBehaviour
             return;
         }
 
-        SFX_AudioSource.pitch = _pitch;
+        AudioSource audioSource = SFX_AudioSource;
+
+        if(_pitch != 1)
+        {
+            audioSource = PitchedSFX_AudioSource;
+        }
+
+        audioSource.pitch = _pitch;
 
         if(_isOneShot)
         {
-            SFX_AudioSource.PlayOneShot(audioElement.audioClip, _volume);
+            audioSource.PlayOneShot(audioElement.audioClip, _volume);
         }
         else
         {
-            SFX_AudioSource.clip = audioElement.audioClip;
-            SFX_AudioSource.volume = _volume;
-            SFX_AudioSource.Play();
+            audioSource.clip = audioElement.audioClip;
+            audioSource.volume = _volume;
+            audioSource.Play();
         }
     }
 
