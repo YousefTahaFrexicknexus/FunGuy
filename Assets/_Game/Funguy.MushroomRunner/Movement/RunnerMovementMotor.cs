@@ -580,14 +580,21 @@ public class RunnerMovementMotor : MonoBehaviour
             UnmodifiedMaxSpeed);
     }
 
+#if UNITY_EDITOR
+    internal int PredictDebugLandingTrajectory(float duration, Vector3[] positions) =>
+        PredictLandingTrajectory(UnmodifiedVelocity, currentInput, horizontalSpeedMultiplier, duration, positions);
+#endif
+
     internal int PredictLandingTrajectory(Vector3 initialVelocity, in MovementInputFrame input,
         float horizontalMultiplier, float duration, Vector3[] positions)
     {
-        int steps = Mathf.Clamp(Mathf.CeilToInt(duration / Mathf.Min(Time.fixedDeltaTime, 0.01f)), 2, positions.Length - 1);
+        int steps = Mathf.Clamp(Mathf.CeilToInt(duration / Time.fixedDeltaTime), 2, positions.Length - 1);
         float step = duration / steps;
         Vector3 position = rigidBody.position;
         Vector3 predictedVelocity = initialVelocity;
         BounceFlightShapeState flightShape = activeBounceFlightShape;
+        float predictedSpeedFloor = planarSpeedFloor;
+        Vector3 predictedFloorDirection = planarSpeedFloorDirection;
         positions[0] = position;
         for (int index = 1; index <= steps; index++)
         {
@@ -602,7 +609,7 @@ public class RunnerMovementMotor : MonoBehaviour
                     futureTime < dashControlBoostUntil, step, UnmodifiedMaxSpeed);
                 BounceMovementMath.ApplyPlanarDrag(ref predictedVelocity, Up, tuningProfile.AirDrag, step);
                 BounceMovementMath.ApplySoftSpeedLimit(ref predictedVelocity, tuningProfile, Up, step, UnmodifiedMaxSpeed);
-                ApplyPlanarSpeedFloor(ref predictedVelocity);
+                ApplyPlanarSpeedFloor(ref predictedVelocity, ref predictedSpeedFloor, ref predictedFloorDirection, input);
             }
             position += ScaleHorizontal(predictedVelocity, horizontalMultiplier) * step;
             positions[index] = position;
@@ -622,22 +629,28 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void ApplyPlanarSpeedFloor(ref Vector3 velocity)
     {
-        if (suppressPlanarSpeedFloor || tuningProfile == null || currentInput.BrakeAmount > 0.01f || planarSpeedFloor <= 0f)
+        ApplyPlanarSpeedFloor(ref velocity, ref planarSpeedFloor, ref planarSpeedFloorDirection, currentInput);
+    }
+
+    void ApplyPlanarSpeedFloor(ref Vector3 velocity, ref float speedFloor, ref Vector3 floorDirection,
+        in MovementInputFrame input)
+    {
+        if (suppressPlanarSpeedFloor || tuningProfile == null || input.BrakeAmount > 0.01f || speedFloor <= 0f)
         {
             return;
         }
 
         Vector3 planarVelocity = Vector3.ProjectOnPlane(velocity, Up);
         float planarSpeed = planarVelocity.magnitude;
-        float targetPlanarSpeed = Mathf.Min(planarSpeedFloor, UnmodifiedMaxSpeed);
+        float targetPlanarSpeed = Mathf.Min(speedFloor, UnmodifiedMaxSpeed);
 
-        if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity))
+        if (planarSpeed >= targetPlanarSpeed || !CanRetainPlanarSpeedFloor(planarVelocity, floorDirection, input))
         {
-            planarSpeedFloor = Mathf.Min(planarSpeedFloor, planarSpeed);
+            speedFloor = Mathf.Min(speedFloor, planarSpeed);
 
             if (planarSpeed <= MinDirectionSqrMagnitude)
             {
-                planarSpeedFloorDirection = Vector3.zero;
+                floorDirection = Vector3.zero;
             }
 
             return;
@@ -645,7 +658,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         Vector3 targetDirection = planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude
             ? planarVelocity.normalized
-            : planarSpeedFloorDirection;
+            : floorDirection;
 
         if (targetDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
         {
@@ -991,34 +1004,34 @@ public class RunnerMovementMotor : MonoBehaviour
         rigidBodyColliders = GetComponentsInChildren<Collider>(true);
     }
 
-    bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity)
+    bool CanRetainPlanarSpeedFloor(Vector3 planarVelocity, Vector3 floorDirection, in MovementInputFrame input)
     {
-        if (planarSpeedFloorDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
+        if (floorDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
         {
             return planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude;
         }
 
         if (planarVelocity.sqrMagnitude > MinDirectionSqrMagnitude)
         {
-            float velocityAlignment = Vector3.Dot(planarVelocity.normalized, planarSpeedFloorDirection);
+            float velocityAlignment = Vector3.Dot(planarVelocity.normalized, floorDirection);
             if (velocityAlignment < PlanarSpeedFloorMinAlignment)
             {
                 return false;
             }
         }
 
-        if (!currentInput.HasMoveInput)
+        if (!input.HasMoveInput)
         {
             return true;
         }
 
-        Vector3 desiredPlanarDirection = Vector3.ProjectOnPlane(currentInput.WishDirection, Up);
+        Vector3 desiredPlanarDirection = Vector3.ProjectOnPlane(input.WishDirection, Up);
         if (desiredPlanarDirection.sqrMagnitude <= MinDirectionSqrMagnitude)
         {
             return true;
         }
 
-        float inputAlignment = Vector3.Dot(desiredPlanarDirection.normalized, planarSpeedFloorDirection);
+        float inputAlignment = Vector3.Dot(desiredPlanarDirection.normalized, floorDirection);
         return inputAlignment >= PlanarSpeedFloorMinAlignment;
     }
 
