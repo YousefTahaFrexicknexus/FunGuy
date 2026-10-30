@@ -64,8 +64,8 @@ public sealed class MushroomLauncher : MonoBehaviour
     [Header("Landing Colliders")]
     [SerializeField, InspectorName("Normal / Bad Trigger"), Tooltip("The main trigger, on this GameObject. Entering it launches the player.")]
     Collider normalTrigger;
-    [SerializeField] Collider goodTrigger;
-    [SerializeField] Collider perfectTrigger;
+    // [SerializeField] Collider goodTrigger;
+    // [SerializeField] Collider perfectTrigger;
 
     [Header("Speed Rules")]
     [SerializeField, InspectorName("Normal / Bad")] List<MushroomSpeedRule> normalRules = new() { new(MushroomSpeedMode.Add, 0f) };
@@ -83,6 +83,9 @@ public sealed class MushroomLauncher : MonoBehaviour
     readonly List<RunnerMovementMotor> exitedPlayers = new();
     readonly List<Collider> playerColliders = new();
 
+    [Header("Settings")]
+    [SerializeField] bool alwaysPerfect = false;
+
     [Header("Events")]
     [SerializeField] UnityEvent OnLaunchPlayer;
 
@@ -96,8 +99,8 @@ public sealed class MushroomLauncher : MonoBehaviour
                 return "The launch arrow must point forward along world Z (normalized Z >= 0.1). Vertical, backward, and nearly sideways arrows cannot preserve the forward-speed readout.";
             if (normalTrigger == null || normalTrigger.gameObject != gameObject || !normalTrigger.isTrigger)
                 return "Assign the main trigger on this GameObject and enable Is Trigger.";
-            if (goodTrigger == null || perfectTrigger == null || !goodTrigger.isTrigger || !perfectTrigger.isTrigger)
-                return "Assign both Good and Perfect trigger colliders and enable Is Trigger.";
+            // if (goodTrigger == null || perfectTrigger == null || !goodTrigger.isTrigger || !perfectTrigger.isTrigger)
+            //     return "Assign both Good and Perfect trigger colliders and enable Is Trigger.";
 
             return null;
         }
@@ -218,7 +221,7 @@ public sealed class MushroomLauncher : MonoBehaviour
             return false;
         }
 
-        LandingQuality quality = HasPlayerOverlap(motor, perfectTrigger) ? LandingQuality.Perfect : HasPlayerOverlap(motor, goodTrigger) ? LandingQuality.Good : LandingQuality.Bad;
+        LandingQuality quality = EvaluateLanding(motor.transform.position);
 
         if (motor.Modifiers != null && motor.Modifiers.PerfectLandingsAfterPickup(modifier))
         {
@@ -349,5 +352,80 @@ public sealed class MushroomLauncher : MonoBehaviour
     static RunnerMovementMotor ResolveMotor(Collision other)
     {
         return other.gameObject.GetComponent<RunnerMovementMotor>();
+    }
+
+    [Header("Landing Center")]
+    [SerializeField] Transform landingCenter;
+
+    [Header("Base Radii")]
+    [SerializeField] float perfectRadius = 0.25f;
+    [SerializeField] float goodRadius = 0.5f;
+
+    public LandingQuality EvaluateLanding(Vector3 playerPosition)
+    {
+        if(alwaysPerfect)
+        {
+            return LandingQuality.Perfect;
+        }
+
+        Vector3 offset = playerPosition - landingCenter.position;
+
+        // Only evaluate X/Z.
+        offset.y = 0f;
+
+        float distanceSqr = offset.sqrMagnitude;
+
+        float scale = Mathf.Max(
+            transform.lossyScale.x,
+            transform.lossyScale.z
+        );
+
+        float perfect = perfectRadius * scale;
+        float good = goodRadius * scale;
+
+        // Debug.Log($"Distance: {Mathf.Sqrt(distanceSqr)} | " + $"Perfect: {perfect} | " + $"Good: {good}" );
+
+        if (distanceSqr <= perfect * perfect)
+        {
+            return LandingQuality.Perfect;
+        }
+
+        if (distanceSqr <= good * good)
+        {
+            return LandingQuality.Good;
+        }
+
+        return LandingQuality.Bad;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (landingCenter == null)
+        {
+            return;
+        }
+
+        float scale = Mathf.Max(
+            transform.lossyScale.x,
+            transform.lossyScale.z
+        );
+
+        DrawRadius(perfectRadius * scale);
+        DrawRadius(goodRadius * scale);
+    }
+
+    void DrawRadius(float radius)
+    {
+        Matrix4x4 previousMatrix = Gizmos.matrix;
+
+        Gizmos.matrix = Matrix4x4.TRS(
+            landingCenter.position,
+            Quaternion.identity,
+            Vector3.one
+        );
+
+        Gizmos.DrawWireSphere(Vector3.zero, radius);
+
+        Gizmos.matrix = previousMatrix;
     }
 }

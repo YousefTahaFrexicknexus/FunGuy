@@ -314,8 +314,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MushroomLauncher
   launchDirection: {fileID: 9151373625131875942}
   normalTrigger: {fileID: 5198165363037591822}
-  goodTrigger: {fileID: 5198165363037591822}
-  perfectTrigger: {fileID: 5198165363037591822}
   normalRules:
   - mode: 0
     value: 1
@@ -333,6 +331,7 @@ MonoBehaviour:
     value: 1.25
   modifier: {fileID: 0}
   presentation: {fileID: 0}
+  alwaysPerfect: 1
   OnLaunchPlayer:
     m_PersistentCalls:
       m_Calls:
@@ -348,6 +347,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+  landingCenter: {fileID: 0}
+  perfectRadius: 0.25
+  goodRadius: 0.5
 --- !u!1001 &8317090612660793325
 PrefabInstance:
   m_ObjectHideFlags: 0
