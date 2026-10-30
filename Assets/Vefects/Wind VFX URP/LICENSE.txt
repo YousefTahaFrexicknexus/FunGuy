@@ -1,0 +1,105 @@
+VEFECTS FREE ASSET LICENSE
+Version 1.0 - 28 September 2026
+
+Copyright (c) 2026 Vefects SLU ("Vefects"). All rights reserved.
+
+1. SCOPE
+
+This license covers Vefects-owned content supplied with this license in
+Vefects' official Free Unity VFX release downloads, including effects,
+textures, materials, shaders, scripts, meshes, prefabs, audio and accompanying
+asset documentation (the "Assets"). Restrictions on the Assets also apply
+to the Vefects-owned portions of modified versions.
+
+It does not cover other Vefects products or replace licenses obtained
+separately through the Unity Asset Store or other channels. Separately
+licensed third-party components are addressed in Section 6.
+
+2. PERMITTED USE
+
+Subject to these terms, Vefects grants you a non-exclusive, worldwide,
+royalty-free license to copy, use and modify the Assets in unlimited personal
+and commercial projects, including games, applications, videos and other
+creative works ("End Products"). No payment or attribution to Vefects is
+required for these permitted uses.
+
+You may publish, sell and distribute End Products containing the Assets,
+provided that the Assets are integrated into a larger work with substantial
+functionality or creative content beyond the Assets themselves. End Products
+must not serve as a way to supply the Assets as reusable development resources.
+
+For games and applications, distribute the Assets within the built product,
+not as an accompanying collection of editable source files or unitypackages.
+Do not provide an asset export feature or separate download that makes the
+Assets available for reuse outside the End Product. Rendered images, videos
+and promotional screenshots of permitted projects are allowed.
+
+3. PRIVATE PROJECT COLLABORATION
+
+You may share editable Assets privately with employees, contractors and
+clients who need them to develop or maintain a permitted project. They must
+receive this license and agree to follow it. Keep this license and existing
+copyright and third-party notices with those editable copies.
+
+This exception does not allow distribution of general-purpose templates,
+starter kits, asset libraries or other reusable development products.
+
+4. RESTRICTIONS
+
+Except for the permissions above, separate written permission from Vefects,
+rights under Section 7, or uses allowed by applicable law, you may not:
+
+- Sell, sublicense, give away or redistribute the Assets as standalone files,
+  unitypackages, asset packs, bundles or libraries, even after modification.
+- Include the Assets as reusable source resources in distributed templates,
+  starter kits, sample projects or other development products, whether free
+  or paid.
+- Re-upload or mirror the downloadable asset packages on marketplaces,
+  public source repositories, file-sharing services or other download sites.
+- Claim authorship or ownership of the original Vefects Assets, or suggest
+  that Vefects endorses your product without permission.
+
+Sharing links to the official Vefects downloads is welcome.
+
+5. OWNERSHIP AND DURATION
+
+Vefects retains ownership of the original Assets. You retain your rights in
+your own original work; this license does not transfer your End Products or
+original modifications to Vefects. No trademark or endorsement rights are
+granted. Rights not expressly granted remain reserved.
+
+The permissions for a copy supplied under this license continue for as long
+as you comply with these terms. Later changes to this license do not
+retroactively replace the terms supplied with that copy.
+
+6. THIRD-PARTY COMPONENTS AND OTHER LICENSES
+
+Components expressly identified as third-party or separately licensed remain
+subject to their own licenses and notices. This license neither replaces
+those terms nor grants rights that Vefects does not control. Any attribution
+requirements for those components still apply.
+
+7. GITHUB AND STATUTORY RIGHTS
+
+Nothing in this license limits permissions separately granted to GitHub or
+its users under the applicable GitHub Terms of Service, including the
+platform permissions for viewing and forking public repository content.
+This clause does not independently grant a general right to rehost or resell
+the release downloads as standalone asset products.
+
+Nothing here restricts uses or rights that applicable law does not allow
+Vefects to restrict.
+
+8. WARRANTY AND LIABILITY
+
+The Assets are provided on an "as is" basis. To the extent applicable law
+allows, Vefects gives no warranty regarding quality, fitness for a particular
+purpose, compatibility, availability or freedom from errors, and has no
+obligation to provide support or future updates under this license.
+
+To the extent applicable law allows, Vefects will not be liable for losses
+or damages arising from use of, or inability to use, the Assets. These terms
+do not exclude warranties, liabilities or consumer rights that cannot
+lawfully be excluded.
+
+For permissions beyond this license, contact Vefects.

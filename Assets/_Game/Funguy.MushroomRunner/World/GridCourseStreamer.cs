@@ -73,13 +73,28 @@ public sealed class GridCourseStreamer : MonoBehaviour
     int consecutiveEmptyCoinRows;
     bool initialized;
     bool runFlowManaged;
+    GameObject endPrefabInstance;
+    bool endPrefabSpawned;
 
     public bool IsRunFlowManaged => runFlowManaged;
 
     public float InitialStartZ => initialStartZ;
 
+    public float GenerationEndZ => generationProfile != null
+        ? generationProfile.GenerationEndZ : float.PositiveInfinity;
+
+    public GameObject EndPrefabInstance => endPrefabInstance;
+
+    public Vector3 EndPrefabPosition => generationProfile != null
+        ? GetCellPosition(1, 1, GenerationEndZ
+            + (generationProfile.EndPrefabCellsAfterEnd + 0.5f) * generationProfile.GridCellLength)
+        : transform.position;
+
+    public bool HasReachedMaximumDistance => generationProfile != null
+        && generationStartZ + nextSliceIndex * generationProfile.GridCellLength >= GenerationEndZ;
+
     public float GetInitialEnvironmentEndZ(float startZ) => generationProfile != null
-        ? startZ + (generationProfile.VisibleGridCount * generationProfile.GridCellLength)
+        ? Mathf.Min(GenerationEndZ, startZ + (generationProfile.VisibleGridCount * generationProfile.GridCellLength))
         : startZ;
 
     public float RequiredEnvironmentEndZ
@@ -91,7 +106,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
             float endZ = generationStartZ + nextSliceIndex * length;
             if (streamingTarget != null)
                 endZ = Mathf.Max(endZ, streamingTarget.position.z + activeSlices.Count * length);
-            return endZ + length * 0.5f;
+            return Mathf.Min(GenerationEndZ, endZ + length * 0.5f);
         }
     }
 
@@ -161,6 +176,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
 
     public void ClearGeneratedWorld()
     {
+        ClearEndPrefab();
         while (activeSlices.Count > 0)
         {
             RecycleSlice(activeSlices.Dequeue(), true);
@@ -192,8 +208,14 @@ public sealed class GridCourseStreamer : MonoBehaviour
         GenerateNextSlice(ref surfaceTransformsSynced);
     }
 
-    void GenerateNextSlice(ref bool surfaceTransformsSynced)
+    bool GenerateNextSlice(ref bool surfaceTransformsSynced)
     {
+        if (HasReachedMaximumDistance)
+        {
+            SpawnEndPrefabIfNeeded();
+            return false;
+        }
+
         GridSlice slice = new()
         {
             Index = nextSliceIndex,
@@ -203,6 +225,38 @@ public sealed class GridCourseStreamer : MonoBehaviour
         SpawnSliceContent(slice, ref surfaceTransformsSynced);
         activeSlices.Enqueue(slice);
         nextSliceIndex++;
+        if (HasReachedMaximumDistance) SpawnEndPrefabIfNeeded();
+        return true;
+    }
+
+    void SpawnEndPrefabIfNeeded()
+    {
+        if (endPrefabSpawned || generationProfile.MaximumDistance <= 0f || generationProfile.EndPrefab == null)
+            return;
+
+        endPrefabSpawned = true;
+        GameObject prefab = generationProfile.EndPrefab;
+        // Deliberately separate from normal slices: this object is beyond the
+        // generation boundary and stays available after those slices recycle.
+        endPrefabInstance = Instantiate(prefab, EndPrefabPosition, prefab.transform.rotation, spawnRoot);
+    }
+
+    void ClearEndPrefab()
+    {
+        if (endPrefabInstance != null)
+        {
+            endPrefabInstance.SetActive(false);
+            if (Application.isPlaying) Destroy(endPrefabInstance);
+            else DestroyImmediate(endPrefabInstance);
+        }
+        endPrefabInstance = null;
+        endPrefabSpawned = false;
+    }
+
+    void OnDestroy()
+    {
+        // The spawn root may live outside this component's hierarchy.
+        ClearEndPrefab();
     }
 
     public void RecycleOldestSlice()
@@ -236,7 +290,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
         bool surfaceTransformsSynced = false;
         while (activeSlices.Count < targetCount)
         {
-            GenerateNextSlice(ref surfaceTransformsSynced);
+            if (!GenerateNextSlice(ref surfaceTransformsSynced)) break;
         }
 
         while (activeSlices.Count > targetCount)
@@ -442,6 +496,10 @@ public sealed class GridCourseStreamer : MonoBehaviour
         {
             return false;
         }
+
+        // Include randomized row placement and the entry's authored offset.
+        // Reject origins beyond the end rather than piling them up at the boundary.
+        if (position.z + entry.LocalOffset.z >= GenerationEndZ) return false;
 
         GameObject instance = GetInstance(entry.Prefab, entry.UsePooling);
         if (instance == null)
@@ -714,7 +772,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
             return;
         }
 
-        int sliceCount = initialized && activeSlices.Count > 0
+        int sliceCount = initialized
             ? activeSlices.Count
             : generationProfile.VisibleGridCount;
         if (sliceCount <= 0)
@@ -750,6 +808,7 @@ public sealed class GridCourseStreamer : MonoBehaviour
             for (int index = 0; index < sliceCount; index++)
             {
                 float sliceZ = initialStartZ + (index * generationProfile.GridCellLength);
+                if (sliceZ >= GenerationEndZ) break;
                 DrawDebugSlice(sliceZ, hasPreviousSlice, previousSliceZ);
 
                 if (!drewFirstSlice)
@@ -764,8 +823,11 @@ public sealed class GridCourseStreamer : MonoBehaviour
             }
         }
 
-        DrawDebugRecycleLine(firstSliceZ);
-        DrawDebugTargetLine(firstSliceZ, lastSliceZ);
+        if (drewFirstSlice)
+        {
+            DrawDebugRecycleLine(firstSliceZ);
+            DrawDebugTargetLine(firstSliceZ, lastSliceZ);
+        }
     }
 
     void DrawDebugSlice(float sliceZ, bool hasPreviousSlice, float previousSliceZ)

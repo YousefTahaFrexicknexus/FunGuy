@@ -23,6 +23,15 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     [SerializeField, Min(1), Tooltip("How many grid slices are kept alive after Build Initial Grid.")]
     int visibleGridCount = 12;
 
+    [Header("Level End")]
+    [SerializeField, Min(0f), Tooltip("Shared world-Z endpoint, in world units. Match Maximum Distance on Block Spawner so both stop at the same boundary, regardless of starting offsets. 0 means unlimited. No slice or object origin is generated at or beyond this Z; prefab geometry may extend past it.")]
+    float maximumDistance = 0f;
+
+    [SerializeField, Tooltip("Optional prefab spawned once when generation reaches Maximum Distance. Its root is placed at the center of the middle column and middle height cell. Requires a positive Maximum Distance.")]
+    GameObject endPrefab;
+    [SerializeField, Min(0), Tooltip("Number of empty cells after Maximum Distance before the prefab's cell. 0 uses the first cell after the endpoint. Its center is Maximum Distance + (this value + 0.5) * Cell Length.")]
+    int endPrefabCellsAfterEnd = 0;
+
     [Header("Difficulty")]
     [SerializeField, Min(1), Tooltip("Generated-distance score required to reach full spawn difficulty.")]
     int difficultyRampDistance = 300;
@@ -92,6 +101,14 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
     public float LevelHeight => CellHeight;
 
     public int VisibleGridCount => Mathf.Max(1, visibleGridCount);
+
+    public float MaximumDistance => Mathf.Max(0f, maximumDistance);
+
+    public float GenerationEndZ => MaximumDistance > 0f ? MaximumDistance : float.PositiveInfinity;
+
+    public GameObject EndPrefab => endPrefab;
+
+    public int EndPrefabCellsAfterEnd => Mathf.Max(0, endPrefabCellsAfterEnd);
 
     public int DifficultyRampDistance => Mathf.Max(1, difficultyRampDistance);
 
@@ -182,6 +199,8 @@ public sealed class GridCourseGenerationProfile : ScriptableObject
         }
 
         visibleGridCount = Mathf.Max(1, visibleGridCount);
+        maximumDistance = Mathf.Max(0f, maximumDistance);
+        endPrefabCellsAfterEnd = Mathf.Max(0, endPrefabCellsAfterEnd);
         difficultyRampDistance = Mathf.Max(1, difficultyRampDistance);
         maximumEmptyMushroomRows = Mathf.Max(0, maximumEmptyMushroomRows);
         emptyMushroomRowChanceStart = Mathf.Clamp01(emptyMushroomRowChanceStart);

@@ -28,6 +28,9 @@ public class BlockSpawner : MonoBehaviour
     [Tooltip("World Z position where the very first block will be placed.")]
     [SerializeField] private float initialSpawnZ = 0f;
 
+    [Tooltip("Shared world-Z endpoint, in world units. Match Maximum Distance on the Grid Course Generation Profile so both stop at the same boundary, regardless of starting offsets. 0 means unlimited. The final block is kept whole.")]
+    [SerializeField, Min(0f)] private float maximumDistance = 0f;
+
     [Tooltip("How many blocks to pre-spawn at startup before the player starts moving.")]
     [SerializeField] private int preSpawnCount = 3;
 
@@ -57,6 +60,10 @@ public class BlockSpawner : MonoBehaviour
     private bool _runFlowManaged;
 
     public bool IsRunFlowManaged => _runFlowManaged;
+
+    public float MaximumDistance => Mathf.Max(0f, maximumDistance);
+
+    public float GenerationEndZ => MaximumDistance > 0f ? MaximumDistance : float.PositiveInfinity;
 
     // -------------------------------------------------------------------------
     // Internal record: a spawned block instance + its Z boundaries
@@ -143,6 +150,9 @@ public class BlockSpawner : MonoBehaviour
     private bool TrySpawnNext()
     {
         if (blockSequence == null || blockSequence.Count == 0 || _sequenceFinished)
+            return false;
+
+        if (_nextSpawnZ >= GenerationEndZ)
             return false;
 
         // Bound skips so a looping sequence containing only invalid entries
