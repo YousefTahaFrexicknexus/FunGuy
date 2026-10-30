@@ -1,0 +1,14 @@
+{
+  "friendlyName": "FunGuy Target - Redmi Note 12 Pro 5G (22101316G)",
+  "version": 1,
+  "screens": [
+    {
+      "width": 1080,
+      "height": 2400,
+      "dpi": 395.0
+    }
+  ],
+  "systemInfo": {
+    "operatingSystem": "Android"
+  }
+}
