@@ -3,6 +3,7 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody), typeof(RunnerModifierController))]
+[RequireComponent(typeof(RunnerLandingAssist))]
 public class RunnerMovementMotor : MonoBehaviour
 {
     const float LandingVerticalTolerance = 0.25f;
@@ -35,6 +36,8 @@ public class RunnerMovementMotor : MonoBehaviour
     MomentumSystem momentumSystem;
     MomentumSystem subscribedMomentumSystem;
     MomentumTier currentMomentumTier = MomentumTier.Low;
+    RunnerLandingAssist landingAssist;
+    internal Collider[] LandingBodyColliders => rigidBodyColliders;
 
     public event Action<BounceEventData> Bounced;
     public event Action Dashed;
@@ -125,6 +128,9 @@ public class RunnerMovementMotor : MonoBehaviour
         if (modifiers == null) modifiers = gameObject.AddComponent<RunnerModifierController>();
         CacheBodyColliders();
         ConfigureRigidrigidBody();
+        landingAssist = GetComponent<RunnerLandingAssist>();
+        // RequireComponent covers new motors; this also upgrades existing prefabs.
+        if (landingAssist == null) landingAssist = gameObject.AddComponent<RunnerLandingAssist>();
     }
 
     void OnValidate()
@@ -156,6 +162,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void OnDisable()
     {
+        landingAssist?.ResetAssist();
         UnbindMomentumEvents();
         Modifiers?.Clear();
         RestoreIgnoredBounceSurface();
@@ -210,6 +217,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (rigidBody == null || tuningProfile == null) return;
         if(Mathf.Abs(rigidBody.linearVelocity.y) > Mathf.Abs(lastYVel))
         {
             lastYVel = rigidBody.linearVelocity.y;
@@ -276,7 +284,15 @@ public class RunnerMovementMotor : MonoBehaviour
 
         UpdatePlanarSpeedFloorForBraking(velocity);
         ApplyPlanarSpeedFloor(ref velocity);
-        TryConsumeBufferedDash(ref velocity, bouncedThisStep);
+        bool dashedThisStep = TryConsumeBufferedDash(ref velocity, bouncedThisStep);
+
+        if (landingAssist != null)
+        {
+            if (bouncedThisStep || dashedThisStep || Time.time < dashControlBoostUntil)
+                landingAssist.ResetAssist();
+            else
+                landingAssist.ApplyAssist(this, ref velocity, currentInput, horizontalSpeedMultiplier, deltaTime);
+        }
 
         rigidBody.linearVelocity = ScaleHorizontal(velocity, horizontalSpeedMultiplier);
         isGrounded = !bouncedThisStep && ComputeGroundedState();
@@ -287,6 +303,13 @@ public class RunnerMovementMotor : MonoBehaviour
     public void SetInput(MovementInputFrame inputFrame)
     {
         currentInput = inputFrame;
+    }
+
+    public void SetLandingAssistEnabled(bool enabled)
+    {
+        if (landingAssist == null) landingAssist = GetComponent<RunnerLandingAssist>();
+        if (landingAssist == null) landingAssist = gameObject.AddComponent<RunnerLandingAssist>();
+        landingAssist.SetLandingAssistEnabled(enabled);
     }
 
     public void RequestDash()
@@ -303,6 +326,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void SetTuningProfile(MovementTuningProfile profile)
     {
+        landingAssist?.ResetAssist();
         tuningProfile = profile;
         momentumSystem?.SetMovementProfile(profile);
         SyncMomentumTier();
@@ -319,6 +343,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
         if (!enabled)
         {
+            landingAssist?.ResetAssist();
             Modifiers?.Clear();
             bufferedDashUntil = float.NegativeInfinity;
             planarSpeedFloor = 0f;
@@ -335,6 +360,7 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
+        landingAssist?.ResetAssist();
         Modifiers?.Clear();
         if (UsesBlendedSpeed) ResetTierSpeed();
         if (rigidBody == null)
@@ -381,6 +407,7 @@ public class RunnerMovementMotor : MonoBehaviour
         }
 
         Vector3 incomingVelocity = rigidBody.linearVelocity;
+        landingAssist?.ResetAssist();
         if (modifier != null && modifier.IsValid) Modifiers?.Apply(modifier);
         outgoingVelocity = ScaleHorizontal(outgoingVelocity, horizontalSpeedMultiplier);
         hasBounceCandidate = false;
@@ -435,6 +462,7 @@ public class RunnerMovementMotor : MonoBehaviour
             ? contactNormal.normalized
             : Up;
         Vector3 incomingVelocity = UnmodifiedVelocity;
+        landingAssist?.ResetAssist();
         BounceContext context = new(
             incomingVelocity,
             contactPoint,
@@ -550,6 +578,36 @@ public class RunnerMovementMotor : MonoBehaviour
             Time.time < dashControlBoostUntil,
             deltaTime,
             UnmodifiedMaxSpeed);
+    }
+
+    internal int PredictLandingTrajectory(Vector3 initialVelocity, in MovementInputFrame input,
+        float horizontalMultiplier, float duration, Vector3[] positions)
+    {
+        int steps = Mathf.Clamp(Mathf.CeilToInt(duration / Mathf.Min(Time.fixedDeltaTime, 0.01f)), 2, positions.Length - 1);
+        float step = duration / steps;
+        Vector3 position = rigidBody.position;
+        Vector3 predictedVelocity = initialVelocity;
+        BounceFlightShapeState flightShape = activeBounceFlightShape;
+        positions[0] = position;
+        for (int index = 1; index <= steps; index++)
+        {
+            // The supplied velocity already includes this tick's normal movement.
+            if (index > 1)
+            {
+                if (!BounceMovementMath.ApplyBounceFlightShaper(ref predictedVelocity, tuningProfile, Up, ref flightShape, step))
+                    BounceMovementMath.ApplyShapedGravity(ref predictedVelocity, tuningProfile, Up, step);
+                float futureTime = Time.time + (index - 1) * step;
+                BounceMovementMath.ApplyAirAcceleration(ref predictedVelocity, tuningProfile, input, Up,
+                    futureTime < lowControlUntil && futureTime >= dashControlBoostUntil,
+                    futureTime < dashControlBoostUntil, step, UnmodifiedMaxSpeed);
+                BounceMovementMath.ApplyPlanarDrag(ref predictedVelocity, Up, tuningProfile.AirDrag, step);
+                BounceMovementMath.ApplySoftSpeedLimit(ref predictedVelocity, tuningProfile, Up, step, UnmodifiedMaxSpeed);
+                ApplyPlanarSpeedFloor(ref predictedVelocity);
+            }
+            position += ScaleHorizontal(predictedVelocity, horizontalMultiplier) * step;
+            positions[index] = position;
+        }
+        return steps;
     }
 
     void ApplyPlanarDrag(ref Vector3 velocity, float drag, float deltaTime)

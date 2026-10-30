@@ -48,6 +48,14 @@ public struct MushroomSpeedRule
 public sealed class MushroomLauncher : MonoBehaviour
 {
     public const float MinimumForwardDirection = 0.1f;
+    static readonly List<MushroomLauncher> activeLandingTargets = new();
+    int landingTargetIndex = -1;
+    internal static IReadOnlyList<MushroomLauncher> ActiveLandingTargets => activeLandingTargets;
+    internal uint LandingTargetGeneration { get; private set; }
+    internal Collider NormalLandingCollider => normalTrigger;
+    internal bool CanAssistLanding => isActiveAndEnabled && normalTrigger != null
+        && normalTrigger.enabled && normalTrigger.gameObject.activeInHierarchy && ConfigurationWarning == null;
+    internal bool CanAssistLandingFor(RunnerMovementMotor motor) => CanAssistLanding && !launchedPlayers.Contains(motor);
 
     [Header("Launch Direction")]
     [SerializeField, Tooltip("The blue Z arrow specifies the entire launch direction. It must point forward along world Z.")]
@@ -105,8 +113,27 @@ public sealed class MushroomLauncher : MonoBehaviour
         }
     }
 
+    void OnEnable()
+    {
+        unchecked { LandingTargetGeneration++; }
+        if (landingTargetIndex >= 0 && landingTargetIndex < activeLandingTargets.Count
+            && activeLandingTargets[landingTargetIndex] == this) return;
+        landingTargetIndex = activeLandingTargets.Count;
+        activeLandingTargets.Add(this);
+    }
+
     void OnDisable()
     {
+        if (landingTargetIndex >= 0 && landingTargetIndex < activeLandingTargets.Count
+            && activeLandingTargets[landingTargetIndex] == this)
+        {
+            int last = activeLandingTargets.Count - 1;
+            MushroomLauncher moved = activeLandingTargets[last];
+            activeLandingTargets[landingTargetIndex] = moved;
+            moved.landingTargetIndex = landingTargetIndex;
+            activeLandingTargets.RemoveAt(last);
+        }
+        landingTargetIndex = -1;
         launchedPlayers.Clear();
         exitedPlayers.Clear();
         playerColliders.Clear();
