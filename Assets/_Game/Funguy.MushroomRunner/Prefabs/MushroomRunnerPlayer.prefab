@@ -137,6 +137,7 @@ GameObject:
   - component: {fileID: 8683741851017507597}
   - component: {fileID: 7116488026709556512}
   - component: {fileID: 1600745904984454257}
+  - component: {fileID: 4505613270642728944}
   m_Layer: 6
   m_Name: MushroomRunnerPlayer
   m_TagString: Player
@@ -226,6 +227,8 @@ MonoBehaviour:
   tuningProfile: {fileID: 11400000, guid: 1ffbe787ab4d4766b0a28db8a8b8c8d4, type: 2}
   motorEnabled: 1
   worldUp: {x: 0, y: 1, z: 0}
+  groundBounceMultiplier: 0.5
+  lastYVel: 0
 --- !u!114 &8683741851017507597
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -271,6 +274,7 @@ MonoBehaviour:
   maxTiltAngle: 25
   tiltSmoothSpeed: 8
   meshTransform: {fileID: 1442339717588692674}
+  AirJumpVFX: {fileID: 0}
   rb: {fileID: 3925252380958837808}
   tumblePivot: {fileID: 3034585220647661569}
   spinImpulse: 720
@@ -290,6 +294,39 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RunnerModifierController
   vfxAnchor: {fileID: 0}
+--- !u!114 &4505613270642728944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4056237532050983834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 693747cd59e54659a45706cca3b766ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunnerLandingAssist
+  landingAssistEnabled: 1
+  assistStrength: 1
+  edgeAssistEnabled: 1
+  searchRadius: 8
+  predictionTime: 0.5
+  maximumEdgeMiss: 1.5
+  searchesPerSecond: 30
+  obstructionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967291
+  sidewaysAcceleration: 60
+  forwardAcceleration: 45
+  maximumSidewaysVelocityCorrection: 10
+  maximumForwardVelocityCorrection: 8
+  neutralInputStrength: 1
+  correctionResponse: 20
+  skimAssistEnabled: 1
+  maximumSkimHeight: 0.75
+  downwardAcceleration: 40
+  maximumDownwardVelocityCorrection: 8
+  drawDebugGizmos: 1
 --- !u!1 &8407610915257108569
 GameObject:
   m_ObjectHideFlags: 0
