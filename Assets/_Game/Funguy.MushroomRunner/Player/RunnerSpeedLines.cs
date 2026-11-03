@@ -8,15 +8,21 @@ public sealed class RunnerSpeedLines : MonoBehaviour
     [SerializeField] RunnerMovementMotor motor;
     [SerializeField] Transform effectRoot;
     [SerializeField, Min(0f), Tooltip("Forward speed at which wind lines start appearing.")]
-    float minimumSpeed = 15f;
+    float minimumSpeed = 12f;
     [SerializeField, Min(0.1f), Tooltip("Forward speed at which wind lines reach full density.")]
-    float fullEffectSpeed = 45f;
-    [SerializeField, Min(0f)] float fadeResponse = 5f;
-    [SerializeField, Range(0f, 2f)] float density = 0.65f;
+    float fullEffectSpeed = 35f;
+    [SerializeField, Min(0f)] float fadeResponse = 9f;
+    [SerializeField, Range(0f, 2f)] float density = 1.1f;
+    [SerializeField, Range(0.25f, 2f), Tooltip("Below 1 makes the lines readable sooner after crossing Minimum Speed.")]
+    float responseExponent = 0.65f;
+    [SerializeField, Min(1f), Tooltip("Streak travel speed at full intensity. Does not shorten particle lifetime.")]
+    float maximumParticleSpeedMultiplier = 1.6f;
+    [SerializeField, Min(1f)] float maximumLineWidthMultiplier = 1.25f;
 
     ParticleSystem[] particles;
     float[] baseRates;
     float[] baseSpeeds;
+    float[] baseSizes;
     float intensity;
 
     public float Intensity => intensity;
@@ -48,10 +54,12 @@ public sealed class RunnerSpeedLines : MonoBehaviour
         particles = effectRoot != null ? effectRoot.GetComponentsInChildren<ParticleSystem>(true) : new ParticleSystem[0];
         baseRates = new float[particles.Length];
         baseSpeeds = new float[particles.Length];
+        baseSizes = new float[particles.Length];
         for (int i = 0; i < particles.Length; i++)
         {
             baseRates[i] = particles[i].emission.rateOverTimeMultiplier;
-            baseSpeeds[i] = particles[i].main.simulationSpeed;
+            baseSpeeds[i] = particles[i].main.startSpeedMultiplier;
+            baseSizes[i] = particles[i].main.startSizeMultiplier;
         }
     }
 
@@ -73,14 +81,20 @@ public sealed class RunnerSpeedLines : MonoBehaviour
         // Falling and upward bounce velocity do not count as forward speed.
         float target = Mathf.InverseLerp(minimumSpeed, Mathf.Max(minimumSpeed + 0.1f, fullEffectSpeed),
             Mathf.Max(0f, forwardSpeed));
-        intensity = Mathf.Lerp(intensity, target, 1f - Mathf.Exp(-fadeResponse * Mathf.Max(0f, deltaTime)));
+        target = Mathf.Pow(target, responseExponent);
+        // React quickly to acceleration, then let the wind ease away when slowing down.
+        float response = target > intensity ? fadeResponse : fadeResponse * 0.5f;
+        intensity = Mathf.Lerp(intensity, target, 1f - Mathf.Exp(-response * Mathf.Max(0f, deltaTime)));
         for (int i = 0; i < particles.Length; i++)
         {
             if (particles[i] == null) continue;
             var emission = particles[i].emission;
             emission.rateOverTimeMultiplier = baseRates[i] * density * intensity;
             var main = particles[i].main;
-            main.simulationSpeed = baseSpeeds[i] * Mathf.Lerp(0.75f, 1.5f, intensity);
+            // Speeding up simulation also ages particles faster and makes short trails vanish.
+            // Change travel speed and width instead, keeping their visible lifetime intact.
+            main.startSpeedMultiplier = baseSpeeds[i] * Mathf.Lerp(0.8f, maximumParticleSpeedMultiplier, intensity);
+            main.startSizeMultiplier = baseSizes[i] * Mathf.Lerp(0.75f, maximumLineWidthMultiplier, intensity);
             if (intensity > 0.01f && !particles[i].isPlaying) particles[i].Play(false);
             else if (intensity <= 0.01f && particles[i].isPlaying)
                 particles[i].Stop(false, ParticleSystemStopBehavior.StopEmitting);
