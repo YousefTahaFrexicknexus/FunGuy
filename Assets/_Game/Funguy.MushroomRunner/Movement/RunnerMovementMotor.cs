@@ -217,11 +217,13 @@ public class RunnerMovementMotor : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (rigidBody == null || tuningProfile == null) return;
-        if(Mathf.Abs(rigidBody.linearVelocity.y) > Mathf.Abs(lastYVel))
+        if (rigidBody == null || tuningProfile == null) 
         {
-            lastYVel = rigidBody.linearVelocity.y;
+            return;
         }
+        
+        // Velocity entering this physics step (before the collision is resolved)
+        preImpactVelY = rigidBody.linearVelocity.y;
 
         RestoreIgnoredBounceSurfaceIfExpired();
         isGrounded = ComputeGroundedState();
@@ -423,7 +425,6 @@ public class RunnerMovementMotor : MonoBehaviour
         RestoreIgnoredBounceSurface();
         rigidBody.linearVelocity = outgoingVelocity;
 
-        lastYVel = 0;
         Vector3 normal = contactNormal.sqrMagnitude > MinDirectionSqrMagnitude ? contactNormal.normalized : Up;
         // Response is intentionally empty: this launch has already been fully resolved by the mushroom.
         Bounced?.Invoke(new BounceEventData(sourceCollider, contactPoint, normal, incomingVelocity, outgoingVelocity, default));
@@ -498,6 +499,7 @@ public class RunnerMovementMotor : MonoBehaviour
     void OnCollisionEnter(Collision collision)
     {
         Debug.Log($"OnCollisionEnter: {collision.gameObject.tag}");
+
         if(collision.gameObject.CompareTag("Ground"))
         {
             GroundBounce();
@@ -539,14 +541,28 @@ public class RunnerMovementMotor : MonoBehaviour
     }
 
     [SerializeField] float groundBounceMultiplier = 0.5f;
-    [SerializeField] float lastYVel = 0;
+    [SerializeField] float minBounceSpeed = 2f;   // below this, no more bounce
+    [SerializeField] float preImpactVelY;
 
     public void GroundBounce()
     {
-        float YVel = Mathf.Abs(lastYVel);
-        rigidBody.linearVelocity = new Vector3(rigidBody.linearVelocity.x, YVel * groundBounceMultiplier, rigidBody.linearVelocity.z);
+        float impactSpeed = -preImpactVelY;   // positive when falling
 
-        lastYVel = 0;
+        // Not falling (or already stopped): don't touch velocity
+        if (impactSpeed <= 0f) return;
+
+        float bounceSpeed = impactSpeed * groundBounceMultiplier;
+
+        if (bounceSpeed < minBounceSpeed)
+        {
+            // Too weak to bounce, so the player has settled
+            return;
+        }
+
+        Vector3 v = rigidBody.linearVelocity;
+        rigidBody.linearVelocity = new Vector3(v.x, bounceSpeed, v.z);
+
+        preImpactVelY = 0f; // guards against a duplicate callback in the same step
     }
 
     void ConfigureRigidrigidBody()
