@@ -23,7 +23,7 @@ public class TransformMimic : MonoBehaviour
     [SerializeField] bool followZRotation = true;
 
     [Header("Scale")]
-    [SerializeField] Vector3 scaleOffset = Vector3.zero;
+    [SerializeField] float scaleOffset = 0.25f;
 
     void OnEnable()
     {
@@ -74,6 +74,7 @@ public class TransformMimic : MonoBehaviour
 
     void UpdateScale()
     {
-        this.transform.localScale = target.transform.localScale + scaleOffset;
+        Vector3 scale = target.transform.localScale + (target.transform.localScale * scaleOffset);
+        this.transform.localScale = scale;
     }
 }
