@@ -47,6 +47,7 @@ public class CinemachineSpeedEffect : MonoBehaviour
     void SubscribeToGameplayEvents()
     {
         GameplayEvents.GameplayReset += ResetCinemachine;
+        // GameplayEvents.OnSlingShotLaunched += ResetCinemachine;
     }
 
     /// <summary>

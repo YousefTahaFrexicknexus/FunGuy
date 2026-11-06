@@ -2,7 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 
 using System.Collections;
-using Unity.VisualScripting;
+using Unity.Cinemachine;
 
 public class GameplayManager : MonoBehaviour
 {
@@ -21,10 +21,18 @@ public class GameplayManager : MonoBehaviour
     #endregion --- Instance ---
 
     [Header("Main References")]
-    [SerializeField] MovementTuningProfile defaultMovementTuningProfile;
     [SerializeField] MomentumSystem momentumSystem;
-    [SerializeField] RunnerMovementMotor runnerMovementMotor;
     [SerializeField] DistanceScoreManager distanceScoreManager;
+
+    [Header("Player References")]
+    [SerializeField] MovementTuningProfile defaultMovementTuningProfile;
+    [SerializeField] HammockSlingshot hammockSlingshot;
+    [SerializeField] RunnerMovementMotor runnerMovementMotor;
+
+    [Header("Camera references")]
+    [SerializeField] Camera slingShotCamera;
+    [SerializeField] Camera playerCamera;
+    [SerializeField] CinemachineCamera playerCinemachineCamera;
 
     [Header("Player References")]
     Rigidbody rigidbody;
@@ -48,6 +56,7 @@ public class GameplayManager : MonoBehaviour
     void Init()
     {
         rigidbody = runnerMovementMotor.rigidBody;
+        Set_FrameRate(60);
     }
 
     void OnEnable()
@@ -61,6 +70,11 @@ public class GameplayManager : MonoBehaviour
         UnsubscribeFromGameplayEvents();
         runnerMovementMotor?.SetMomentumSystem(null);
     }
+
+    void Set_FrameRate(int _frameValue)
+	{
+		Application.targetFrameRate = _frameValue;
+	}
 
     void FixedUpdate()
     {
@@ -77,6 +91,8 @@ public class GameplayManager : MonoBehaviour
     {
         GameplayEvents.GameplayReset += OnGameplayReset;
         GameplayEvents.OnPauseGameplay += OnPauseGameplay;
+
+        GameplayEvents.OnSlingShotLaunched += OnSlingShotLaunched;
 
         GameplayEvents.OnMushroomJump += OnMushroomJump;
         GameplayEvents.OnAirJump += OnAirJump;
@@ -102,6 +118,8 @@ public class GameplayManager : MonoBehaviour
         SetActiveTuningProfile(defaultMovementTuningProfile);
         momentumSystem?.BeginRun();
         distanceScoreManager?.BeginRun();
+
+        OnGameplayReset();
     }
 
     public void RestartGame()
@@ -111,6 +129,8 @@ public class GameplayManager : MonoBehaviour
 
     void OnGameplayReset()
     {
+        ResetSlingShot();
+
         ResetPlayerGameplayState();
         ResetPlayerGameplayStateParams();
 
@@ -183,6 +203,23 @@ public class GameplayManager : MonoBehaviour
         int mushroomLandingVarioation = Random.Range(1, 4);
         float pitchVariation = Random.Range(0.9f, 1.1f);
         AudioManager.Instance.PlaySFX($"MushroomLanding_{mushroomLandingVarioation}", pitchVariation);
+    }
+
+    void OnSlingShotLaunched()
+    {
+        slingShotCamera.gameObject.SetActive(false);
+        playerCamera.enabled = true;
+        runnerMovementMotor.enabled = true;
+    }
+
+    void ResetSlingShot()
+    {
+        hammockSlingshot.ResetSlingshot();
+        runnerMovementMotor.enabled = false;
+        runnerMovementMotor.transform.position = Vector3.zero;
+
+        slingShotCamera.gameObject.SetActive(true);
+        playerCamera.enabled = false;
     }
 
     float coinPitchValue = 1f;

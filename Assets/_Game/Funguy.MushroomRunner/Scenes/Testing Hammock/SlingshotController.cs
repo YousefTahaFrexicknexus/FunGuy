@@ -130,7 +130,9 @@ public class SlingshotController : MonoBehaviour
         Vector3 offset = pointerPosition - initialPullPosition;
 
         if (offset.magnitude > maxPullDistance)
+        {
             offset = offset.normalized * maxPullDistance;
+        }
 
         currentPullPosition = initialPullPosition + offset;
         pullPoint.position = currentPullPosition;
@@ -139,34 +141,36 @@ public class SlingshotController : MonoBehaviour
     private void Release()
     {
         if (state != LauncherState.Pulling)
+        {
             return;
+        }
 
         state = LauncherState.Launched;
 
-        Vector3 pullOffset =
-            currentPullPosition - initialPullPosition;
+        Vector3 pullOffset = currentPullPosition - initialPullPosition;
 
         // Launch opposite to the pull direction.
         Vector3 launchDirection = -pullOffset.normalized;
 
         if (pullOffset.sqrMagnitude < 0.001f)
-            launchDirection = launchPoint != null
-                ? launchPoint.forward
-                : transform.forward;
+        {
+            launchDirection = launchPoint != null ? launchPoint.forward : transform.forward;
+        }
 
-        launchDirection =
-            (launchDirection + Vector3.up * upwardBoost / launchSpeed)
-            .normalized;
+        launchDirection = (launchDirection + Vector3.up * upwardBoost / launchSpeed).normalized;
 
         if (playerRigidbody != null)
         {
             playerRigidbody.isKinematic = false;
-            playerRigidbody.linearVelocity =
-                launchDirection * launchSpeed;
+            playerRigidbody.linearVelocity = launchDirection * launchSpeed;
         }
 
         if (hammock != null)
+        {
             hammock.SnapBack();
+        }
+
+        GameplayEvents.OnSlingShotLaunched?.Invoke();
     }
 
     public void ResetLauncher()
@@ -186,6 +190,8 @@ public class SlingshotController : MonoBehaviour
         }
 
         if (hammock != null)
+        {
             hammock.ResetHammock();
+        }
     }
 }

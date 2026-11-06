@@ -5,6 +5,7 @@ using UnityEngine;
 /// tied to the trees. After the launch the hammock springs forward and wobbles to rest.
 /// Put this on the hammock object (MeshFilter + MeshRenderer, NOT a SkinnedMeshRenderer).
 /// </summary>
+[DefaultExecutionOrder(200)]   // runs after HammockSlingshot (100) has posed the character this frame
 [RequireComponent(typeof(MeshFilter))]
 public class HammockDeformer : MonoBehaviour
 {

@@ -3,32 +3,40 @@ using UnityEngine.InputSystem;
 
 public class RunnerInputSource : MonoBehaviour
 {
-    [SerializeField, Tooltip("Primary movement joystick used on touch devices.")]
+    [Header("Touch")]
+    [SerializeField, Tooltip("Floating joystick for touch movement. A quick tap on it can also jump.")]
     FloatingJoystick movementJoystick;
-    [SerializeField, Tooltip("Touch button that triggers a dash press for one frame when consumed.")]
-    TouchDashButton dashButton;
-    [SerializeField, Tooltip("Touch button that triggers a dash press for one frame when consumed.")]
-    FloatingJoystick joystick;
+    [SerializeField, Tooltip("Optional dedicated on-screen jump button (works while the joystick is held).")]
+    TouchDashButton jumpButton;
+    [SerializeField, Tooltip("A quick tap on the joystick area triggers a jump.")]
+    bool tapJoystickToJump = true;
+
+    [Header("Desktop / Gamepad")]
+    [SerializeField, Tooltip("WASD / arrows to move, Space to jump.")]
+    bool enableKeyboardFallback = true;
+    [SerializeField, Tooltip("Left stick / D-pad to move, South button (Cross on PS4) to jump.")]
+    bool enableGamepad = true;
+
+    [Header("General")]
     [SerializeField, Tooltip("Camera used to convert 2D input into camera-relative world movement.")]
     Camera movementCamera;
-    [SerializeField, Tooltip("If enabled, WASD / arrows and Space / Shift also drive the runner in editor and desktop builds.")]
-    bool enableKeyboardFallback = true;
     [SerializeField, Tooltip("Minimum stick magnitude before movement input is treated as intentional.")]
     float deadZone = 0.1f;
-
-    [Tooltip("Ignore tiny joystick movement around the center.")]
     [Range(0f, 0.5f)] [SerializeField] float horizontalDeadZone = 0.1f;
-
-    [Tooltip("Ignore tiny joystick movement around the center.")]
     [Range(0f, 0.5f)] [SerializeField] float verticalDeadZone = 0.1f;
+    [SerializeField, Tooltip("ON if your player controller reads CurrentFrame in FixedUpdate (keeps the press until a physics step has seen it). OFF if it reads in Update.")]
+    bool jumpReadInFixedUpdate = true;
 
     public MovementInputFrame CurrentFrame { get; set; } = MovementInputFrame.Empty;
     public Camera MovementCamera => movementCamera;
 
-    public void Configure(FloatingJoystick joystick, TouchDashButton dash, Camera referenceCamera)
+    bool jumpQueued;
+    bool fixedStepSinceQueued;
+
+    public void Configure(FloatingJoystick joystick, TouchDashButton jump, Camera referenceCamera)
     {
         movementJoystick = joystick;
-        dashButton = dash;
+        jumpButton = jump;
         movementCamera = referenceCamera;
     }
 
@@ -37,17 +45,31 @@ public class RunnerInputSource : MonoBehaviour
         movementCamera = referenceCamera;
     }
 
+    void FixedUpdate()
+    {
+        fixedStepSinceQueued = true;
+    }
+
     void Update()
     {
-        Vector2 move = new Vector2(ReadHorizontalInput(), ReadVerticalInput());
-
-        if (enableKeyboardFallback)
+        // Drop a jump once it has been visible to a physics step (or one frame, if read in Update).
+        if (jumpQueued && (!jumpReadInFixedUpdate || fixedStepSinceQueued))
         {
-            move = ResolveKeyboardMove(move);
+            jumpQueued = false;
         }
 
-        float magnitude = Mathf.Clamp01(move.magnitude);
+        if (ReadJumpPressed())
+        {
+            jumpQueued = true;
+            fixedStepSinceQueued = false;
+        }
 
+        // Movement: take whichever source is pushed hardest
+        Vector2 move = new Vector2(ReadHorizontalInput(), ReadVerticalInput());
+        move = Strongest(move, ReadKeyboardMove());
+        move = Strongest(move, ReadGamepadMove());
+
+        float magnitude = Mathf.Clamp01(move.magnitude);
         if (magnitude < deadZone)
         {
             move = Vector2.zero;
@@ -61,121 +83,98 @@ public class RunnerInputSource : MonoBehaviour
         Vector3 referenceForward = ResolveReferenceForward();
         Vector3 referenceRight = ResolveReferenceRight(referenceForward);
         Vector3 wishDirection = ResolveWishDirection(move, referenceForward, referenceRight);
-        // bool dashPressed = (dashButton != null && dashButton.ConsumePress()) || ResolveKeyboardDash();
-        bool dashPressed = (joystick != null && joystick.ConsumePress()) || ResolveKeyboardDash();
 
-        CurrentFrame = new MovementInputFrame(move, wishDirection, referenceForward, magnitude, dashPressed);
+        CurrentFrame = new MovementInputFrame(move, wishDirection, referenceForward, magnitude, jumpQueued);
     }
+
+    // ---------- Jump ----------
+
+    bool ReadJumpPressed()
+    {
+        bool pressed = false;
+
+        // |= (not ||) so every source is consumed each frame
+        if (tapJoystickToJump && movementJoystick != null)
+            pressed |= movementJoystick.ConsumeTap();
+
+        if (jumpButton != null)
+            pressed |= jumpButton.ConsumePress();
+
+        if (enableKeyboardFallback && Keyboard.current != null)
+            pressed |= Keyboard.current.spaceKey.wasPressedThisFrame;
+
+        if (enableGamepad && Gamepad.current != null)
+            pressed |= Gamepad.current.buttonSouth.wasPressedThisFrame; // Cross on PS4
+
+        return pressed;
+    }
+
+    // ---------- Movement sources ----------
 
     float ReadHorizontalInput()
     {
-        if (movementJoystick == null)
-        {
-            return 0f;
-        }
-
-        float inputX = Mathf.Clamp(movementJoystick.Horizontal, -1f, 1f);
-        return Mathf.Abs(inputX) < horizontalDeadZone ? 0f : inputX;
+        if (movementJoystick == null) return 0f;
+        float x = Mathf.Clamp(movementJoystick.Horizontal, -1f, 1f);
+        return Mathf.Abs(x) < horizontalDeadZone ? 0f : x;
     }
 
     float ReadVerticalInput()
     {
-        if (movementJoystick == null)
-        {
-            return 0f;
-        }
-
-        float inputY = Mathf.Clamp(movementJoystick.Vertical, -1f, 1f);
-        return Mathf.Abs(inputY) < verticalDeadZone ? 0f : inputY;
+        if (movementJoystick == null) return 0f;
+        float y = Mathf.Clamp(movementJoystick.Vertical, -1f, 1f);
+        return Mathf.Abs(y) < verticalDeadZone ? 0f : y;
     }
 
-    Vector2 ResolveKeyboardMove(Vector2 currentMove)
+    Vector2 ReadKeyboardMove()
     {
-        if (Keyboard.current == null)
-        {
-            return currentMove;
-        }
+        if (!enableKeyboardFallback || Keyboard.current == null) return Vector2.zero;
 
-        Vector2 keyboardMove = Vector2.zero;
+        Vector2 m = Vector2.zero;
+        var k = Keyboard.current;
 
-        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-        {
-            keyboardMove.x -= 1f;
-        }
+        if (k.aKey.isPressed || k.leftArrowKey.isPressed)  m.x -= 1f;
+        if (k.dKey.isPressed || k.rightArrowKey.isPressed) m.x += 1f;
+        if (k.sKey.isPressed || k.downArrowKey.isPressed)  m.y -= 1f;
+        if (k.wKey.isPressed || k.upArrowKey.isPressed)    m.y += 1f;
 
-        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-        {
-            keyboardMove.x += 1f;
-        }
-
-        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-        {
-            keyboardMove.y -= 1f;
-        }
-
-        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-        {
-            keyboardMove.y += 1f;
-        }
-
-        if (keyboardMove.sqrMagnitude <= 0f)
-        {
-            return currentMove;
-        }
-
-        keyboardMove = Vector2.ClampMagnitude(keyboardMove, 1f);
-        return keyboardMove.magnitude > currentMove.magnitude ? keyboardMove : currentMove;
+        return Vector2.ClampMagnitude(m, 1f);
     }
 
-    bool ResolveKeyboardDash()
+    Vector2 ReadGamepadMove()
     {
-        if (!enableKeyboardFallback || Keyboard.current == null)
-        {
-            return false;
-        }
+        if (!enableGamepad || Gamepad.current == null) return Vector2.zero;
 
-        return Keyboard.current.spaceKey.wasPressedThisFrame
-            || Keyboard.current.leftShiftKey.wasPressedThisFrame
-            || Keyboard.current.rightShiftKey.wasPressedThisFrame;
+        // Left stick or D-pad, whichever is pushed harder
+        Vector2 stick = Gamepad.current.leftStick.ReadValue();
+        Vector2 dpad = Gamepad.current.dpad.ReadValue();
+        return Strongest(stick, dpad);
     }
 
-    Vector3 ResolveWishDirection(Vector2 move, Vector3 referenceForward, Vector3 referenceRight)
+    static Vector2 Strongest(Vector2 a, Vector2 b)
     {
-        if (move.sqrMagnitude <= 0f)
-        {
-            return Vector3.zero;
-        }
+        return b.sqrMagnitude > a.sqrMagnitude ? b : a;
+    }
 
-        Vector3 wishDirection = (referenceForward * move.y) + (referenceRight * move.x);
-        if (wishDirection.sqrMagnitude <= 0.0001f)
-        {
-            return Vector3.zero;
-        }
+    // ---------- Camera-relative direction ----------
 
-        return wishDirection.normalized;
+    Vector3 ResolveWishDirection(Vector2 move, Vector3 forward, Vector3 right)
+    {
+        if (move.sqrMagnitude <= 0f) return Vector3.zero;
+
+        Vector3 wish = (forward * move.y) + (right * move.x);
+        return wish.sqrMagnitude <= 0.0001f ? Vector3.zero : wish.normalized;
     }
 
     Vector3 ResolveReferenceForward()
     {
         Vector3 forward = movementCamera != null ? movementCamera.transform.forward : Vector3.forward;
         Vector3 flattened = Vector3.ProjectOnPlane(forward, Vector3.up);
-        
-        if (flattened.sqrMagnitude <= 0.0001f)
-        {
-            return Vector3.forward;
-        }
-
-        return flattened.normalized;
+        return flattened.sqrMagnitude <= 0.0001f ? Vector3.forward : flattened.normalized;
     }
 
     Vector3 ResolveReferenceRight(Vector3 referenceForward)
     {
         Vector3 right = Vector3.Cross(Vector3.up, referenceForward);
-        if (right.sqrMagnitude <= 0.0001f)
-        {
-            return Vector3.right;
-        }
-
-        return right.normalized;
+        return right.sqrMagnitude <= 0.0001f ? Vector3.right : right.normalized;
     }
 }
