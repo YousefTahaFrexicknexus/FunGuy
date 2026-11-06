@@ -18,7 +18,7 @@ MonoBehaviour:
   cellHeight: 5
   cellLength: 5
   visibleGridCount: 48
-  maximumDistance: 1100
+  maximumDistance: 2260
   endPrefab: {fileID: 900000000000000001, guid: 212235ce524944f42b2a271a8b64f9f8, type: 3}
   endPrefabCellsAfterEnd: 10
   difficultyRampDistance: 300
@@ -31,7 +31,7 @@ MonoBehaviour:
   mushroomForwardBackVariation: 1
   mushroomEntries:
   - prefab: {fileID: 900000000000000001, guid: 9ec710c3bce55f840a741119f39eb051, type: 3}
-    minimumScore: 0
+    minimumScore: 300
     allowedSurfaceTags:
     - Ground
     blockedSurfaceTags:

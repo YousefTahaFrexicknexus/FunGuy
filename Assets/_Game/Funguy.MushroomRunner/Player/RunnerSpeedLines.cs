@@ -72,7 +72,10 @@ public sealed class RunnerSpeedLines : MonoBehaviour
             return;
         }
 
-        UpdateSpeed(motor.Velocity.z, Time.deltaTime);
+        // The runner can carry high speed while steering across X as well as Z.
+        // Use actual ground-plane speed so the lines do not disappear on fast turns.
+        float planarSpeed = Vector3.ProjectOnPlane(motor.Velocity, motor.UpDirection).magnitude;
+        UpdateSpeed(planarSpeed, Time.deltaTime);
     }
 
     public void UpdateSpeed(float forwardSpeed, float deltaTime)

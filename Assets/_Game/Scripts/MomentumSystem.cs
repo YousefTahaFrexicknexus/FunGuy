@@ -225,6 +225,19 @@ public class MomentumSystem : MonoBehaviour
         RunReset?.Invoke();
     }
 
+    // Debug tools use the configured thresholds and notify the HUD and motor normally.
+    public void SetMultiplierForDebug(int multiplier)
+    {
+        float fraction = Mathf.Clamp(multiplier, 1, 4) switch
+        {
+            2 => Mathf.Lerp(mediumThreshold, highThreshold, 0.5f),
+            3 => Mathf.Lerp(highThreshold, maximumThreshold, 0.5f),
+            4 => 1f,
+            _ => 0f
+        };
+        SetMomentum(fraction * maximumMomentum, true);
+    }
+
     void SetMomentum(float _value, bool _forceNotify = false)
     {
         float nextMomentum = Mathf.Clamp(_value, 0f, maximumMomentum);

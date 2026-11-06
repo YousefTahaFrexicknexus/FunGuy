@@ -451,6 +451,22 @@ public class HammockSlingshot : MonoBehaviour
         onReset?.Invoke();
     }
 
+    /// <summary>Debug handoff into normal gameplay without pulling the hammock.</summary>
+    public void LaunchImmediately(Vector3 velocity)
+    {
+        runnerPending = false;
+        pull = 0f;
+        state = State.Launched;
+        HideTrajectory();
+        rb.isKinematic = false;
+        SetBodyVelocity(velocity);
+        rb.angularVelocity = Vector3.zero;
+        SetRunnerEnabled(true);
+        GameplayEvents.OnSlingShotLaunched?.Invoke();
+        Launched?.Invoke(velocity.normalized, velocity.magnitude);
+        onLaunched?.Invoke(velocity.magnitude);
+    }
+
     // ---------- Trajectory preview ----------
 
     private void UpdateTrajectory()
