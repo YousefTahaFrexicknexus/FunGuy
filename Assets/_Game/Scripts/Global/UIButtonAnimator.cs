@@ -32,6 +32,7 @@ public class UIButtonAnimator : MonoBehaviour
     public Action OnClickAction;
 
     private Button button; // Reference to the Button component
+    public Button GetButton() => button; // Public method to access the Button component
 
     private void OnEnable()
     {

@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Game/Funguy.MushroomRunner/Scenes/MushroomRunnerGameplay.unity
+    path: Assets/_Game/Scenes/MushroomRunnerGameplay.unity
     guid: 934e6d4d12711724b8b9095e02006c17
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

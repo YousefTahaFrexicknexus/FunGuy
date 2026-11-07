@@ -12,6 +12,11 @@ public static class GameplayEvents
     public static System.Action OnSlingShotLaunched;
     public static System.Action<bool> OnPauseGameplay;                              // True if paused, false if resumed
 
+    // --- Character select ---
+    public static System.Action OnCharacterSelectActivated;                         // Called when character select is activated
+    public static System.Action OnCharacterSelectDeactivated;                       // Called when character select is deactivated
+    public static System.Action<int> OnCharacterSelected;                           // SelectedIndex
+
     // --- Player states --- 
     public static System.Action<PlayerGameplayState> OnPlayerGameplayStateChange;   // PlayerGameplayState
     

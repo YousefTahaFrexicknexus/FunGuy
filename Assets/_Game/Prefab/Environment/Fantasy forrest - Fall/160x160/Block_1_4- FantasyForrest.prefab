@@ -1637,7 +1637,9 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -1941,7 +1943,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Aspen_Tree_01B
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -2587,7 +2591,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Aspen_Tree_01B
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -3249,7 +3255,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Aspen_Tree_01B
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -3405,7 +3413,9 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -5181,7 +5191,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: TFF_Aspen_Tree_01B
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 3938710808092947954, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
+    - {fileID: 6890031423117700216, guid: 5a737e5ee9ca0484b8bef54031e54d93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

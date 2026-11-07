@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "targetMode": 0,
+  "rules": 1,
+  "combine": 0,
+  "includeRoot": false,
+  "includeInactive": true,
+  "normalizeNames": true,
+  "topLevelOnly": true,
+  "componentType": "",
+  "rotationMode": 0,
+  "rotationSpace": 1,
+  "rotationAxes": {
+    "x": true,
+    "y": true,
+    "z": true
+  },
+  "rotationMin": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "rotationMax": {
+    "x": 360,
+    "y": 360,
+    "z": 360
+  },
+  "scaleMode": 3,
+  "scaleAxes": {
+    "x": true,
+    "y": true,
+    "z": true
+  },
+  "scaleValue": {
+    "x": 1,
+    "y": 1,
+    "z": 1
+  },
+  "scaleMin": {
+    "x": 0.8,
+    "y": 0.8,
+    "z": 0.8
+  },
+  "scaleMax": {
+    "x": 1.2,
+    "y": 1.2,
+    "z": 1.2
+  },
+  "uniformScale": true,
+  "uniformMin": 0.9,
+  "uniformMax": 1.1,
+  "positionMode": 2,
+  "positionSpace": 0,
+  "positionAxes": {
+    "x": true,
+    "y": false,
+    "z": true
+  },
+  "positionValue": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "positionMin": {
+    "x": -0.25,
+    "y": 0,
+    "z": -0.25
+  },
+  "positionMax": {
+    "x": 0.25,
+    "y": 0,
+    "z": 0.25
+  },
+  "fixedSeed": false,
+  "seed": 12345
+}

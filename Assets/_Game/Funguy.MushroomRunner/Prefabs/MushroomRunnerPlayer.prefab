@@ -266,6 +266,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterAnimator
   runnerMovementMotor: {fileID: 3264662956738846588}
   animator: {fileID: 7332891950222094293}
+  characterGOList:
+  - {fileID: 2402340009767791291}
+  - {fileID: 9087243324497781514}
+  - {fileID: 6833878631964890315}
   bounceForce: 26
   maxFallSpeed: -45
   squashY: 0.4
@@ -353,6 +357,9 @@ MonoBehaviour:
   fullEffectSpeed: 45
   fadeResponse: 5
   density: 0.65
+  responseExponent: 0.65
+  maximumParticleSpeedMultiplier: 1.6
+  maximumLineWidthMultiplier: 1.25
 --- !u!114 &3741074786877873147
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1053,6 +1060,11 @@ PrefabInstance:
       addedObject: {fileID: 7275477874394254429}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a27ccf9c1c58c0646b530036f2b75c9f, type: 3}
+--- !u!1 &2402340009767791291 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6217262247507645333, guid: a27ccf9c1c58c0646b530036f2b75c9f, type: 3}
+  m_PrefabInstance: {fileID: 8583566840834898222}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &3034585220647661569 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6702473066956687663, guid: a27ccf9c1c58c0646b530036f2b75c9f, type: 3}
@@ -1134,6 +1146,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3339119994689559405, guid: ed5acec361d96e249a65716aa46c92e7, type: 3}
   m_PrefabInstance: {fileID: 8920486500185281820}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &6833878631964890315 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2674363422448042455, guid: ed5acec361d96e249a65716aa46c92e7, type: 3}
+  m_PrefabInstance: {fileID: 8920486500185281820}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &9215115325038974469
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1198,5 +1215,10 @@ PrefabInstance:
 --- !u!4 &8455384076286343600 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 771564231630679989, guid: b5d64aae46226db48a47c0781068532f, type: 3}
+  m_PrefabInstance: {fileID: 9215115325038974469}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &9087243324497781514 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 143821859812422927, guid: b5d64aae46226db48a47c0781068532f, type: 3}
   m_PrefabInstance: {fileID: 9215115325038974469}
   m_PrefabAsset: {fileID: 0}

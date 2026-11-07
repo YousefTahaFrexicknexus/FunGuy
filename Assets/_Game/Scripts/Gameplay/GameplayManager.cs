@@ -2,7 +2,11 @@ using UnityEngine;
 using DG.Tweening;
 
 using System.Collections;
+using System.Collections.Generic;
+
 using Unity.Cinemachine;
+
+using UnityEngine.SceneManagement;
 
 public class GameplayManager : MonoBehaviour
 {
@@ -26,12 +30,14 @@ public class GameplayManager : MonoBehaviour
 
     [Header("Player References")]
     [SerializeField] MovementTuningProfile defaultMovementTuningProfile;
+    [SerializeField] List<MovementTuningProfile> characterTuningProfiles;
     [SerializeField] HammockSlingshot hammockSlingshot;
     [SerializeField] RunnerMovementMotor runnerMovementMotor;
 
     [Header("Camera references")]
     [SerializeField] Camera slingShotCamera;
     [SerializeField] Camera playerCamera;
+    [SerializeField] Camera characterSelectCamera;
     [SerializeField] CinemachineCamera playerCinemachineCamera;
 
     [Header("Player References")]
@@ -47,6 +53,9 @@ public class GameplayManager : MonoBehaviour
     public bool isPlayerInWater = false;
     [SerializeField] PlayerGameplayState prevPlayerGameplayState = PlayerGameplayState.idle;
     [SerializeField] PlayerGameplayState currentPlayerGameplayState = PlayerGameplayState.idle;
+
+    [Header("Gameplay State")]
+    public GameplayState currentGameplayState = GameplayState.slingshot;
 
     void Awake()
     {
@@ -91,6 +100,9 @@ public class GameplayManager : MonoBehaviour
     {
         GameplayEvents.GameplayReset += OnGameplayReset;
         GameplayEvents.OnPauseGameplay += OnPauseGameplay;
+
+        GameplayEvents.OnCharacterSelectActivated += OnCharacterSelectActivated;
+        GameplayEvents.OnCharacterSelectDeactivated += OnCharacterSelectDeactivated;
 
         GameplayEvents.OnSlingShotLaunched += OnSlingShotLaunched;
 
@@ -207,6 +219,8 @@ public class GameplayManager : MonoBehaviour
 
     void OnSlingShotLaunched()
     {
+        currentGameplayState = GameplayState.gameplay;
+        
         slingShotCamera.gameObject.SetActive(false);
         playerCamera.enabled = true;
         runnerMovementMotor.enabled = true;
@@ -214,12 +228,39 @@ public class GameplayManager : MonoBehaviour
 
     void ResetSlingShot()
     {
+        currentGameplayState = GameplayState.slingshot;
+
         hammockSlingshot.ResetSlingshot();
         runnerMovementMotor.enabled = false;
         runnerMovementMotor.transform.position = Vector3.zero;
 
         slingShotCamera.gameObject.SetActive(true);
         playerCamera.enabled = false;
+    }
+
+    void OnCharacterSelectActivated()
+    {
+        hammockSlingshot.enabled = false;
+        runnerMovementMotor.enabled = false;
+        slingShotCamera.enabled = false;
+        playerCamera.enabled = false;
+        currentGameplayState = GameplayState.characterSelect;
+    }
+
+    void OnCharacterSelectDeactivated()
+    {
+        hammockSlingshot.enabled = true;
+        slingShotCamera.enabled = true;
+        playerCamera.enabled = false;
+        runnerMovementMotor.enabled = true;
+        currentGameplayState = GameplayState.slingshot;
+
+        hammockSlingshot.ResetSlingshot();
+    }
+
+    public void OnCharacterSelected(int __selectedIndex)
+    {
+        SetActiveTuningProfile(characterTuningProfiles[__selectedIndex]);
     }
 
     float coinPitchValue = 1f;
@@ -427,6 +468,12 @@ public class GameplayManager : MonoBehaviour
         }
     }
 #endregion --- Water ---
+
+    public void LoadMainMenu()
+    {
+        UIManager.Instance.Close_PopupsAndPanels(UIType.Pause);
+        SceneManager.LoadScene("MainMenuPGC");
+    }
 }
 
 public enum PlayerGameplayState
@@ -436,4 +483,11 @@ public enum PlayerGameplayState
     underwater,
     flying,
     falling,
+}
+
+public enum GameplayState
+{
+    slingshot = 0,
+    gameplay,
+    characterSelect,
 }

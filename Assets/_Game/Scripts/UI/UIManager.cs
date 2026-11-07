@@ -137,6 +137,7 @@ public enum UIType
     Pause,
     Settings,
     Results,
+    CharacterSelect,
     
     // language,
     // profile,

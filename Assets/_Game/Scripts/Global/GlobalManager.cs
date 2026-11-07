@@ -41,20 +41,26 @@ public class GlobalManager : Singleton<GlobalManager>
 		GlobalEvents.OnAppUpdateDeclined += OnAppUpdateDeclined;
 	}
 
-	IEnumerator Start()
+	void Start()
 	{
-        GetDeviceID();
-        InitApplicationSettings();
-
-		yield return splashScreen.StartSplashScreenAnimation();
-
-		if(Get_ActiveScene_Name() == "SplashScreen")
-		{
-			yield return StartCoroutine(WaitForAsync(() => LoadScene(SceneNames.Loader)));
-		}
-
-		gameLaunchSequenceCoroutine = StartCoroutine(FirstLaunch_LoadingSequence());
+        // GetDeviceID();
+        // InitApplicationSettings();
 	}
+
+	// IEnumerator Start()
+	// {
+    //     GetDeviceID();
+    //     InitApplicationSettings();
+
+	// 	yield return splashScreen.StartSplashScreenAnimation();
+
+	// 	if(Get_ActiveScene_Name() == "SplashScreen")
+	// 	{
+	// 		yield return StartCoroutine(WaitForAsync(() => LoadScene(SceneNames.Loader)));
+	// 	}
+
+	// 	gameLaunchSequenceCoroutine = StartCoroutine(FirstLaunch_LoadingSequence());
+	// }
 
 	void InitApplicationSettings()
 	{

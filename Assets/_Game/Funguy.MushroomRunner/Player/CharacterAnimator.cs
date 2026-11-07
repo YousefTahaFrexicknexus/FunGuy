@@ -1,11 +1,13 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class CharacterAnimator : MonoBehaviour
 {
     [Header("Main references")]
     [SerializeField] RunnerMovementMotor runnerMovementMotor;
     [SerializeField] Animator animator;
+    [SerializeField] List<GameObject> characterGOList;
 
     void OnEnable()
     {
@@ -31,6 +33,7 @@ public class CharacterAnimator : MonoBehaviour
     {
         GameplayEvents.OnMushroomJump += OnMushroomJump;
         GameplayEvents.OnAirJump += OnAirJump;
+        GameplayEvents.OnCharacterSelected += OnCharacterSelected;
 
         runnerMovementMotor.Bounced += HandleBounce;
     }
@@ -39,6 +42,7 @@ public class CharacterAnimator : MonoBehaviour
     {
         GameplayEvents.OnMushroomJump -= OnMushroomJump;
         GameplayEvents.OnAirJump -= OnAirJump;
+        GameplayEvents.OnCharacterSelected -= OnCharacterSelected;
     }
 
     void OnMushroomJump()
@@ -283,4 +287,16 @@ public class CharacterAnimator : MonoBehaviour
         angularVelocity += localAxis * spinImpulse * edgeAmount;
     }
     #endregion
+
+    #region CharacterSelect
+    public void OnCharacterSelected(int _selectedIndex)
+    {
+        foreach (GameObject characterGO in characterGOList)
+        {
+            characterGO.SetActive(false);
+        }
+
+        characterGOList[_selectedIndex].SetActive(true);
+    }
+    #endregion --- CharacterSelect ---
 }
