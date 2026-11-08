@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -36,6 +37,7 @@ public class CharacterSelect : MonoBehaviour
     [SerializeField] private Button leftButton;
     [SerializeField] private Button rightButton;
     [SerializeField] private Button selectButton;
+    [SerializeField] TextMeshProUGUI charNameText;
 
     [Header("Charge")]
     [Tooltip("How far from the centre the new character starts (world units). Make it wider than the camera view so it enters from off-screen. Knocked-out characters are removed at 1.5x this distance.")]
@@ -172,6 +174,7 @@ public class CharacterSelect : MonoBehaviour
 
         SelectedIndex = Mathf.Clamp(startIndex, 0, characters.Length - 1);
         characters[SelectedIndex].gameObject.SetActive(true);
+        charNameText.text = characters[SelectedIndex].name;
         Pose(SelectedIndex, Center, Vector3.one, 0f, 0f);
         RefreshButtons();
     }
@@ -293,6 +296,7 @@ public class CharacterSelect : MonoBehaviour
         characters[incoming].gameObject.SetActive(true);
         phase = Phase.Charging;
         PoseBoth(0f);   // place it off-stage now, so it never flashes at the centre for a frame
+        charNameText.text = characters[SelectedIndex].name;
 
         RefreshButtons();
         onCharacterChanged?.Invoke(SelectedIndex);

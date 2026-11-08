@@ -519,6 +519,7 @@ MonoBehaviour:
   leftButton: {fileID: 7604293254797589859}
   rightButton: {fileID: 205724330591284105}
   selectButton: {fileID: 7936391156912287815}
+  charNameText: {fileID: 4734803362070324804}
   spacing: 5
   chargeTime: 0.28
   contactDistance: 1.1
@@ -769,6 +770,7 @@ MonoBehaviour:
   leftButton: {fileID: 0}
   rightButton: {fileID: 0}
   selectButton: {fileID: 0}
+  charNameText: {fileID: 0}
   spacing: 5
   chargeTime: 0.28
   contactDistance: 1.1

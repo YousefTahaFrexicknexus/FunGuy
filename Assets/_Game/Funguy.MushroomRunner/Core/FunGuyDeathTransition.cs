@@ -159,6 +159,7 @@ public sealed class FunGuyDeathTransition : MonoBehaviour
         rect.anchorMax = Vector2.one;
         rect.offsetMin = rect.offsetMax = offset;
         Image image = child.GetComponent<Image>();
+        image.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
         image.sprite = funGuyLogo;
         image.preserveAspect = true;
         image.color = tint;
