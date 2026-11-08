@@ -410,7 +410,14 @@ public class GameplayManager : MonoBehaviour
     {
         inWaterCounter = 0;
         isPlayerInWater = false;
-        GameplayEvents.GameplayReset?.Invoke();
+
+        // Route ground/water deaths through the cover-and-respawn transition.
+        // Pause-menu restarts still use the existing immediate reset.
+        RunFlowCoordinator coordinator = FindAnyObjectByType<RunFlowCoordinator>();
+        if (coordinator != null)
+            coordinator.ReportFailure(RunFailureReason.EnvironmentalDeath);
+        else
+            GameplayEvents.GameplayReset?.Invoke();
     }
 
 #endregion --- PlayerGameplayState ---

@@ -11,6 +11,8 @@ public sealed class RunFlowCoordinator : MonoBehaviour
     GridCourseStreamer gridStreamer;
     [SerializeField, Tooltip("Optional authored spawn transform. If empty, the coordinator falls back to the cached initial player pose.")]
     Transform spawnPoint;
+    [SerializeField, Tooltip("Optional FunGuy logo wipe on death; other resets stay immediate.")]
+    FunGuyDeathTransition deathTransition;
     [SerializeField, Tooltip("If enabled, the player's initial transform is cached as the fallback spawn pose.")]
     bool captureInitialPlayerPose = true;
     [SerializeField, Tooltip("If enabled, the first run begins automatically on Start.")]
@@ -31,6 +33,7 @@ public sealed class RunFlowCoordinator : MonoBehaviour
 
     void Awake()
     {
+        if (deathTransition == null) deathTransition = GetComponent<FunGuyDeathTransition>();
         ResolveReferences();
         TakeGenerationControl();
         CacheSpawnPoseIfNeeded();
@@ -85,8 +88,22 @@ public sealed class RunFlowCoordinator : MonoBehaviour
             return;
         }
 
+        // The death volume can report repeatedly while the player remains below the plane.
+        // Do not fire duplicate failure events or reset before the logo has covered the screen.
+        if (deathTransition != null && deathTransition.IsPlaying) return;
+
         MushroomRunnerEvents.RaiseRunFailed(new RunFailedEvent(player, reason, player.transform.position));
-        // One reset request updates gameplay state and rebuilds this world once.
+
+        // Intentional final-scene and manual resets bypass the death wipe.
+        bool isPlayerDeath = reason != RunFailureReason.Unknown && reason != RunFailureReason.ManualReset;
+        if (isPlayerDeath && deathTransition != null &&
+            deathTransition.TryPlay(() => GameplayEvents.GameplayReset?.Invoke()))
+        {
+            player.SetState(MushroomRunnerPlayer.PlayerState.Disabled);
+            return;
+        }
+
+        // Fall back to the existing immediate reset if no transition is assigned.
         GameplayEvents.GameplayReset?.Invoke();
     }
 

@@ -5,7 +5,8 @@ public enum RunFailureReason
 {
     Unknown = 0,
     FellBelowDeathPlane = 1,
-    ManualReset = 2
+    ManualReset = 2,
+    EnvironmentalDeath = 3
 }
 
 public readonly struct PlayerRegisteredEvent
