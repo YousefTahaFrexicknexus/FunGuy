@@ -24,17 +24,29 @@ public class AudioManager : MonoBehaviour
 		}
 	}
 
-    private void DontDestroy() 
-    { 
-        if (Instance != null && Instance != this) 
-        { 
-            Destroy(this); 
-        } 
-        else 
-        { 
-            _instance = this; 
-            DontDestroyOnLoad(this.gameObject);
-        } 
+    private void DontDestroy()
+    {
+        // Only a root GameObject can survive scene loads. This manager is often
+        // authored below a scene-level Managers transform, so detach it once
+        // in Play Mode before requesting persistence.
+        if (_instance != null && _instance != this)
+        {
+            // A duplicate AudioManager prefab may contain AudioSources below it;
+            // destroy the duplicate hierarchy rather than leaving audio playing.
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
+        if (transform.parent != null)
+            transform.SetParent(null, true);
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
     }
     #endregion --- Instance | Singleton ---
 

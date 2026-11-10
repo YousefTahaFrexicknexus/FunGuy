@@ -20,11 +20,30 @@ public class MainMenu : MonoBehaviour
     [Tooltip("Exact name of the scene to load (no .unity extension).")]
     [SerializeField] private string secondSceneName = "CharacterSelect";
 
+    [Header("Menu Performance")]
+    [SerializeField, Range(30, 240)]
+    [Tooltip("Caps only the menu while VSync is disabled; gameplay restores the previous frame rate.")]
+    private int maxMenuFrameRate = 120;
+
+    [Header("Loading Transition")]
+    [SerializeField, Tooltip("Optional FunGuy logo displayed during the menu-to-gameplay loading transition.")]
+    private Sprite loadingLogo;
+
     private bool loading;
+    private bool menuRateApplied;
+    private int previousTargetFrameRate;
 
     private void OnEnable()
     {
         loading = false;
+
+        // Menu-only CPU/GPU frame cap: visual quality and gameplay settings stay unchanged.
+        if (QualitySettings.vSyncCount == 0)
+        {
+            previousTargetFrameRate = Application.targetFrameRate;
+            Application.targetFrameRate = Mathf.Clamp(maxMenuFrameRate, 30, 240);
+            menuRateApplied = true;
+        }
 
         // if (firstButton != null) firstButton.GetButton().onClick.AddListener(LoadFirstScene);
         // if (secondButton != null) secondButton.GetButton().onClick.AddListener(LoadSecondScene);
@@ -32,6 +51,14 @@ public class MainMenu : MonoBehaviour
 
     private void OnDisable()
     {
+        if (menuRateApplied)
+        {
+            // Preserve any later frame-rate decision made by another system.
+            if (Application.targetFrameRate == Mathf.Clamp(maxMenuFrameRate, 30, 240))
+                Application.targetFrameRate = previousTargetFrameRate;
+            menuRateApplied = false;
+        }
+
         // if (firstButton != null) firstButton.GetButton().onClick.RemoveListener(LoadFirstScene);
         // if (secondButton != null) secondButton.GetButton().onClick.RemoveListener(LoadSecondScene);
     }
@@ -61,6 +88,26 @@ public class MainMenu : MonoBehaviour
         }
 
         loading = true;
-        SceneManager.LoadScene(sceneName);
+        Sprite logo = loadingLogo;
+        if (logo == null)
+        {
+            // Reuse a menu logo without changing the authored scene.
+            var images = FindObjectsByType<Image>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var image in images)
+            {
+                if (image.gameObject.scene == gameObject.scene &&
+                    image.name == "Logo" && image.sprite != null)
+                {
+                    logo = image.sprite;
+                    break;
+                }
+            }
+        }
+
+        if (!FunGuySceneLoadingTransition.Begin(sceneName, logo))
+        {
+            loading = false;
+            Debug.LogError("[FunGuy MainMenu] Failed to begin async loading: " + sceneName, this);
+        }
     }
 }

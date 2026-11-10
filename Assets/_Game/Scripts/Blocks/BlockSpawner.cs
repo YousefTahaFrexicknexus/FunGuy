@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 
 /// <summary>
@@ -41,6 +42,33 @@ public class BlockSpawner : MonoBehaviour
     [Tooltip("Whether to loop back to the first block after the last one is spawned.")]
     [SerializeField] private bool loopSequence = true;
 
+    [Header("Block Reuse")]
+    [Tooltip("Keep a bounded number of recently despawned blocks for reuse on later loops or restarts.")]
+    [SerializeField] private bool poolDespawnedBlocks = true;
+    [Tooltip("Global cap for inactive environment chunks. One slot per distinct authored prefab avoids recreating expensive blocks on later runs; higher caps trade memory for smoother restarts.")]
+    [SerializeField, Min(0)] private int maxPooledBlocks = 6;
+    [SerializeField, Min(0)] private int maxPooledPerPrefab = 2;
+    [SerializeField, Tooltip("Keep one inactive instance of each distinct environment prefab where possible. " +
+                             "Avoids repeated giant prefab instantiation after a reset. Disable to enforce the manual global cap.")]
+    private bool automaticallyCoverBlockSequence = true;
+
+    [Header("First-Use Asset Preloading")]
+    [Tooltip("At scene startup, touch shared meshes, materials and shaders for upcoming environment prefabs. " +
+             "Does not instantiate blocks or duplicate materials.")]
+    [SerializeField] private bool preloadFutureBlockRenderAssets = true;
+
+    private static readonly ProfilerMarker PreloadMarker =
+        new ProfilerMarker("FunGuy.BlockSpawner.PreloadFutureBlockRenderAssets");
+    private static readonly ProfilerMarker InstantiateMarker =
+        new ProfilerMarker("FunGuy.BlockSpawner.InstantiatePrefab");
+    private static readonly ProfilerMarker ReactivateMarker =
+        new ProfilerMarker("FunGuy.BlockSpawner.ReactivatePrefab");
+
+    public int PreloadedFuturePrefabCount { get; private set; }
+    public int PreloadedFutureMeshCount { get; private set; }
+    public int PreloadedFutureMaterialCount { get; private set; }
+    public float PreloadDurationMilliseconds { get; private set; }
+
     // -------------------------------------------------------------------------
     // Private state
     // -------------------------------------------------------------------------
@@ -53,6 +81,15 @@ public class BlockSpawner : MonoBehaviour
 
     /// <summary>Tracks every live block so we can despawn old ones.</summary>
     private readonly List<SpawnedBlock> _activeBlocks = new();
+    private readonly Dictionary<GameObject, Stack<GameObject>> _pooledBlocks = new();
+    private int _pooledBlockCount;
+    private int _effectivePoolCapacity;
+
+    public int EffectivePoolCapacity => _effectivePoolCapacity;
+    public int TotalInstancesCreated { get; private set; }
+    public int TotalPoolHits { get; private set; }
+    public int TotalInstancesDestroyed { get; private set; }
+    public int TotalPoolStores { get; private set; }
 
     /// <summary>True once we've exhausted the sequence and looping is disabled.</summary>
     private bool _sequenceFinished = false;
@@ -68,14 +105,16 @@ public class BlockSpawner : MonoBehaviour
     // -------------------------------------------------------------------------
     // Internal record: a spawned block instance + its Z boundaries
     // -------------------------------------------------------------------------
-    private class SpawnedBlock
+    private readonly struct SpawnedBlock
     {
-        public GameObject Instance;
-        public float ZStart;
-        public float ZEnd;
+        public readonly GameObject Prefab;
+        public readonly GameObject Instance;
+        public readonly float ZStart;
+        public readonly float ZEnd;
 
-        public SpawnedBlock(GameObject instance, float zStart, float zEnd)
+        public SpawnedBlock(GameObject prefab, GameObject instance, float zStart, float zEnd)
         {
+            Prefab = prefab;
             Instance = instance;
             ZStart   = zStart;
             ZEnd     = zEnd;
@@ -93,6 +132,76 @@ public class BlockSpawner : MonoBehaviour
 
         if (blockSequence == null || blockSequence.Count == 0)
             Debug.LogWarning("[BlockSpawner] Block sequence is empty. Nothing will spawn.");
+
+        UpdatePoolCapacity();
+
+        if (Application.isPlaying && preloadFutureBlockRenderAssets)
+            PreloadFutureBlockRenderAssets();
+    }
+
+    /// <summary>
+    /// Touch shared render assets once, before streaming begins. The initial
+    /// pre-spawned prefabs are already loaded during normal initialization, so
+    /// only later distinct prefabs need preloading.
+    /// Does not precompile shader variants or change renderer activation.
+    /// </summary>
+    private void PreloadFutureBlockRenderAssets()
+    {
+        if (blockSequence == null || blockSequence.Count == 0)
+            return;
+
+        using (PreloadMarker.Auto())
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var initialPrefabs = new HashSet<GameObject>();
+            int initialCount = Mathf.Min(Mathf.Max(0, preSpawnCount), blockSequence.Count);
+            for (int i = 0; i < initialCount; i++)
+            {
+                BlockData data = blockSequence[i];
+                if (data != null && data.prefab != null)
+                    initialPrefabs.Add(data.prefab);
+            }
+
+            var visitedPrefabs = new HashSet<GameObject>();
+            var visitedMaterials = new HashSet<Material>();
+            var visitedMeshes = new HashSet<Mesh>();
+            for (int i = initialCount; i < blockSequence.Count; i++)
+            {
+                BlockData data = blockSequence[i];
+                GameObject prefab = data != null ? data.prefab : null;
+                if (prefab == null || initialPrefabs.Contains(prefab) || !visitedPrefabs.Add(prefab))
+                    continue;
+
+                foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+                {
+                    foreach (Material material in renderer.sharedMaterials)
+                    {
+                        if (material != null && visitedMaterials.Add(material))
+                            _ = material.shader;
+                    }
+
+                    if (renderer is SkinnedMeshRenderer skin)
+                        TouchMeshMetadata(skin.sharedMesh, visitedMeshes);
+                }
+
+                foreach (MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
+                    TouchMeshMetadata(filter.sharedMesh, visitedMeshes);
+
+                foreach (MeshCollider collider in prefab.GetComponentsInChildren<MeshCollider>(true))
+                    TouchMeshMetadata(collider.sharedMesh, visitedMeshes);
+            }
+
+            PreloadedFuturePrefabCount = visitedPrefabs.Count;
+            PreloadedFutureMaterialCount = visitedMaterials.Count;
+            PreloadedFutureMeshCount = visitedMeshes.Count;
+            PreloadDurationMilliseconds = (float)stopwatch.Elapsed.TotalMilliseconds;
+        }
+    }
+
+    private static void TouchMeshMetadata(Mesh mesh, HashSet<Mesh> visitedMeshes)
+    {
+        if (mesh != null && visitedMeshes.Add(mesh))
+            _ = mesh.vertexCount; // Metadata only; avoid duplicating mesh CPU data.
     }
 
     private void Start()
@@ -179,10 +288,10 @@ public class BlockSpawner : MonoBehaviour
             }
 
             Vector3 spawnPosition = new Vector3(0f, 0f, _nextSpawnZ);
-            GameObject instance = Instantiate(data.prefab, spawnPosition, Quaternion.identity, transform);
+            GameObject instance = AcquireBlock(data.prefab, spawnPosition);
             instance.name = $"{data.prefab.name}_Z{_nextSpawnZ:F0}";
             float blockEnd = _nextSpawnZ + data.zLength;
-            _activeBlocks.Add(new SpawnedBlock(instance, _nextSpawnZ, blockEnd));
+            _activeBlocks.Add(new SpawnedBlock(data.prefab, instance, _nextSpawnZ, blockEnd));
             _nextSpawnZ = blockEnd;
             return true;
         }
@@ -207,7 +316,7 @@ public class BlockSpawner : MonoBehaviour
             // Despawn when the player has moved past the block's end by the threshold.
             if (player.position.z - block.ZEnd > despawnBehindDistance)
             {
-                RemoveBlock(block.Instance);
+                RecycleBlock(block);
                 _activeBlocks.RemoveAt(i);
             }
         }
@@ -223,6 +332,7 @@ public class BlockSpawner : MonoBehaviour
     /// </summary>
     public void ResetSpawner()
     {
+        UpdatePoolCapacity();
         ClearSpawnedBlocks();
         _initialized = true;
 
@@ -236,7 +346,7 @@ public class BlockSpawner : MonoBehaviour
 
     public void ClearSpawnedBlocks()
     {
-        foreach (SpawnedBlock block in _activeBlocks) RemoveBlock(block.Instance);
+        foreach (SpawnedBlock block in _activeBlocks) RecycleBlock(block);
         _activeBlocks.Clear();
         _sequenceIndex = 0;
         _nextSpawnZ = initialSpawnZ;
@@ -244,18 +354,94 @@ public class BlockSpawner : MonoBehaviour
         _initialized = false;
     }
 
-    static void RemoveBlock(GameObject instance)
+    private void UpdatePoolCapacity()
     {
+        _effectivePoolCapacity = Mathf.Max(0, maxPooledBlocks);
+        if (!automaticallyCoverBlockSequence || !poolDespawnedBlocks || blockSequence == null)
+            return;
+
+        // Authored sequences often contain many heavyweight unique chunks.
+        // A cap smaller than the distinct prefab count permanently reserves all
+        // slots for the early chunks, forcing later chunks to be destroyed every
+        // run even though their prefabs repeat on the next run.
+        var unique = new HashSet<GameObject>();
+        foreach (BlockData data in blockSequence)
+        {
+            if (data != null && data.prefab != null)
+                unique.Add(data.prefab);
+        }
+        _effectivePoolCapacity = Mathf.Max(_effectivePoolCapacity, unique.Count);
+    }
+
+    private GameObject AcquireBlock(GameObject prefab, Vector3 spawnPosition)
+    {
+        if (Application.isPlaying && poolDespawnedBlocks && _pooledBlocks.TryGetValue(prefab, out var pool))
+        {
+            while (pool.Count > 0)
+            {
+                GameObject instance = pool.Pop();
+                _pooledBlockCount--;
+                if (instance == null) continue; // May have been destroyed by another system.
+                Transform blockTransform = instance.transform;
+                blockTransform.SetParent(transform, true);
+                blockTransform.SetPositionAndRotation(spawnPosition, Quaternion.identity);
+                blockTransform.localScale = prefab.transform.localScale;
+                using (ReactivateMarker.Auto())
+                    instance.SetActive(true); // Enable after positioning: child OnEnable uses world positions.
+                TotalPoolHits++;
+                return instance;
+            }
+        }
+
+        GameObject created;
+        using (InstantiateMarker.Auto())
+            created = Instantiate(prefab, spawnPosition, Quaternion.identity, transform);
+        TotalInstancesCreated++;
+        return created;
+    }
+
+    private void RecycleBlock(SpawnedBlock block)
+    {
+        GameObject instance = block.Instance;
         if (instance == null) return;
         // Destroy is deferred in play mode. Hide old colliders immediately so
         // the grid's same-frame surface probes only see the rebuilt world.
         instance.SetActive(false);
+
+        if (Application.isPlaying && poolDespawnedBlocks && block.Prefab != null &&
+            _pooledBlockCount < _effectivePoolCapacity && maxPooledPerPrefab > 0)
+        {
+            if (!_pooledBlocks.TryGetValue(block.Prefab, out var pool))
+            {
+                pool = new Stack<GameObject>();
+                _pooledBlocks.Add(block.Prefab, pool);
+            }
+            if (pool.Count < maxPooledPerPrefab)
+            {
+                pool.Push(instance);
+                _pooledBlockCount++;
+                TotalPoolStores++;
+                return;
+            }
+        }
+
+        TotalInstancesDestroyed++;
         if (Application.isPlaying) Destroy(instance);
         else DestroyImmediate(instance);
     }
 
+    private void OnDestroy()
+    {
+        // Inactive pooled blocks remain parented here, so Unity destroys them with the spawner.
+        _pooledBlocks.Clear();
+        _pooledBlockCount = 0;
+    }
+
     /// <summary>Returns how many blocks are currently alive in the scene.</summary>
     public int ActiveBlockCount => _activeBlocks.Count;
+
+    /// <summary>Inactive environment instances retained for reuse; bounded by maxPooledBlocks.</summary>
+    public int PooledBlockCount => _pooledBlockCount;
 
     /// <summary>Returns the Z position where the next block will be placed.</summary>
     public float NextSpawnZ => _nextSpawnZ;

@@ -33,19 +33,20 @@ public class LilypadMotion : MonoBehaviour
     Vector3 nextPosition;
 
     Sequence movementSequence;
-    Sequence rotationSequence;
-    Sequence jumpSequence;
+    Tween rotationTween;
+    Tween jumpTween;
 
-    void Awake()
+    void CacheEndpoints()
     {
-        int startPoint = Random.Range(0,2);
-
-        if(shouldMove == false)
+        // Pool reuse moves the entire block: recalculate world-space endpoints on every enable.
+        if (!shouldMove)
         {
+            originalPosition = lilyPadTransform.position;
+            nextPosition = originalPosition;
             return;
         }
 
-        if(startPoint == 0)
+        if(Random.Range(0, 2) == 0)
         {
             originalPosition = rightPoint.position;
             nextPosition = leftPoint.position;
@@ -59,6 +60,7 @@ public class LilypadMotion : MonoBehaviour
 
     void OnEnable()
     {
+        CacheEndpoints();
         Init();
         Reset();
         StartMovement();
@@ -99,36 +101,42 @@ public class LilypadMotion : MonoBehaviour
             return;
         }
 
-        rotationSequence = DOTween.Sequence();
-        rotationSequence.Append(lilyPadTransform.DORotate(new Vector3(0f, rotationValue, 0), rotationDuration).SetEase(rotationEase).SetLoops(-1, LoopType.Incremental));
+        // Infinite loops belong on the tween itself, not inside a Sequence.
+        rotationTween = lilyPadTransform.DORotate(new Vector3(0f, rotationValue, 0), rotationDuration)
+            .SetEase(rotationEase).SetLoops(-1, LoopType.Incremental);
     }
 
     [Button("Play launchpad landing")]
     public void DipLaunchPad()
     {
-        Vector3 downPosition = lilyPadVisual.localPosition + new Vector3(lilyPadVisual.localPosition.x, lilyPadVisual.localPosition.y - jumpDownDistance, lilyPadVisual.localPosition.z);
+        Vector3 downPosition = lilyPadVisual.localPosition + Vector3.down * jumpDownDistance;
 
-        lilyPadVisual.DOLocalMove(downPosition, jumpDownDuration).SetEase(jumpDownEase);
+        jumpTween?.Kill();
+        jumpTween = lilyPadVisual.DOLocalMove(downPosition, jumpDownDuration).SetEase(jumpDownEase);
 
+        CancelInvoke(nameof(ResurfaceLaunchPad));
         Invoke(nameof(ResurfaceLaunchPad), jumpHoldDuration);
     }
 
     public void ResurfaceLaunchPad()
     {
-        lilyPadVisual.DOLocalMove(Vector3.zero, jumpUpDuration).SetEase(jumpUpEase);
+        jumpTween?.Kill();
+        jumpTween = lilyPadVisual.DOLocalMove(Vector3.zero, jumpUpDuration).SetEase(jumpUpEase);
     }
 
     void OnDisable()
     {
+        CancelInvoke(nameof(ResurfaceLaunchPad));
         movementSequence?.Kill();
-        rotationSequence?.Kill();
-        jumpSequence?.Kill();
+        rotationTween?.Kill();
+        jumpTween?.Kill();
     }
 
     void OnDestroy()
     {
+        CancelInvoke(nameof(ResurfaceLaunchPad));
         movementSequence?.Kill();
-        rotationSequence?.Kill();
-        jumpSequence?.Kill();
+        rotationTween?.Kill();
+        jumpTween?.Kill();
     }
 }

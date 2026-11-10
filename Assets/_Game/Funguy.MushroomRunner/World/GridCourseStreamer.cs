@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -35,6 +36,22 @@ public sealed class GridCourseStreamer : MonoBehaviour
     Transform spawnRoot;
     [SerializeField, Tooltip("If enabled, the initial visible grid is built on Start.")]
     bool buildOnStart = true;
+
+    [Header("Grid Prefab Asset Preloading")]
+    [SerializeField, Tooltip("Touch shared render assets for early grid prefabs before streaming. " +
+                             "No prefab instances are created and visual settings remain unchanged.")]
+    bool preloadUpcomingGridRenderAssets = true;
+    [SerializeField, Min(0), Tooltip("Preload grid prefabs eligible at or before this generated score.")]
+    int preloadGridThroughScore = 500;
+
+    private static readonly ProfilerMarker GridPreloadMarker =
+        new ProfilerMarker("FunGuy.GridCourseStreamer.PreloadGridRenderAssets");
+
+    public int PreloadedGridPrefabCount { get; private set; }
+    public int PreloadedGridMaterialCount { get; private set; }
+    public int PreloadedGridMeshCount { get; private set; }
+    public float GridPreloadDurationMilliseconds { get; private set; }
+
     [SerializeField, Tooltip("World Z used by Build Initial Grid on Start.")]
     float initialStartZ = 0f;
 
@@ -76,9 +93,25 @@ public sealed class GridCourseStreamer : MonoBehaviour
     GameObject endPrefabInstance;
     bool endPrefabSpawned;
 
+    private int pooledInstanceCount;
+    public int PooledInstanceCount => pooledInstanceCount;
+    public int ActiveSliceCount => activeSlices.Count;
+    public int CachedInstanceCount => instanceCoins.Count;
+    public int TotalInstancesCreated { get; private set; }
+    public int TotalPoolHits { get; private set; }
+    public int TotalPoolStores { get; private set; }
+    public int TotalInstancesDestroyed { get; private set; }
+    private static readonly ProfilerMarker GenerateSliceMarker =
+        new ProfilerMarker("FunGuy.Grid.GenerateNextSlice");
+    private static readonly ProfilerMarker InstantiateMarker =
+        new ProfilerMarker("FunGuy.Grid.InstantiatePrefab");
+    private static readonly ProfilerMarker ActivateMarker =
+        new ProfilerMarker("FunGuy.Grid.ActivatePrefab");
+
     public bool IsRunFlowManaged => runFlowManaged;
 
     public float InitialStartZ => initialStartZ;
+    public float GridCellLength => generationProfile != null ? generationProfile.GridCellLength : 5f;
 
     public float GenerationEndZ => generationProfile != null
         ? generationProfile.GenerationEndZ : float.PositiveInfinity;
@@ -118,6 +151,66 @@ public sealed class GridCourseStreamer : MonoBehaviour
     void Awake()
     {
         ResolveSpawnRoot();
+        if (Application.isPlaying && preloadUpcomingGridRenderAssets)
+            PreloadGridRenderAssets();
+    }
+
+    private void PreloadGridRenderAssets()
+    {
+        if (generationProfile == null)
+            return;
+
+        using (GridPreloadMarker.Auto())
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var visitedPrefabs = new HashSet<GameObject>();
+            var visitedMaterials = new HashSet<Material>();
+            var visitedMeshes = new HashSet<Mesh>();
+            TouchEntries(generationProfile.MushroomEntries, visitedPrefabs, visitedMaterials, visitedMeshes);
+            TouchEntries(generationProfile.CoinEntries, visitedPrefabs, visitedMaterials, visitedMeshes);
+            TouchEntries(generationProfile.ObstacleEntries, visitedPrefabs, visitedMaterials, visitedMeshes);
+
+            PreloadedGridPrefabCount = visitedPrefabs.Count;
+            PreloadedGridMaterialCount = visitedMaterials.Count;
+            PreloadedGridMeshCount = visitedMeshes.Count;
+            GridPreloadDurationMilliseconds = (float)stopwatch.Elapsed.TotalMilliseconds;
+        }
+    }
+
+    private void TouchEntries(IReadOnlyList<GridSpawnEntry> entries,
+        HashSet<GameObject> visitedPrefabs, HashSet<Material> visitedMaterials, HashSet<Mesh> visitedMeshes)
+    {
+        if (entries == null) return;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            GridSpawnEntry entry = entries[i];
+            if (entry == null || entry.Prefab == null || entry.SpawnWeight <= 0f ||
+                entry.MinimumScore > preloadGridThroughScore || !visitedPrefabs.Add(entry.Prefab))
+                continue;
+
+            GameObject prefab = entry.Prefab;
+            foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+            {
+                foreach (Material material in renderer.sharedMaterials)
+                {
+                    if (material != null && visitedMaterials.Add(material))
+                        _ = material.shader;
+                }
+                if (renderer is SkinnedMeshRenderer skin)
+                    TouchMeshMetadata(skin.sharedMesh, visitedMeshes);
+            }
+            foreach (MeshFilter filter in prefab.GetComponentsInChildren<MeshFilter>(true))
+                TouchMeshMetadata(filter.sharedMesh, visitedMeshes);
+            foreach (MeshCollider collider in prefab.GetComponentsInChildren<MeshCollider>(true))
+                TouchMeshMetadata(collider.sharedMesh, visitedMeshes);
+        }
+    }
+
+    private static void TouchMeshMetadata(Mesh mesh, HashSet<Mesh> visitedMeshes)
+    {
+        if (mesh != null && visitedMeshes.Add(mesh))
+            _ = mesh.vertexCount;
     }
 
     void Start()
@@ -222,7 +315,8 @@ public sealed class GridCourseStreamer : MonoBehaviour
             StartZ = generationStartZ + (nextSliceIndex * generationProfile.GridCellLength)
         };
 
-        SpawnSliceContent(slice, ref surfaceTransformsSynced);
+        using (GenerateSliceMarker.Auto())
+            SpawnSliceContent(slice, ref surfaceTransformsSynced);
         activeSlices.Enqueue(slice);
         nextSliceIndex++;
         if (HasReachedMaximumDistance) SpawnEndPrefabIfNeeded();
@@ -513,7 +607,8 @@ public sealed class GridCourseStreamer : MonoBehaviour
         instance.transform.localScale = entry.LocalScale;
         ApplyMushroomProfile(instance, entry.BounceProfileOverride);
         // Enable only after the bundle and all its coins have been reset and placed.
-        instance.SetActive(true);
+        using (ActivateMarker.Auto())
+            instance.SetActive(true);
 
         slice.SpawnedObjects.Add(new SpawnedRuntime(entry.Prefab, instance, entry.UsePooling));
         return true;
@@ -556,10 +651,14 @@ public sealed class GridCourseStreamer : MonoBehaviour
         if (usePooling && pools.TryGetValue(prefab, out Stack<GameObject> pool) && pool.Count > 0)
         {
             instance = pool.Pop();
+            pooledInstanceCount--;
+            TotalPoolHits++;
         }
         else
         {
-            instance = Instantiate(prefab);
+            using (InstantiateMarker.Auto())
+                instance = Instantiate(prefab);
+            TotalInstancesCreated++;
             instance.SetActive(false);
             // Include collected/inactive children; only allocate this array once per instance.
             instanceCoins.Add(instance, instance.GetComponentsInChildren<Collectable>(true));
@@ -631,9 +730,12 @@ public sealed class GridCourseStreamer : MonoBehaviour
                 pools.Add(spawned.PoolKey, pool);
             }
             pool.Push(spawned.Instance);
+            pooledInstanceCount++;
+            TotalPoolStores++;
         }
         else
         {
+            TotalInstancesDestroyed++;
             instanceCoins.Remove(spawned.Instance);
             if (Application.isPlaying) Destroy(spawned.Instance);
             else DestroyImmediate(spawned.Instance);

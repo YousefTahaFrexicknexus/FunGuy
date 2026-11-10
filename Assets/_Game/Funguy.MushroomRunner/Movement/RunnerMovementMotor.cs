@@ -54,7 +54,8 @@ public class RunnerMovementMotor : MonoBehaviour
         return ScaleHorizontal(UnmodifiedVelocity, Mathf.Min(1f, horizontalSpeedMultiplier / nextMultiplier));
     }
 
-    public bool CanAcceptMushroomLaunch => isActiveAndEnabled && motorEnabled && rigidBody != null && tuningProfile != null;
+    public bool CanAcceptMushroomLaunch => isActiveAndEnabled && motorEnabled &&
+        rigidBody != null && !rigidBody.isKinematic && tuningProfile != null;
 
     public Vector3 ScaleHorizontal(Vector3 velocity, float multiplier)
     {
@@ -68,7 +69,7 @@ public class RunnerMovementMotor : MonoBehaviour
         multiplier = Mathf.Clamp(multiplier, 0.01f, 1f);
         if (multiplier < horizontalSpeedMultiplier)
         {
-            if (rigidBody != null)
+            if (rigidBody != null && !rigidBody.isKinematic)
                 rigidBody.linearVelocity = ScaleHorizontal(rigidBody.linearVelocity, multiplier / horizontalSpeedMultiplier);
         }
         else if (multiplier > horizontalSpeedMultiplier)
@@ -219,6 +220,14 @@ public class RunnerMovementMotor : MonoBehaviour
     {
         if (rigidBody == null || tuningProfile == null) 
         {
+            return;
+        }
+
+        // Death/transition flow temporarily makes the body kinematic. The motor must
+        // not write velocity until physics simulation is re-enabled.
+        if (rigidBody.isKinematic)
+        {
+            currentInput = MovementInputFrame.Empty;
             return;
         }
         
@@ -389,20 +398,25 @@ public class RunnerMovementMotor : MonoBehaviour
         currentInput = MovementInputFrame.Empty;
         activeBounceFlightShape = default;
 
-        rigidBody.linearVelocity = Vector3.zero;
-        rigidBody.angularVelocity = Vector3.zero;
+        // Unity doesn't permit writing velocities or waking a kinematic Rigidbody.
+        if (!rigidBody.isKinematic)
+        {
+            rigidBody.linearVelocity = Vector3.zero;
+            rigidBody.angularVelocity = Vector3.zero;
+        }
         transform.SetPositionAndRotation(worldPosition, worldRotation);
         rigidBody.position = worldPosition;
         rigidBody.rotation = worldRotation;
         Physics.SyncTransforms();
-        rigidBody.WakeUp();
+        if (!rigidBody.isKinematic)
+            rigidBody.WakeUp();
         RestoreIgnoredBounceSurface();
     }
 
     /// <summary>Accepts an unmodified mushroom launch, commits its optional modifier, then scales horizontal output once.</summary>
     public bool ApplyMushroomLaunch(Vector3 outgoingVelocity, Collider sourceCollider, Vector3 contactPoint, Vector3 contactNormal, MushroomModifierDefinition modifier = null)
     {
-        if (!isActiveAndEnabled || !motorEnabled || rigidBody == null || tuningProfile == null ||
+        if (!isActiveAndEnabled || !motorEnabled || rigidBody == null || rigidBody.isKinematic || tuningProfile == null ||
             !IsFinite(outgoingVelocity.x) || !IsFinite(outgoingVelocity.y) || !IsFinite(outgoingVelocity.z))
         {
             return false;
@@ -452,7 +466,7 @@ public class RunnerMovementMotor : MonoBehaviour
             rigidBody = GetComponent<Rigidbody>();
         }
 
-        if (rigidBody == null || tuningProfile == null || bounceProfile == null || !motorEnabled)
+        if (rigidBody == null || rigidBody.isKinematic || tuningProfile == null || bounceProfile == null || !motorEnabled)
         {
             return false;
         }
@@ -546,6 +560,9 @@ public class RunnerMovementMotor : MonoBehaviour
 
     public void GroundBounce()
     {
+        if (rigidBody == null || rigidBody.isKinematic)
+            return;
+
         float impactSpeed = -preImpactVelY;   // positive when falling
 
         // Not falling (or already stopped): don't touch velocity

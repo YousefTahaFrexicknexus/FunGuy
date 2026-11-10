@@ -87,6 +87,12 @@ public class UIButtonAnimator : MonoBehaviour
 
     private void OnDisable()
     {
+        // A scene transition can destroy this button while its second DOScale is
+        // still running. Kill all tweens targeting this transform before it is
+        // disabled/destroyed, otherwise DOTween tries scaling a dead Transform.
+        transform.DOKill(false);
+        isAnimating = false;
+
         // Remove the OnClick listener when the object is disabled to avoid potential issues
         if (button != null)
         {

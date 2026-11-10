@@ -65,7 +65,7 @@ public class GameplayManager : MonoBehaviour
     void Init()
     {
         rigidbody = runnerMovementMotor.rigidBody;
-        Set_FrameRate(60);
+        Set_FrameRate(240);
     }
 
     void OnEnable()
@@ -77,7 +77,8 @@ public class GameplayManager : MonoBehaviour
     void OnDisable()
     {
         UnsubscribeFromGameplayEvents();
-        runnerMovementMotor?.SetMomentumSystem(null);
+        if (runnerMovementMotor != null)
+            runnerMovementMotor.SetMomentumSystem(null);
     }
 
     void Set_FrameRate(int _frameValue)
@@ -181,7 +182,8 @@ public class GameplayManager : MonoBehaviour
             momentumSystem = distanceScoreManager.MomentumSource;
         }
 
-        runnerMovementMotor?.SetMomentumSystem(momentumSystem);
+        if (runnerMovementMotor != null)
+            runnerMovementMotor.SetMomentumSystem(momentumSystem);
     }
 
     public void OnPauseGameplay(bool _isPause)

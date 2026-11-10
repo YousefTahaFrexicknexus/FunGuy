@@ -48,6 +48,7 @@ public sealed class FunGuyDeathTransition : MonoBehaviour
     bool ownsTimeScale;
 
     public bool IsPlaying => running != null;
+    public Sprite StartupLogo => funGuyLogo;
 
     void OnValidate()
     {
