@@ -111,13 +111,15 @@ public class BlockSpawner : MonoBehaviour
         public readonly GameObject Instance;
         public readonly float ZStart;
         public readonly float ZEnd;
+        public readonly int SequenceIndex;
 
-        public SpawnedBlock(GameObject prefab, GameObject instance, float zStart, float zEnd)
+        public SpawnedBlock(GameObject prefab, GameObject instance, float zStart, float zEnd, int sequenceIndex)
         {
             Prefab = prefab;
             Instance = instance;
             ZStart   = zStart;
             ZEnd     = zEnd;
+            SequenceIndex = sequenceIndex;
         }
     }
 
@@ -291,7 +293,7 @@ public class BlockSpawner : MonoBehaviour
             GameObject instance = AcquireBlock(data.prefab, spawnPosition);
             instance.name = $"{data.prefab.name}_Z{_nextSpawnZ:F0}";
             float blockEnd = _nextSpawnZ + data.zLength;
-            _activeBlocks.Add(new SpawnedBlock(data.prefab, instance, _nextSpawnZ, blockEnd));
+            _activeBlocks.Add(new SpawnedBlock(data.prefab, instance, _nextSpawnZ, blockEnd, entryIndex));
             _nextSpawnZ = blockEnd;
             return true;
         }
@@ -435,6 +437,34 @@ public class BlockSpawner : MonoBehaviour
         // Inactive pooled blocks remain parented here, so Unity destroys them with the spawner.
         _pooledBlocks.Clear();
         _pooledBlockCount = 0;
+    }
+
+    public readonly struct ActiveBlockView
+    {
+        public readonly GameObject Instance;
+        public readonly GameObject Prefab;
+        public readonly int SequenceIndex;
+        public readonly float ZStart;
+        public readonly float ZEnd;
+        public ActiveBlockView(GameObject instance, GameObject prefab, int index, float start, float end)
+        {
+            Instance = instance;
+            Prefab = prefab;
+            SequenceIndex = index;
+            ZStart = start;
+            ZEnd = end;
+        }
+    }
+
+    // Read-only snapshot; original streaming, pooling and collisions are unaffected.
+    public void CopyActiveBlockViews(List<ActiveBlockView> output)
+    {
+        if (output == null) return;
+        output.Clear();
+        foreach (SpawnedBlock block in _activeBlocks)
+            if (block.Instance != null && block.Instance.activeInHierarchy)
+                output.Add(new ActiveBlockView(block.Instance, block.Prefab,
+                    block.SequenceIndex, block.ZStart, block.ZEnd));
     }
 
     /// <summary>Returns how many blocks are currently alive in the scene.</summary>

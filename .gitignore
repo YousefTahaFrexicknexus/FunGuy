@@ -97,3 +97,40 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Local profiling captures, frame timings, screenshots, and performance test runs.
+/[Pp]rofiler[Cc]aptures/
+/work/
+
+# Local-only performance/lighting experiment tools and documentation.
+# Already-tracked files remain tracked until explicitly removed from Git's index.
+/Tools/Profiling/
+/Assets/Editor/FunGuyCpuProfilingAudit.cs*
+/Assets/Editor/FunGuyFullCourse*.cs*
+/Assets/Editor/FunGuyHybrid*.cs*
+/Assets/Editor/FunGuyWindowsOneShotProfilerBuild.cs*
+/Assets/_Game/Scripts/Profiling/
+/Assets/_Game/Scripts/Profiling.meta
+/Docs/FUNGUY_*PROFIL*.md
+/Docs/FUNGUY_*GPU*.md
+/Docs/FUNGUY_*HYBRID*.md
+/Docs/FUNGUY_*LIGHTING*.md
+/Docs/FUNGUY_FULL_COURSE_BAKED_LIGHTING_QA_*.md
+
+# Temporary hybrid-lighting/bake test scenes, probe and lightmap outputs.
+# Production lighting in Assets/_Game/Lighting/ is intentionally NOT ignored.
+/Assets/_Game/LightingExperiments/
+/Assets/_Game/LightingExperiments.meta
+
+# Git LFS local transfer/staging artifacts only. Real LFS-managed Unity
+# assets remain tracked through .gitattributes (never ignore them globally).
+/.lfs/
+/.lfs-cache/
+/lfs-cache/
+/git-lfs-cache/
+*.lfs.tmp
+*.lfs.part
+
+# Python cache from local performance analysis utilities.
+__pycache__/
+*.py[cod]
